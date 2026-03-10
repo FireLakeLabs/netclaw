@@ -12,16 +12,19 @@ public sealed class InboundMessagePollingService
     private readonly IGroupExecutionQueue groupExecutionQueue;
     private readonly IMessageRepository messageRepository;
     private readonly IRouterStateRepository routerStateRepository;
+    private readonly ISenderAuthorizationService senderAuthorizationService;
 
     public InboundMessagePollingService(
         IMessageRepository messageRepository,
         IGroupRepository groupRepository,
         IRouterStateRepository routerStateRepository,
+        ISenderAuthorizationService senderAuthorizationService,
         IGroupExecutionQueue groupExecutionQueue)
     {
         this.messageRepository = messageRepository;
         this.groupRepository = groupRepository;
         this.routerStateRepository = routerStateRepository;
+        this.senderAuthorizationService = senderAuthorizationService;
         this.groupExecutionQueue = groupExecutionQueue;
     }
 
@@ -46,7 +49,13 @@ public sealed class InboundMessagePollingService
                 continue;
             }
 
-            if (group.IsMain || !group.RequiresTrigger || messageGroup.Any(message => message.IsFromMe || ContainsTrigger(message.Content, group.Trigger)))
+            IReadOnlyList<StoredMessage> allowedMessages = senderAuthorizationService.ApplyInboundPolicy(messageGroup.Key, messageGroup.ToArray());
+            if (allowedMessages.Count == 0)
+            {
+                continue;
+            }
+
+            if (group.IsMain || !group.RequiresTrigger || allowedMessages.Any(message => senderAuthorizationService.CanTrigger(messageGroup.Key, message) && ContainsTrigger(message.Content, group.Trigger)))
             {
                 groupExecutionQueue.EnqueueMessageCheck(messageGroup.Key);
             }

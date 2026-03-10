@@ -6,7 +6,7 @@ namespace NetClaw.Infrastructure.Security;
 
 public sealed class MountAllowlistLoader
 {
-    private static readonly JsonSerializerOptions SerializerOptions = new()
+    internal static readonly JsonSerializerOptions SerializerOptions = new()
     {
         PropertyNameCaseInsensitive = true
     };

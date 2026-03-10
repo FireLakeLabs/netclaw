@@ -70,6 +70,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<GroupPathResolver>();
         services.AddSingleton<MountAllowlistLoader>();
         services.AddSingleton<MountSecurityValidator>();
+        services.AddSingleton<SenderAllowlistService>();
+        services.AddSingleton<ISenderAuthorizationService>(serviceProvider => serviceProvider.GetRequiredService<SenderAllowlistService>());
         services.AddSingleton<ICommandRunner, ProcessCommandRunner>();
         services.AddSingleton<PlatformDetectionService>();
         services.AddSingleton(static serviceProvider => serviceProvider.GetRequiredService<PlatformDetectionService>().DetectCurrent());
@@ -100,11 +102,13 @@ public static class ServiceCollectionExtensions
             serviceProvider.GetRequiredService<IMessageRepository>(),
             serviceProvider.GetRequiredService<IGroupRepository>(),
             serviceProvider.GetRequiredService<IRouterStateRepository>(),
+            serviceProvider.GetRequiredService<ISenderAuthorizationService>(),
             serviceProvider.GetRequiredService<IGroupExecutionQueue>()));
         services.AddSingleton<GroupMessageProcessorService>(serviceProvider => new GroupMessageProcessorService(
             serviceProvider.GetRequiredService<IMessageRepository>(),
             serviceProvider.GetRequiredService<IGroupRepository>(),
             serviceProvider.GetRequiredService<IRouterStateRepository>(),
+            serviceProvider.GetRequiredService<ISenderAuthorizationService>(),
             serviceProvider.GetRequiredService<IMessageFormatter>(),
             serviceProvider.GetRequiredService<IOutboundRouter>(),
             serviceProvider.GetRequiredService<IAgentRuntime>(),

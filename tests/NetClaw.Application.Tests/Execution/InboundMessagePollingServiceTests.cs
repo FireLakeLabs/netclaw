@@ -24,6 +24,7 @@ public sealed class InboundMessagePollingServiceTests
                 [teamJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", timestamp)
             }),
             routerStateRepository,
+            new PassThroughSenderAuthorizationService(),
             queue);
 
         await service.PollOnceAsync();
@@ -47,6 +48,29 @@ public sealed class InboundMessagePollingServiceTests
                 [teamJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow)
             }),
             new InMemoryRouterStateRepository(),
+            new PassThroughSenderAuthorizationService(),
+            queue);
+
+        await service.PollOnceAsync();
+
+        Assert.Empty(queue.EnqueuedGroups);
+    }
+
+    [Fact]
+    public async Task PollOnceAsync_DropModeBlocksDeniedSenders()
+    {
+        ChatJid teamJid = new("team@jid");
+        RecordingGroupExecutionQueue queue = new();
+        InboundMessagePollingService service = new(
+            new InMemoryMessageRepository([
+                new StoredMessage("message-1", teamJid, "blocked", "User", "@Andy hello", DateTimeOffset.UtcNow)
+            ]),
+            new InMemoryGroupRepository(new Dictionary<ChatJid, RegisteredGroup>
+            {
+                [teamJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow)
+            }),
+            new InMemoryRouterStateRepository(),
+            new FilteringSenderAuthorizationService(["allowed"]),
             queue);
 
         await service.PollOnceAsync();
@@ -107,6 +131,29 @@ public sealed class InboundMessagePollingServiceTests
             Entries[entry.Key] = entry;
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class PassThroughSenderAuthorizationService : ISenderAuthorizationService
+    {
+        public IReadOnlyList<StoredMessage> ApplyInboundPolicy(ChatJid chatJid, IReadOnlyList<StoredMessage> messages) => messages;
+
+        public bool CanTrigger(ChatJid chatJid, StoredMessage message) => true;
+    }
+
+    private sealed class FilteringSenderAuthorizationService : ISenderAuthorizationService
+    {
+        private readonly HashSet<string> allowedSenders;
+
+        public FilteringSenderAuthorizationService(IEnumerable<string> allowedSenders)
+        {
+            this.allowedSenders = allowedSenders.ToHashSet(StringComparer.Ordinal);
+        }
+
+        public IReadOnlyList<StoredMessage> ApplyInboundPolicy(ChatJid chatJid, IReadOnlyList<StoredMessage> messages)
+            => messages.Where(message => message.IsFromMe || allowedSenders.Contains(message.Sender)).ToArray();
+
+        public bool CanTrigger(ChatJid chatJid, StoredMessage message)
+            => message.IsFromMe || allowedSenders.Contains(message.Sender);
     }
 
     private sealed class RecordingGroupExecutionQueue : IGroupExecutionQueue

@@ -19,12 +19,14 @@ public sealed class GroupMessageProcessorService
     private readonly IGroupRepository groupRepository;
     private readonly IOutboundRouter outboundRouter;
     private readonly IRouterStateRepository routerStateRepository;
+    private readonly ISenderAuthorizationService senderAuthorizationService;
     private readonly string timezone;
 
     public GroupMessageProcessorService(
         IMessageRepository messageRepository,
         IGroupRepository groupRepository,
         IRouterStateRepository routerStateRepository,
+        ISenderAuthorizationService senderAuthorizationService,
         IMessageFormatter messageFormatter,
         IOutboundRouter outboundRouter,
         IAgentRuntime agentRuntime,
@@ -36,6 +38,7 @@ public sealed class GroupMessageProcessorService
         this.messageRepository = messageRepository;
         this.groupRepository = groupRepository;
         this.routerStateRepository = routerStateRepository;
+        this.senderAuthorizationService = senderAuthorizationService;
         this.messageFormatter = messageFormatter;
         this.outboundRouter = outboundRouter;
         this.agentRuntime = agentRuntime;
@@ -56,13 +59,15 @@ public sealed class GroupMessageProcessorService
             }
 
             DateTimeOffset? lastAgentTimestamp = await GetLastAgentTimestampAsync(groupJid, cancellationToken);
-            IReadOnlyList<StoredMessage> pendingMessages = await messageRepository.GetMessagesSinceAsync(groupJid, lastAgentTimestamp, assistantName, cancellationToken);
+            IReadOnlyList<StoredMessage> pendingMessages = senderAuthorizationService.ApplyInboundPolicy(
+                groupJid,
+                await messageRepository.GetMessagesSinceAsync(groupJid, lastAgentTimestamp, assistantName, cancellationToken));
             if (pendingMessages.Count == 0)
             {
                 return true;
             }
 
-            if (!group.IsMain && group.RequiresTrigger && !pendingMessages.Any(message => message.IsFromMe || ContainsTrigger(message.Content, group.Trigger)))
+            if (!group.IsMain && group.RequiresTrigger && !pendingMessages.Any(message => senderAuthorizationService.CanTrigger(groupJid, message) && ContainsTrigger(message.Content, group.Trigger)))
             {
                 return true;
             }

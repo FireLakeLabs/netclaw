@@ -12,6 +12,8 @@ public sealed record HostPathOptions
 
     public required string MountAllowlistPath { get; init; }
 
+    public required string SenderAllowlistPath { get; init; }
+
     public static HostPathOptions Create(IConfiguration configuration, IHostEnvironment environment)
     {
         string? projectRoot = configuration["NetClaw:ProjectRoot"];
@@ -34,11 +36,18 @@ public sealed record HostPathOptions
             mountAllowlistPath = Path.Combine(projectRoot, "mount-allowlist.json");
         }
 
+        string? senderAllowlistPath = configuration["NetClaw:SenderAllowlistPath"];
+        if (string.IsNullOrWhiteSpace(senderAllowlistPath))
+        {
+            senderAllowlistPath = Path.Combine(projectRoot, "sender-allowlist.json");
+        }
+
         HostPathOptions options = new()
         {
             ProjectRoot = Path.GetFullPath(projectRoot),
             DatabasePath = Path.GetFullPath(databasePath),
-            MountAllowlistPath = Path.GetFullPath(mountAllowlistPath)
+            MountAllowlistPath = Path.GetFullPath(mountAllowlistPath),
+            SenderAllowlistPath = Path.GetFullPath(senderAllowlistPath)
         };
 
         options.Validate();
@@ -60,6 +69,11 @@ public sealed record HostPathOptions
         if (string.IsNullOrWhiteSpace(MountAllowlistPath))
         {
             throw new InvalidOperationException("Mount allowlist path is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(SenderAllowlistPath))
+        {
+            throw new InvalidOperationException("Sender allowlist path is required.");
         }
     }
 }

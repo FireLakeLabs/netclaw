@@ -50,6 +50,13 @@ public interface IIpcCommandWatcher
     Task PollOnceAsync(CancellationToken cancellationToken = default);
 }
 
+public interface ISenderAuthorizationService
+{
+    IReadOnlyList<StoredMessage> ApplyInboundPolicy(ChatJid chatJid, IReadOnlyList<StoredMessage> messages);
+
+    bool CanTrigger(ChatJid chatJid, StoredMessage message);
+}
+
 public interface IContainerRuntime
 {
     Task EnsureRunningAsync(CancellationToken cancellationToken = default);

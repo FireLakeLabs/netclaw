@@ -29,6 +29,7 @@ public sealed class GroupMessageProcessorServiceTests
                 [groupJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", timestamp)
             }),
             routerStateRepository,
+            new PassThroughSenderAuthorizationService(),
             new FakeMessageFormatter(),
             outboundRouter,
             runtime,
@@ -61,6 +62,7 @@ public sealed class GroupMessageProcessorServiceTests
                 [groupJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow)
             }),
             routerStateRepository,
+            new PassThroughSenderAuthorizationService(),
             new FakeMessageFormatter(),
             new RecordingOutboundRouter(),
             runtime,
@@ -91,6 +93,7 @@ public sealed class GroupMessageProcessorServiceTests
                 [groupJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow)
             }),
             routerStateRepository,
+            new PassThroughSenderAuthorizationService(),
             new FakeMessageFormatter(),
             new RecordingOutboundRouter(),
             new RecordingAgentRuntime(ContainerRunStatus.Error, null),
@@ -121,6 +124,7 @@ public sealed class GroupMessageProcessorServiceTests
                 [groupJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow)
             }),
             new InMemoryRouterStateRepository(),
+            new PassThroughSenderAuthorizationService(),
             new FakeMessageFormatter(),
             outboundRouter,
             new RecordingAgentRuntime(
@@ -145,6 +149,40 @@ public sealed class GroupMessageProcessorServiceTests
         Assert.Single(outboundRouter.Messages);
         Assert.Equal("assistant reply", outboundRouter.Messages[0].Text);
         Assert.Equal(groupJid, Assert.Single(queue.IdleNotifications));
+    }
+
+    [Fact]
+    public async Task ProcessAsync_DropModeFiltersDeniedMessagesFromPrompt()
+    {
+        ChatJid groupJid = new("team@jid");
+        RecordingAgentRuntime runtime = new(ContainerRunStatus.Success, "assistant reply");
+        GroupMessageProcessorService service = new(
+            new InMemoryMessageRepository(new Dictionary<ChatJid, IReadOnlyList<StoredMessage>>
+            {
+                [groupJid] =
+                [
+                    new StoredMessage("message-1", groupJid, "blocked", "Blocked", "@Andy blocked", DateTimeOffset.UtcNow.AddSeconds(-1)),
+                    new StoredMessage("message-2", groupJid, "allowed", "Allowed", "@Andy allowed", DateTimeOffset.UtcNow)
+                ]
+            }),
+            new InMemoryGroupRepository(new Dictionary<ChatJid, RegisteredGroup>
+            {
+                [groupJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow)
+            }),
+            new InMemoryRouterStateRepository(),
+            new FilteringSenderAuthorizationService(["allowed"]),
+            new FakeMessageFormatter(),
+            new RecordingOutboundRouter(),
+            runtime,
+            new RecordingGroupExecutionQueue(),
+            [],
+            "Andy",
+            "UTC");
+
+        bool result = await service.ProcessAsync(groupJid);
+
+        Assert.True(result);
+        Assert.Equal("formatted:@Andy allowed", runtime.LastPrompt);
     }
 
     private sealed class FakeMessageFormatter : IMessageFormatter
@@ -280,5 +318,28 @@ public sealed class GroupMessageProcessorServiceTests
             Entries[entry.Key] = entry;
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class PassThroughSenderAuthorizationService : ISenderAuthorizationService
+    {
+        public IReadOnlyList<StoredMessage> ApplyInboundPolicy(ChatJid chatJid, IReadOnlyList<StoredMessage> messages) => messages;
+
+        public bool CanTrigger(ChatJid chatJid, StoredMessage message) => true;
+    }
+
+    private sealed class FilteringSenderAuthorizationService : ISenderAuthorizationService
+    {
+        private readonly HashSet<string> allowedSenders;
+
+        public FilteringSenderAuthorizationService(IEnumerable<string> allowedSenders)
+        {
+            this.allowedSenders = allowedSenders.ToHashSet(StringComparer.Ordinal);
+        }
+
+        public IReadOnlyList<StoredMessage> ApplyInboundPolicy(ChatJid chatJid, IReadOnlyList<StoredMessage> messages)
+            => messages.Where(message => message.IsFromMe || allowedSenders.Contains(message.Sender)).ToArray();
+
+        public bool CanTrigger(ChatJid chatJid, StoredMessage message)
+            => message.IsFromMe || allowedSenders.Contains(message.Sender);
     }
 }

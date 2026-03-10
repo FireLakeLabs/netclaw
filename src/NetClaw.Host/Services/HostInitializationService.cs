@@ -13,6 +13,7 @@ public sealed class HostInitializationService : IHostedService
     private readonly IFileSystem fileSystem;
     private readonly ILogger<HostInitializationService> logger;
     private readonly MountAllowlistLoader mountAllowlistLoader;
+    private readonly SenderAllowlistService senderAllowlistService;
     private readonly HostPathOptions hostPathOptions;
     private readonly SqliteSchemaInitializer schemaInitializer;
     private readonly StorageOptions storageOptions;
@@ -22,6 +23,7 @@ public sealed class HostInitializationService : IHostedService
         HostPathOptions hostPathOptions,
         IFileSystem fileSystem,
         MountAllowlistLoader mountAllowlistLoader,
+        SenderAllowlistService senderAllowlistService,
         SqliteSchemaInitializer schemaInitializer,
         ILogger<HostInitializationService> logger)
     {
@@ -29,6 +31,7 @@ public sealed class HostInitializationService : IHostedService
         this.hostPathOptions = hostPathOptions;
         this.fileSystem = fileSystem;
         this.mountAllowlistLoader = mountAllowlistLoader;
+        this.senderAllowlistService = senderAllowlistService;
         this.schemaInitializer = schemaInitializer;
         this.logger = logger;
     }
@@ -48,6 +51,7 @@ public sealed class HostInitializationService : IHostedService
         }
 
         await mountAllowlistLoader.LoadAsync(hostPathOptions.MountAllowlistPath, cancellationToken);
+        await senderAllowlistService.LoadAsync(hostPathOptions.SenderAllowlistPath, cancellationToken);
         await schemaInitializer.InitializeAsync(cancellationToken);
 
         logger.LogInformation("NetClaw host initialized at {ProjectRoot}", storageOptions.ProjectRoot);
