@@ -82,6 +82,11 @@ public interface IAgentRuntime
         ContainerInput input,
         Func<ContainerStreamEvent, CancellationToken, Task>? onStreamEvent = null,
         CancellationToken cancellationToken = default);
+
+    Task<IInteractiveContainerSession> StartInteractiveSessionAsync(
+        ContainerInput input,
+        Func<ContainerStreamEvent, CancellationToken, Task>? onStreamEvent = null,
+        CancellationToken cancellationToken = default);
 }
 
 public interface ICredentialProxyService
@@ -100,6 +105,14 @@ public interface ICodingAgentEngine
     AgentCapabilityProfile Capabilities { get; }
 
     Task<AgentExecutionResult> ExecuteAsync(
+        AgentExecutionRequest request,
+        Func<AgentStreamEvent, CancellationToken, Task>? onStreamEvent = null,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IInteractiveCodingAgentEngine : ICodingAgentEngine
+{
+    Task<IInteractiveAgentSession> StartInteractiveSessionAsync(
         AgentExecutionRequest request,
         Func<AgentStreamEvent, CancellationToken, Task>? onStreamEvent = null,
         CancellationToken cancellationToken = default);

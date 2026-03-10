@@ -2,10 +2,11 @@ using NetClaw.Domain.Contracts.Agents;
 using NetClaw.Domain.Contracts.Services;
 using NetClaw.Domain.Enums;
 using NetClaw.Infrastructure.Configuration;
+using System.Threading.Channels;
 
 namespace NetClaw.Infrastructure.Runtime.Agents;
 
-public sealed class CopilotCodingAgentEngine : ICodingAgentEngine
+public sealed class CopilotCodingAgentEngine : IInteractiveCodingAgentEngine
 {
     private readonly ICopilotClientPool clientPool;
     private readonly AgentRuntimeOptions options;
@@ -70,6 +71,31 @@ public sealed class CopilotCodingAgentEngine : ICodingAgentEngine
         }
     }
 
+    public async Task<IInteractiveAgentSession> StartInteractiveSessionAsync(
+        AgentExecutionRequest request,
+        Func<AgentStreamEvent, CancellationToken, Task>? onStreamEvent = null,
+        CancellationToken cancellationToken = default)
+    {
+        ICopilotClientAdapter client = await clientPool.GetClientAsync(cancellationToken);
+        CopilotSessionConfiguration configuration = BuildConfiguration(request);
+
+        ICopilotSessionAdapter session = request.Session is null
+            ? await client.CreateSessionAsync(configuration, onStreamEvent, cancellationToken)
+            : await client.ResumeSessionAsync(request.Session.SessionId, configuration, onStreamEvent, cancellationToken);
+
+        AgentSessionReference sessionReference = new(
+            AgentProviderKind.Copilot,
+            session.SessionId,
+            session.WorkspacePath ?? request.Workspace.WorkspaceDirectory,
+            request.Session?.ResumeAt);
+
+        return new CopilotInteractiveAgentSession(
+            session,
+            sessionReference,
+            request.Input.Prompt,
+            options.InteractiveIdleTimeout);
+    }
+
     private CopilotSessionConfiguration BuildConfiguration(AgentExecutionRequest request)
     {
         string sessionId = request.Session?.SessionId ?? Guid.NewGuid().ToString("D");
@@ -111,5 +137,94 @@ public sealed class CopilotCodingAgentEngine : ICodingAgentEngine
         }
 
         return string.Join(Environment.NewLine + Environment.NewLine, sections);
+    }
+
+    private sealed class CopilotInteractiveAgentSession : IInteractiveAgentSession
+    {
+        private readonly Channel<string> inputs = Channel.CreateUnbounded<string>();
+        private readonly TimeSpan idleTimeout;
+        private readonly ICopilotSessionAdapter session;
+
+        public CopilotInteractiveAgentSession(
+            ICopilotSessionAdapter session,
+            AgentSessionReference sessionReference,
+            string initialPrompt,
+            TimeSpan idleTimeout)
+        {
+            this.session = session;
+            Session = sessionReference;
+            this.idleTimeout = idleTimeout;
+            Completion = RunAsync(initialPrompt);
+        }
+
+        public AgentSessionReference Session { get; }
+
+        public Task<AgentExecutionResult> Completion { get; }
+
+        public bool TryPostInput(string text)
+        {
+            return inputs.Writer.TryWrite(text);
+        }
+
+        public void RequestClose()
+        {
+            inputs.Writer.TryComplete();
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            RequestClose();
+            await session.DisposeAsync();
+        }
+
+        private async Task<AgentExecutionResult> RunAsync(string initialPrompt)
+        {
+            string? latestResult = null;
+            string currentPrompt = initialPrompt;
+
+            try
+            {
+                while (true)
+                {
+                    latestResult = await session.SendPromptAsync(currentPrompt);
+
+                    string? nextInput = await WaitForNextInputAsync();
+                    if (string.IsNullOrWhiteSpace(nextInput))
+                    {
+                        return new AgentExecutionResult(ContainerRunStatus.Success, latestResult, Session, null);
+                    }
+
+                    currentPrompt = nextInput;
+                }
+            }
+            catch (Exception exception)
+            {
+                return new AgentExecutionResult(ContainerRunStatus.Error, latestResult, Session, exception.Message);
+            }
+            finally
+            {
+                await session.DisposeAsync();
+            }
+        }
+
+        private async Task<string?> WaitForNextInputAsync()
+        {
+            Task<bool> waitTask = inputs.Reader.WaitToReadAsync().AsTask();
+            Task delayTask = Task.Delay(idleTimeout);
+            Task completed = await Task.WhenAny(waitTask, delayTask);
+
+            if (completed != waitTask)
+            {
+                inputs.Writer.TryComplete();
+                return null;
+            }
+
+            if (!await waitTask)
+            {
+                return null;
+            }
+
+            return inputs.Reader.TryRead(out string? input) ? input : null;
+        }
     }
 }

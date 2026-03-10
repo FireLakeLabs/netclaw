@@ -28,3 +28,16 @@ public sealed record ContainerExecutionRequest(
     ContainerName ContainerName);
 
 public sealed record ContainerExecutionResult(ContainerRunStatus Status, string? Result, SessionId? NewSessionId, string? Error, ContainerName ContainerName);
+
+public interface IInteractiveContainerSession : IAsyncDisposable
+{
+    SessionId? SessionId { get; }
+
+    ContainerName ContainerName { get; }
+
+    bool TryPostInput(string text);
+
+    void RequestClose();
+
+    Task<ContainerExecutionResult> Completion { get; }
+}

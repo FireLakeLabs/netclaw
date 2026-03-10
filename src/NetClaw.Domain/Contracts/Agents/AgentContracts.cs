@@ -124,3 +124,14 @@ public sealed record AgentExecutionResult(
     string? Result,
     AgentSessionReference? Session,
     string? Error);
+
+public interface IInteractiveAgentSession : IAsyncDisposable
+{
+    AgentSessionReference Session { get; }
+
+    bool TryPostInput(string text);
+
+    void RequestClose();
+
+    Task<AgentExecutionResult> Completion { get; }
+}

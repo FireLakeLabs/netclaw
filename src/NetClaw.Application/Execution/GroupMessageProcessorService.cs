@@ -11,6 +11,7 @@ namespace NetClaw.Application.Execution;
 public sealed class GroupMessageProcessorService
 {
     private readonly IAgentRuntime agentRuntime;
+    private readonly ActiveGroupSessionRegistry activeSessionRegistry;
     private readonly string assistantName;
     private readonly IReadOnlyList<IChannel> channels;
     private readonly IGroupExecutionQueue groupExecutionQueue;
@@ -31,6 +32,7 @@ public sealed class GroupMessageProcessorService
         IOutboundRouter outboundRouter,
         IAgentRuntime agentRuntime,
         IGroupExecutionQueue groupExecutionQueue,
+        ActiveGroupSessionRegistry activeSessionRegistry,
         IReadOnlyList<IChannel> channels,
         string assistantName,
         string timezone)
@@ -43,6 +45,7 @@ public sealed class GroupMessageProcessorService
         this.outboundRouter = outboundRouter;
         this.agentRuntime = agentRuntime;
         this.groupExecutionQueue = groupExecutionQueue;
+        this.activeSessionRegistry = activeSessionRegistry;
         this.channels = channels;
         this.assistantName = assistantName;
         this.timezone = timezone;
@@ -74,7 +77,7 @@ public sealed class GroupMessageProcessorService
 
             string prompt = messageFormatter.FormatInbound(pendingMessages, timezone);
             bool streamedCompletedMessage = false;
-            ContainerExecutionResult executionResult = await agentRuntime.ExecuteAsync(
+            await using IInteractiveContainerSession interactiveSession = await agentRuntime.StartInteractiveSessionAsync(
                 new ContainerInput(prompt, null, group.Folder, groupJid, group.IsMain, false, assistantName),
                 async (streamEvent, ct) =>
                 {
@@ -97,6 +100,17 @@ public sealed class GroupMessageProcessorService
                     }
                 },
                 cancellationToken: cancellationToken);
+
+            activeSessionRegistry.Register(groupJid, interactiveSession);
+            ContainerExecutionResult executionResult;
+            try
+            {
+                executionResult = await interactiveSession.Completion;
+            }
+            finally
+            {
+                activeSessionRegistry.Remove(groupJid, interactiveSession);
+            }
 
             if (executionResult.Status == ContainerRunStatus.Error)
             {

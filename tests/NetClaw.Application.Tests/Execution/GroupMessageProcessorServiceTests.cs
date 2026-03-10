@@ -34,6 +34,7 @@ public sealed class GroupMessageProcessorServiceTests
             outboundRouter,
             runtime,
             new RecordingGroupExecutionQueue(),
+            new ActiveGroupSessionRegistry(),
             [],
             "Andy",
             "UTC");
@@ -67,6 +68,7 @@ public sealed class GroupMessageProcessorServiceTests
             new RecordingOutboundRouter(),
             runtime,
             new RecordingGroupExecutionQueue(),
+            new ActiveGroupSessionRegistry(),
             [],
             "Andy",
             "UTC");
@@ -98,6 +100,7 @@ public sealed class GroupMessageProcessorServiceTests
             new RecordingOutboundRouter(),
             new RecordingAgentRuntime(ContainerRunStatus.Error, null),
             new RecordingGroupExecutionQueue(),
+            new ActiveGroupSessionRegistry(),
             [],
             "Andy",
             "UTC");
@@ -139,6 +142,7 @@ public sealed class GroupMessageProcessorServiceTests
                     new ContainerOutput(ContainerRunStatus.Running, null, new SessionId("session-1"), null),
                     DateTimeOffset.UtcNow)]),
             queue,
+                    new ActiveGroupSessionRegistry(),
             [],
             "Andy",
             "UTC");
@@ -175,6 +179,7 @@ public sealed class GroupMessageProcessorServiceTests
             new RecordingOutboundRouter(),
             runtime,
             new RecordingGroupExecutionQueue(),
+            new ActiveGroupSessionRegistry(),
             [],
             "Andy",
             "UTC");
@@ -234,6 +239,48 @@ public sealed class GroupMessageProcessorServiceTests
 
             return Task.FromResult(new ContainerExecutionResult(status, result, new SessionId("session-1"), status == ContainerRunStatus.Error ? "runtime failed" : null, new ContainerName("agent-fake-team")));
         }
+
+        public Task<IInteractiveContainerSession> StartInteractiveSessionAsync(ContainerInput input, Func<ContainerStreamEvent, CancellationToken, Task>? onStreamEvent = null, CancellationToken cancellationToken = default)
+        {
+            LastPrompt = input.Prompt;
+
+            if (onStreamEvent is not null)
+            {
+                foreach (ContainerStreamEvent streamEvent in streamEvents)
+                {
+                    onStreamEvent(streamEvent, cancellationToken).GetAwaiter().GetResult();
+                }
+            }
+
+            return Task.FromResult<IInteractiveContainerSession>(new RecordingInteractiveContainerSession(status, result));
+        }
+    }
+
+    private sealed class RecordingInteractiveContainerSession : IInteractiveContainerSession
+    {
+        public RecordingInteractiveContainerSession(ContainerRunStatus status, string? result)
+        {
+            Completion = Task.FromResult(new ContainerExecutionResult(
+                status,
+                result,
+                new SessionId("session-1"),
+                status == ContainerRunStatus.Error ? "runtime failed" : null,
+                new ContainerName("agent-fake-team")));
+        }
+
+        public SessionId? SessionId => new("session-1");
+
+        public ContainerName ContainerName => new("agent-fake-team");
+
+        public Task<ContainerExecutionResult> Completion { get; }
+
+        public bool TryPostInput(string text) => true;
+
+        public void RequestClose()
+        {
+        }
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
     private sealed class RecordingGroupExecutionQueue : IGroupExecutionQueue

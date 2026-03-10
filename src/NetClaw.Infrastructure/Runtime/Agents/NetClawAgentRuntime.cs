@@ -87,6 +87,49 @@ public sealed class NetClawAgentRuntime : IAgentRuntime
             BuildContainerName(provider, group.Folder));
     }
 
+    public async Task<IInteractiveContainerSession> StartInteractiveSessionAsync(
+        ContainerInput input,
+        Func<ContainerStreamEvent, CancellationToken, Task>? onStreamEvent = null,
+        CancellationToken cancellationToken = default)
+    {
+        RegisteredGroup? group = await groupRepository.GetByJidAsync(input.ChatJid, cancellationToken);
+        AgentProviderKind provider = options.GetDefaultProvider();
+
+        if (group is null)
+        {
+            return new FailedInteractiveContainerSession(BuildContainerName(provider, input.GroupFolder), "Group not registered.");
+        }
+
+        if (!engines.TryGetValue(provider, out ICodingAgentEngine? engine))
+        {
+            return new FailedInteractiveContainerSession(BuildContainerName(provider, group.Folder), $"No coding agent engine is registered for provider '{provider}'.");
+        }
+
+        if (engine is not IInteractiveCodingAgentEngine interactiveEngine)
+        {
+            return new FailedInteractiveContainerSession(BuildContainerName(provider, group.Folder), $"Provider '{provider}' does not support interactive sessions.");
+        }
+
+        ContainerInput effectiveInput = input with { IsMain = group.IsMain };
+        AgentWorkspaceContext workspace = await workspaceBuilder.BuildAsync(group, effectiveInput, cancellationToken);
+        AgentSessionReference? session = await ResolveSessionAsync(provider, group.Folder, effectiveInput.SessionId, workspace, cancellationToken);
+        AgentExecutionRequest request = new(provider, group, effectiveInput, workspace, session, toolRegistry.GetTools(group, effectiveInput));
+
+        IInteractiveAgentSession interactiveSession = await interactiveEngine.StartInteractiveSessionAsync(
+            request,
+            onStreamEvent is null ? null : (agentEvent, ct) => onStreamEvent(TranslateStreamEvent(agentEvent), ct),
+            cancellationToken);
+
+        if (interactiveSession.Session is not null)
+        {
+            await sessionRepository.UpsertAsync(
+                new SessionState(group.Folder, new SessionId(interactiveSession.Session.SessionId)),
+                cancellationToken);
+        }
+
+        return new InteractiveContainerSessionAdapter(interactiveSession, BuildContainerName(provider, group.Folder));
+    }
+
     private async Task<AgentSessionReference?> ResolveSessionAsync(
         AgentProviderKind provider,
         GroupFolder groupFolder,
@@ -134,5 +177,64 @@ public sealed class NetClawAgentRuntime : IAgentRuntime
     {
         string safeGroup = new string(groupFolder.Value.Select(ch => char.IsLetterOrDigit(ch) ? char.ToLowerInvariant(ch) : '-').ToArray()).Trim('-');
         return new ContainerName($"agent-{provider.ToString().ToLowerInvariant()}-{safeGroup}");
+    }
+
+    private sealed class InteractiveContainerSessionAdapter : IInteractiveContainerSession
+    {
+        private readonly IInteractiveAgentSession session;
+
+        public InteractiveContainerSessionAdapter(IInteractiveAgentSession session, ContainerName containerName)
+        {
+            this.session = session;
+            ContainerName = containerName;
+            SessionId = new SessionId(session.Session.SessionId);
+            Completion = AwaitCompletionAsync(containerName);
+        }
+
+        public SessionId? SessionId { get; }
+
+        public ContainerName ContainerName { get; }
+
+        public Task<ContainerExecutionResult> Completion { get; }
+
+        public bool TryPostInput(string text) => session.TryPostInput(text);
+
+        public void RequestClose() => session.RequestClose();
+
+        public ValueTask DisposeAsync() => session.DisposeAsync();
+
+        private async Task<ContainerExecutionResult> AwaitCompletionAsync(ContainerName containerName)
+        {
+            AgentExecutionResult result = await session.Completion;
+            return new ContainerExecutionResult(
+                result.Status,
+                result.Result,
+                result.Session is null ? null : new SessionId(result.Session.SessionId),
+                result.Error,
+                containerName);
+        }
+    }
+
+    private sealed class FailedInteractiveContainerSession : IInteractiveContainerSession
+    {
+        public FailedInteractiveContainerSession(ContainerName containerName, string error)
+        {
+            ContainerName = containerName;
+            Completion = Task.FromResult(new ContainerExecutionResult(ContainerRunStatus.Error, null, null, error, containerName));
+        }
+
+        public SessionId? SessionId => null;
+
+        public ContainerName ContainerName { get; }
+
+        public Task<ContainerExecutionResult> Completion { get; }
+
+        public bool TryPostInput(string text) => false;
+
+        public void RequestClose()
+        {
+        }
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

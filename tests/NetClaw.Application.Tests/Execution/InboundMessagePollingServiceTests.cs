@@ -25,6 +25,9 @@ public sealed class InboundMessagePollingServiceTests
             }),
             routerStateRepository,
             new PassThroughSenderAuthorizationService(),
+            new FakeMessageFormatter(),
+            "Andy",
+            "UTC",
             queue);
 
         await service.PollOnceAsync();
@@ -49,6 +52,9 @@ public sealed class InboundMessagePollingServiceTests
             }),
             new InMemoryRouterStateRepository(),
             new PassThroughSenderAuthorizationService(),
+            new FakeMessageFormatter(),
+            "Andy",
+            "UTC",
             queue);
 
         await service.PollOnceAsync();
@@ -71,11 +77,55 @@ public sealed class InboundMessagePollingServiceTests
             }),
             new InMemoryRouterStateRepository(),
             new FilteringSenderAuthorizationService(["allowed"]),
+            new FakeMessageFormatter(),
+            "Andy",
+            "UTC",
             queue);
 
         await service.PollOnceAsync();
 
         Assert.Empty(queue.EnqueuedGroups);
+    }
+
+    [Fact]
+    public async Task PollOnceAsync_SendsFollowUpToActiveSessionAndAdvancesAgentCursor()
+    {
+        ChatJid teamJid = new("team@jid");
+        DateTimeOffset timestamp = DateTimeOffset.UtcNow;
+        InMemoryRouterStateRepository routerStateRepository = new();
+        RecordingGroupExecutionQueue queue = new()
+        {
+            SendMessageResult = true
+        };
+        InboundMessagePollingService service = new(
+            new InMemoryMessageRepository([
+                new StoredMessage("message-1", teamJid, "sender-1", "User", "@Andy hello", timestamp)
+            ]),
+            new InMemoryGroupRepository(new Dictionary<ChatJid, RegisteredGroup>
+            {
+                [teamJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", timestamp)
+            }),
+            routerStateRepository,
+            new PassThroughSenderAuthorizationService(),
+            new FakeMessageFormatter(),
+            "Andy",
+            "UTC",
+            queue);
+
+        await service.PollOnceAsync();
+
+        Assert.Empty(queue.EnqueuedGroups);
+        Assert.Equal("formatted:@Andy hello", Assert.Single(queue.SentMessages).Text);
+        Assert.Equal(timestamp.ToString("O"), routerStateRepository.Entries["last_agent_timestamp:team@jid"].Value);
+    }
+
+    private sealed class FakeMessageFormatter : IMessageFormatter
+    {
+        public string FormatInbound(IReadOnlyList<StoredMessage> messages, string timezone)
+            => $"formatted:{string.Join('|', messages.Select(message => message.Content))}";
+
+        public string NormalizeOutbound(string rawText)
+            => rawText;
     }
 
     private sealed class InMemoryMessageRepository : IMessageRepository
@@ -160,6 +210,10 @@ public sealed class InboundMessagePollingServiceTests
     {
         public List<ChatJid> EnqueuedGroups { get; } = [];
 
+        public List<(ChatJid ChatJid, string Text)> SentMessages { get; } = [];
+
+        public bool SendMessageResult { get; init; }
+
         public void CloseInput(ChatJid groupJid)
         {
         }
@@ -179,7 +233,8 @@ public sealed class InboundMessagePollingServiceTests
 
         public bool SendMessage(ChatJid groupJid, string text)
         {
-            return false;
+            SentMessages.Add((groupJid, text));
+            return SendMessageResult;
         }
     }
 }

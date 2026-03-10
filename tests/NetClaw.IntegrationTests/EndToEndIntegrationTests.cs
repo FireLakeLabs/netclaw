@@ -319,6 +319,36 @@ public sealed class EndToEndIntegrationTests
                 null,
                 new ContainerName("agent-fake-team")));
         }
+
+        public Task<IInteractiveContainerSession> StartInteractiveSessionAsync(ContainerInput input, Func<ContainerStreamEvent, CancellationToken, Task>? onStreamEvent = null, CancellationToken cancellationToken = default)
+        {
+            LastPrompt = input.Prompt;
+            Completion.TrySetResult(true);
+
+            return Task.FromResult<IInteractiveContainerSession>(new FakeInteractiveContainerSession());
+        }
+    }
+
+    private sealed class FakeInteractiveContainerSession : IInteractiveContainerSession
+    {
+        public SessionId? SessionId => new("session-1");
+
+        public ContainerName ContainerName => new("agent-fake-team");
+
+        public Task<ContainerExecutionResult> Completion { get; } = Task.FromResult(new ContainerExecutionResult(
+            ContainerRunStatus.Success,
+            "assistant reply",
+            new SessionId("session-1"),
+            null,
+            new ContainerName("agent-fake-team")));
+
+        public bool TryPostInput(string text) => true;
+
+        public void RequestClose()
+        {
+        }
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
     private sealed class FakeChannel : IChannel

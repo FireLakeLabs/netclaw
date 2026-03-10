@@ -98,11 +98,15 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IReadOnlyList<IChannel>>(_ => Array.Empty<IChannel>());
         services.AddSingleton<IMessageFormatter, XmlMessageFormatter>();
         services.AddSingleton<IOutboundRouter, ChannelOutboundRouter>();
+        services.AddSingleton<ActiveGroupSessionRegistry>();
         services.AddSingleton<InboundMessagePollingService>(serviceProvider => new InboundMessagePollingService(
             serviceProvider.GetRequiredService<IMessageRepository>(),
             serviceProvider.GetRequiredService<IGroupRepository>(),
             serviceProvider.GetRequiredService<IRouterStateRepository>(),
             serviceProvider.GetRequiredService<ISenderAuthorizationService>(),
+            serviceProvider.GetRequiredService<IMessageFormatter>(),
+            serviceProvider.GetRequiredService<AssistantIdentityOptions>().Name,
+            serviceProvider.GetRequiredService<MessageLoopOptions>().Timezone,
             serviceProvider.GetRequiredService<IGroupExecutionQueue>()));
         services.AddSingleton<GroupMessageProcessorService>(serviceProvider => new GroupMessageProcessorService(
             serviceProvider.GetRequiredService<IMessageRepository>(),
@@ -113,6 +117,7 @@ public static class ServiceCollectionExtensions
             serviceProvider.GetRequiredService<IOutboundRouter>(),
             serviceProvider.GetRequiredService<IAgentRuntime>(),
             serviceProvider.GetRequiredService<IGroupExecutionQueue>(),
+            serviceProvider.GetRequiredService<ActiveGroupSessionRegistry>(),
             serviceProvider.GetRequiredService<IReadOnlyList<IChannel>>(),
             serviceProvider.GetRequiredService<AssistantIdentityOptions>().Name,
             serviceProvider.GetRequiredService<MessageLoopOptions>().Timezone));
@@ -120,7 +125,9 @@ public static class ServiceCollectionExtensions
         {
             GroupExecutionQueue queue = new(maxConcurrentExecutions: 1);
             queue.SetMessageProcessor((groupJid, cancellationToken) => serviceProvider.GetRequiredService<GroupMessageProcessorService>().ProcessAsync(groupJid, cancellationToken));
-            queue.SetInputHandlers(static (_, _) => false, static _ => { });
+            queue.SetInputHandlers(
+                (groupJid, text) => serviceProvider.GetRequiredService<ActiveGroupSessionRegistry>().TryPostInput(groupJid, text),
+                groupJid => serviceProvider.GetRequiredService<ActiveGroupSessionRegistry>().RequestClose(groupJid));
             return queue;
         });
         services.AddSingleton<IGroupExecutionQueue>(static serviceProvider => serviceProvider.GetRequiredService<GroupExecutionQueue>());
@@ -220,6 +227,9 @@ public static class ServiceCollectionExtensions
                 : null,
             CopilotClientName = configuration["NetClaw:AgentRuntime:CopilotClientName"] ?? "NetClaw",
             CopilotModel = configuration["NetClaw:AgentRuntime:CopilotModel"] ?? "gpt-5",
+            InteractiveIdleTimeout = TimeSpan.TryParse(configuration["NetClaw:AgentRuntime:InteractiveIdleTimeout"], out TimeSpan interactiveIdleTimeout)
+                ? interactiveIdleTimeout
+                : TimeSpan.FromSeconds(30),
             CopilotReasoningEffort = configuration["NetClaw:AgentRuntime:CopilotReasoningEffort"],
             CopilotStreaming = !bool.TryParse(configuration["NetClaw:AgentRuntime:CopilotStreaming"], out bool streaming) || streaming,
             CopilotEnableInfiniteSessions = !bool.TryParse(configuration["NetClaw:AgentRuntime:CopilotEnableInfiniteSessions"], out bool infiniteSessions) || infiniteSessions,

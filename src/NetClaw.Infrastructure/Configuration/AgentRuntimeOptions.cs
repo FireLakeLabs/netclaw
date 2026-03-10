@@ -30,6 +30,8 @@ public sealed record AgentRuntimeOptions
 
     public string CopilotModel { get; init; } = "gpt-5";
 
+    public TimeSpan InteractiveIdleTimeout { get; init; } = TimeSpan.FromSeconds(30);
+
     public string? CopilotReasoningEffort { get; init; }
 
     public bool CopilotStreaming { get; init; } = true;
@@ -67,6 +69,11 @@ public sealed record AgentRuntimeOptions
         if (string.IsNullOrWhiteSpace(CopilotModel))
         {
             throw new InvalidOperationException("Copilot model is required.");
+        }
+
+        if (InteractiveIdleTimeout <= TimeSpan.Zero)
+        {
+            throw new InvalidOperationException("Interactive idle timeout must be positive.");
         }
 
         if (!string.IsNullOrWhiteSpace(CopilotCliUrl)
