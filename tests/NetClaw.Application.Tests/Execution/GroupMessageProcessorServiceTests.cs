@@ -112,6 +112,37 @@ public sealed class GroupMessageProcessorServiceTests
     }
 
     [Fact]
+    public async Task ProcessAsync_ReturnsFalseWhenRuntimeIsInterrupted()
+    {
+        ChatJid groupJid = new("team@jid");
+        InMemoryRouterStateRepository routerStateRepository = new();
+        GroupMessageProcessorService service = new(
+            new InMemoryMessageRepository(new Dictionary<ChatJid, IReadOnlyList<StoredMessage>>
+            {
+                [groupJid] = [new StoredMessage("message-1", groupJid, "sender-1", "User", "@Andy hello", DateTimeOffset.UtcNow)]
+            }),
+            new InMemoryGroupRepository(new Dictionary<ChatJid, RegisteredGroup>
+            {
+                [groupJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow)
+            }),
+            routerStateRepository,
+            new PassThroughSenderAuthorizationService(),
+            new FakeMessageFormatter(),
+            new RecordingOutboundRouter(),
+            new RecordingAgentRuntime(ContainerRunStatus.Interrupted, null),
+            new RecordingGroupExecutionQueue(),
+            new ActiveGroupSessionRegistry(),
+            [],
+            "Andy",
+            "UTC");
+
+        bool result = await service.ProcessAsync(groupJid);
+
+        Assert.False(result);
+        Assert.Empty(routerStateRepository.Entries);
+    }
+
+    [Fact]
     public async Task ProcessAsync_RoutesStreamedCompletedMessageWithoutDuplicatingFinalResult()
     {
         ChatJid groupJid = new("team@jid");
@@ -264,7 +295,7 @@ public sealed class GroupMessageProcessorServiceTests
                 status,
                 result,
                 new SessionId("session-1"),
-                status == ContainerRunStatus.Error ? "runtime failed" : null,
+                status is ContainerRunStatus.Error or ContainerRunStatus.Interrupted ? "runtime failed" : null,
                 new ContainerName("agent-fake-team")));
         }
 

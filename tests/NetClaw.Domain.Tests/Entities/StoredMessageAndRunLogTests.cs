@@ -46,4 +46,19 @@ public sealed class StoredMessageAndRunLogTests
         Assert.Equal(ContainerRunStatus.Success, log.Status);
         Assert.Equal("ok", log.Result);
     }
+
+    [Fact]
+    public void TaskRunLog_AcceptsInterruptedRunsWithoutError()
+    {
+        TaskRunLog log = new(
+            new TaskId("task-1"),
+            DateTimeOffset.UtcNow,
+            TimeSpan.FromSeconds(2),
+            ContainerRunStatus.Interrupted,
+            null,
+            null);
+
+        Assert.Equal(ContainerRunStatus.Interrupted, log.Status);
+        Assert.Null(log.Error);
+    }
 }

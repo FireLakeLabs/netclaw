@@ -101,7 +101,7 @@ public sealed class AgentRuntimeServicesTests
         interactiveSession.RequestClose();
         AgentExecutionResult result = await interactiveSession.Completion.WaitAsync(TimeSpan.FromSeconds(1));
 
-        Assert.Equal(ContainerRunStatus.Error, result.Status);
+        Assert.Equal(ContainerRunStatus.Interrupted, result.Status);
         Assert.Equal("Interactive session interrupted.", result.Error);
         Assert.True(await session.CancellationObserved.Task.WaitAsync(TimeSpan.FromSeconds(1)));
     }

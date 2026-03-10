@@ -254,7 +254,7 @@ public sealed class CopilotCodingAgentEngine : IInteractiveCodingAgentEngine
 
         private AgentExecutionResult CreateInterruptedResult(string? latestResult)
         {
-            return new AgentExecutionResult(ContainerRunStatus.Error, latestResult, Session, "Interactive session interrupted.");
+            return new AgentExecutionResult(ContainerRunStatus.Interrupted, latestResult, Session, "Interactive session interrupted.");
         }
 
         private void SetActivePromptCancellation(CancellationTokenSource promptCancellation)

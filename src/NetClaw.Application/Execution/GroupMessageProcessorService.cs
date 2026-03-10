@@ -112,7 +112,7 @@ public sealed class GroupMessageProcessorService
                 activeSessionRegistry.Remove(groupJid, interactiveSession);
             }
 
-            if (executionResult.Status == ContainerRunStatus.Error)
+            if (executionResult.Status != ContainerRunStatus.Success)
             {
                 return false;
             }
