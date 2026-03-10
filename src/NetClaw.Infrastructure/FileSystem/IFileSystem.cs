@@ -8,6 +8,10 @@ public interface IFileSystem
 
     void CreateDirectory(string path);
 
+    void DeleteFile(string path);
+
+    void MoveFile(string sourcePath, string destinationPath);
+
     Task<string> ReadAllTextAsync(string path, CancellationToken cancellationToken = default);
 
     Task WriteAllTextAsync(string path, string content, CancellationToken cancellationToken = default);

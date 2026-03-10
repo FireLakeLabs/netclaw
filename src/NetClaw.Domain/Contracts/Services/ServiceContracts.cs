@@ -43,6 +43,11 @@ public interface IIpcCommandProcessor
     Task ProcessAsync(GroupFolder sourceGroup, bool isMainGroup, IpcCommand command, CancellationToken cancellationToken = default);
 }
 
+public interface IIpcCommandWatcher
+{
+    Task PollOnceAsync(CancellationToken cancellationToken = default);
+}
+
 public interface IContainerRuntime
 {
     Task EnsureRunningAsync(CancellationToken cancellationToken = default);

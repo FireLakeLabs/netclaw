@@ -59,6 +59,7 @@ public sealed class ProgramTests
                     {
                         ["NetClaw:ProjectRoot"] = projectRoot,
                         ["NetClaw:Assistant:Name"] = "NetClaw",
+                        ["NetClaw:Ipc:PollInterval"] = "00:00:05",
                         ["NetClaw:Scheduler:PollInterval"] = "00:00:45"
                     });
                 })
@@ -76,12 +77,14 @@ public sealed class ProgramTests
             Assert.NotNull(host.Services.GetService<IGroupExecutionQueue>());
             Assert.NotNull(host.Services.GetService<ITaskSchedulerService>());
             Assert.NotNull(host.Services.GetService<IIpcCommandProcessor>());
+            Assert.NotNull(host.Services.GetService<IIpcCommandWatcher>());
             Assert.NotNull(host.Services.GetService<IContainerRuntime>());
             Assert.NotNull(host.Services.GetService<IAgentRuntime>());
             Assert.NotNull(host.Services.GetService<IAgentWorkspaceBuilder>());
             Assert.NotNull(host.Services.GetService<IAgentToolRegistry>());
             Assert.True(host.Services.GetServices<ICodingAgentEngine>().Any());
             Assert.Equal("NetClaw", host.Services.GetRequiredService<AssistantIdentityOptions>().Name);
+            Assert.Equal(TimeSpan.FromSeconds(5), host.Services.GetRequiredService<IpcWatcherOptions>().PollInterval);
             Assert.Equal(TimeSpan.FromSeconds(45), host.Services.GetRequiredService<SchedulerOptions>().PollInterval);
             Assert.Equal(NetClaw.Domain.Enums.AgentProviderKind.Copilot, host.Services.GetRequiredService<AgentRuntimeOptions>().GetDefaultProvider());
             Assert.NotNull(host.Services.GetRequiredService<PlatformInfo>());

@@ -28,4 +28,35 @@ public sealed class PhysicalFileSystemTests
             }
         }
     }
+
+    [Fact]
+    public void MoveAndDeleteFile_UpdatesFileLocation()
+    {
+        PhysicalFileSystem fileSystem = new();
+        string directory = Path.Combine(fileSystem.GetTempPath(), $"netclaw-fs-{Guid.NewGuid():N}");
+        string sourcePath = Path.Combine(directory, "source.txt");
+        string destinationPath = Path.Combine(directory, "destination.txt");
+
+        try
+        {
+            fileSystem.CreateDirectory(directory);
+            File.WriteAllText(sourcePath, "payload");
+
+            fileSystem.MoveFile(sourcePath, destinationPath);
+
+            Assert.False(fileSystem.FileExists(sourcePath));
+            Assert.True(fileSystem.FileExists(destinationPath));
+
+            fileSystem.DeleteFile(destinationPath);
+
+            Assert.False(fileSystem.FileExists(destinationPath));
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+        }
+    }
 }

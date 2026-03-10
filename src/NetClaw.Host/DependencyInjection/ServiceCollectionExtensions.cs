@@ -19,6 +19,7 @@ using NetClaw.Host.Services;
 using NetClaw.Infrastructure.Runtime.Agents;
 using NetClaw.Infrastructure.Configuration;
 using NetClaw.Infrastructure.FileSystem;
+using NetClaw.Infrastructure.Ipc;
 using NetClaw.Infrastructure.Paths;
 using NetClaw.Infrastructure.Persistence.Sqlite;
 using NetClaw.Infrastructure.Runtime;
@@ -46,6 +47,9 @@ public static class ServiceCollectionExtensions
         AgentRuntimeOptions agentRuntimeOptions = CreateAgentRuntimeOptions(configuration, hostPathOptions);
         agentRuntimeOptions.Validate();
 
+        IpcWatcherOptions ipcWatcherOptions = CreateIpcWatcherOptions(configuration);
+        ipcWatcherOptions.Validate();
+
         SchedulerOptions schedulerOptions = CreateSchedulerOptions(configuration);
         schedulerOptions.Validate();
 
@@ -55,6 +59,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(credentialProxyOptions);
         services.AddSingleton(containerRuntimeOptions);
         services.AddSingleton(agentRuntimeOptions);
+        services.AddSingleton(ipcWatcherOptions);
         services.AddSingleton(schedulerOptions);
 
         services.AddSingleton<IFileSystem, PhysicalFileSystem>();
@@ -82,6 +87,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ICodingAgentEngine, CodexPlaceholderEngine>();
         services.AddSingleton<ICodingAgentEngine, OpenCodePlaceholderEngine>();
         services.AddSingleton<IAgentRuntime, NetClawAgentRuntime>();
+        services.AddSingleton<IIpcCommandWatcher, FileSystemIpcWatcher>();
 
         services.AddSingleton<IReadOnlyList<IChannel>>(_ => Array.Empty<IChannel>());
         services.AddSingleton<IMessageFormatter, XmlMessageFormatter>();
@@ -124,6 +130,7 @@ public static class ServiceCollectionExtensions
             serviceProvider.GetRequiredService<Func<ChatJid, string, CancellationToken, Task>>()));
 
         services.AddHostedService<HostInitializationService>();
+        services.AddHostedService<IpcWatcherWorker>();
         services.AddHostedService<SchedulerWorker>();
 
         return services;
@@ -197,6 +204,20 @@ public static class ServiceCollectionExtensions
             CopilotBufferExhaustionThreshold = double.TryParse(configuration["NetClaw:AgentRuntime:CopilotBufferExhaustionThreshold"], out double bufferThreshold)
                 ? bufferThreshold
                 : null
+        };
+    }
+
+    private static IpcWatcherOptions CreateIpcWatcherOptions(IConfiguration configuration)
+    {
+        TimeSpan pollInterval = TimeSpan.FromSeconds(2);
+        if (TimeSpan.TryParse(configuration["NetClaw:Ipc:PollInterval"], out TimeSpan configuredPollInterval))
+        {
+            pollInterval = configuredPollInterval;
+        }
+
+        return new IpcWatcherOptions
+        {
+            PollInterval = pollInterval
         };
     }
 

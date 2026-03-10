@@ -110,6 +110,59 @@ public sealed class EndToEndIntegrationTests
     }
 
     [Fact]
+    public async Task IpcWatcher_PollsTaskFilesAndPersistsScheduledTask()
+    {
+        string projectRoot = CreateTemporaryPath();
+        string homeDirectory = CreateTemporaryPath();
+
+        try
+        {
+            using IHost host = CreateHost(projectRoot);
+            await host.StartAsync();
+
+            IGroupRepository groupRepository = host.Services.GetRequiredService<IGroupRepository>();
+            await groupRepository.UpsertAsync(
+                new ChatJid("team@jid"),
+                new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow));
+
+            string taskDirectory = Path.Combine(projectRoot, "data", "ipc", "team", "tasks");
+            Directory.CreateDirectory(taskDirectory);
+
+            string taskFilePath = Path.Combine(taskDirectory, "task.json");
+            await File.WriteAllTextAsync(
+                taskFilePath,
+                """
+                {
+                  "type": "schedule_task",
+                  "prompt": "Ping from IPC",
+                  "schedule_type": "once",
+                  "schedule_value": "2026-03-10T00:00:00Z",
+                  "context_mode": "group",
+                  "targetJid": "team@jid"
+                }
+                """);
+
+            IIpcCommandWatcher watcher = host.Services.GetRequiredService<IIpcCommandWatcher>();
+            await watcher.PollOnceAsync();
+
+            ITaskRepository taskRepository = host.Services.GetRequiredService<ITaskRepository>();
+            IReadOnlyList<ScheduledTask> tasks = await taskRepository.GetAllAsync();
+
+            Assert.Single(tasks);
+            Assert.Equal("Ping from IPC", tasks[0].Prompt);
+            Assert.Equal(TaskContextMode.Group, tasks[0].ContextMode);
+            Assert.False(File.Exists(taskFilePath));
+
+            await host.StopAsync();
+        }
+        finally
+        {
+            DeleteTemporaryPath(projectRoot);
+            DeleteTemporaryPath(homeDirectory);
+        }
+    }
+
+    [Fact]
     public async Task SetupVerify_ReportsSuccessAfterBootstrapArtifactsAreCreated()
     {
         string projectRoot = CreateTemporaryPath();

@@ -7,6 +7,11 @@ public sealed class PhysicalFileSystem : IFileSystem
         Directory.CreateDirectory(path);
     }
 
+    public void DeleteFile(string path)
+    {
+        File.Delete(path);
+    }
+
     public bool DirectoryExists(string path)
     {
         return Directory.Exists(path);
@@ -35,6 +40,11 @@ public sealed class PhysicalFileSystem : IFileSystem
     public string GetTempPath()
     {
         return Path.GetTempPath();
+    }
+
+    public void MoveFile(string sourcePath, string destinationPath)
+    {
+        File.Move(sourcePath, destinationPath);
     }
 
     public Task<string> ReadAllTextAsync(string path, CancellationToken cancellationToken = default)

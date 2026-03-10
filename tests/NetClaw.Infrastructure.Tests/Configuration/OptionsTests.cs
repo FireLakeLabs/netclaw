@@ -24,6 +24,14 @@ public sealed class OptionsTests
     }
 
     [Fact]
+    public void IpcWatcherOptions_RejectsNonPositiveIntervals()
+    {
+        IpcWatcherOptions options = new() { PollInterval = TimeSpan.Zero };
+
+        Assert.Throws<InvalidOperationException>(() => options.Validate());
+    }
+
+    [Fact]
     public void CredentialProxyOptions_RejectsInvalidPort()
     {
         CredentialProxyOptions options = new() { Port = 70000 };
