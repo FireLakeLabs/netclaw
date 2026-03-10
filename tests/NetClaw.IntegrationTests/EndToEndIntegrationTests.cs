@@ -373,6 +373,8 @@ public sealed class EndToEndIntegrationTests
             await Task.Delay(500);
 
             Assert.Contains("you> ", output.ToString(), StringComparison.Ordinal);
+            Assert.DoesNotContain("you> assistant>", output.ToString(), StringComparison.Ordinal);
+            Assert.Contains($"{Environment.NewLine}you> ", output.ToString(), StringComparison.Ordinal);
             Assert.Contains("assistant> assistant reply", output.ToString(), StringComparison.Ordinal);
             Assert.Contains("@Andy terminal test", fakeRuntime.LastPrompt, StringComparison.Ordinal);
 

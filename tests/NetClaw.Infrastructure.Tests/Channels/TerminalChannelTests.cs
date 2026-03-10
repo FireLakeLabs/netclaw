@@ -55,7 +55,7 @@ public sealed class TerminalChannelTests
     [Fact]
     public async Task SendMessageAsync_WritesToOutput()
     {
-        StringReader input = new(string.Empty);
+        BlockingTextReader input = new();
         StringWriter output = new();
         TerminalChannel channel = new(
             new TerminalChannelOptions
@@ -68,10 +68,11 @@ public sealed class TerminalChannelTests
             output);
 
         await channel.ConnectAsync();
+        await Task.Delay(50);
         await channel.SendMessageAsync(new ChatJid("team@jid"), "assistant reply");
 
-        Assert.Contains("you> ", output.ToString(), StringComparison.Ordinal);
-        Assert.Contains("bot> assistant reply", output.ToString(), StringComparison.Ordinal);
+        string expected = $"you> \rbot> assistant reply{Environment.NewLine}you> ";
+        Assert.Equal(expected, output.ToString());
 
         await channel.DisconnectAsync();
     }
@@ -102,5 +103,16 @@ public sealed class TerminalChannelTests
         Assert.DoesNotContain("you> ", output.ToString(), StringComparison.Ordinal);
 
         await channel.DisconnectAsync();
+    }
+
+    private sealed class BlockingTextReader : TextReader
+    {
+        private readonly TaskCompletionSource<string?> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public override ValueTask<string?> ReadLineAsync(CancellationToken cancellationToken)
+        {
+            cancellationToken.Register(() => completion.TrySetCanceled(cancellationToken));
+            return new ValueTask<string?>(completion.Task);
+        }
     }
 }

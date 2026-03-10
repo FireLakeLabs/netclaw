@@ -18,6 +18,7 @@ public sealed class TerminalChannel : IInboundChannel
     private Task? readLoopTask;
     private bool isConnected;
     private bool metadataPending;
+    private bool promptVisible;
     private int messageSequence;
 
     public TerminalChannel(TerminalChannelOptions options)
@@ -109,7 +110,7 @@ public sealed class TerminalChannel : IInboundChannel
             throw new InvalidOperationException("Terminal channel is not connected.");
         }
 
-        await WriteOutputAsync($"{options.OutboundPrefix}{text}", appendNewLine: true, cancellationToken);
+        await WriteAssistantMessageAsync(text, cancellationToken);
     }
 
     public Task SetTypingAsync(ChatJid chatJid, bool isTyping, CancellationToken cancellationToken = default)
@@ -169,8 +170,11 @@ public sealed class TerminalChannel : IInboundChannel
 
             if (line is null)
             {
+                promptVisible = false;
                 break;
             }
+
+            promptVisible = false;
 
             if (string.IsNullOrWhiteSpace(line))
             {
@@ -195,6 +199,7 @@ public sealed class TerminalChannel : IInboundChannel
             return Task.CompletedTask;
         }
 
+        promptVisible = true;
         return WriteOutputAsync(options.InputPrompt, appendNewLine: false, cancellationToken);
     }
 
@@ -210,6 +215,41 @@ public sealed class TerminalChannel : IInboundChannel
             else
             {
                 await output.WriteAsync(text);
+            }
+
+            await output.FlushAsync(cancellationToken);
+        }
+        finally
+        {
+            outputLock.Release();
+        }
+    }
+
+    private async Task WriteAssistantMessageAsync(string text, CancellationToken cancellationToken)
+    {
+        string renderedText = $"{options.OutboundPrefix}{text}";
+
+        await outputLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (promptVisible)
+            {
+                await output.WriteAsync($"\r{renderedText}{Environment.NewLine}");
+
+                if (!string.IsNullOrEmpty(options.InputPrompt))
+                {
+                    await output.WriteAsync(options.InputPrompt);
+                    promptVisible = true;
+                }
+                else
+                {
+                    promptVisible = false;
+                }
+            }
+            else
+            {
+                await output.WriteLineAsync(renderedText);
+                promptVisible = false;
             }
 
             await output.FlushAsync(cancellationToken);
