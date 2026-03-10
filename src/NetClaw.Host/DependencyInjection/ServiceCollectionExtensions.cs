@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using NetClaw.Application.Channels;
 using NetClaw.Application.Execution;
 using NetClaw.Application.Formatting;
 using NetClaw.Application.Ipc;
@@ -18,6 +19,7 @@ using NetClaw.Host.Configuration;
 using NetClaw.Host.Services;
 using NetClaw.Infrastructure.Runtime.Agents;
 using NetClaw.Infrastructure.Configuration;
+using NetClaw.Infrastructure.Channels;
 using NetClaw.Infrastructure.FileSystem;
 using NetClaw.Infrastructure.Ipc;
 using NetClaw.Infrastructure.Paths;
@@ -56,6 +58,12 @@ public static class ServiceCollectionExtensions
         SchedulerOptions schedulerOptions = CreateSchedulerOptions(configuration);
         schedulerOptions.Validate();
 
+        ChannelWorkerOptions channelWorkerOptions = CreateChannelWorkerOptions(configuration);
+        channelWorkerOptions.Validate();
+
+        ReferenceFileChannelOptions referenceFileChannelOptions = CreateReferenceFileChannelOptions(configuration, hostPathOptions);
+        referenceFileChannelOptions.Validate();
+
         services.AddSingleton(hostPathOptions);
         services.AddSingleton(storageOptions);
         services.AddSingleton(assistantIdentityOptions);
@@ -65,6 +73,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(ipcWatcherOptions);
         services.AddSingleton(messageLoopOptions);
         services.AddSingleton(schedulerOptions);
+        services.AddSingleton(channelWorkerOptions);
+        services.AddSingleton(referenceFileChannelOptions);
 
         services.AddSingleton<IFileSystem, PhysicalFileSystem>();
         services.AddSingleton<GroupPathResolver>();
@@ -95,7 +105,13 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IAgentRuntime, NetClawAgentRuntime>();
         services.AddSingleton<IIpcCommandWatcher, FileSystemIpcWatcher>();
 
-        services.AddSingleton<IReadOnlyList<IChannel>>(_ => Array.Empty<IChannel>());
+        if (referenceFileChannelOptions.Enabled)
+        {
+            services.AddSingleton<IChannel, ReferenceFileChannel>();
+        }
+
+        services.AddSingleton<IReadOnlyList<IChannel>>(serviceProvider => serviceProvider.GetServices<IChannel>().ToArray());
+        services.AddSingleton<ChannelIngressService>();
         services.AddSingleton<IMessageFormatter, XmlMessageFormatter>();
         services.AddSingleton<IOutboundRouter, ChannelOutboundRouter>();
         services.AddSingleton<ActiveGroupSessionRegistry>();
@@ -161,6 +177,7 @@ public static class ServiceCollectionExtensions
             serviceProvider.GetRequiredService<Func<ChatJid, string, CancellationToken, Task>>()));
 
         services.AddHostedService<HostInitializationService>();
+        services.AddHostedService<ChannelWorker>();
         services.AddHostedService<MessageLoopWorker>();
         services.AddHostedService<IpcWatcherWorker>();
         services.AddHostedService<SchedulerWorker>();
@@ -253,6 +270,32 @@ public static class ServiceCollectionExtensions
         return new IpcWatcherOptions
         {
             PollInterval = pollInterval
+        };
+    }
+
+    private static ChannelWorkerOptions CreateChannelWorkerOptions(IConfiguration configuration)
+    {
+        TimeSpan pollInterval = TimeSpan.FromSeconds(2);
+        if (TimeSpan.TryParse(configuration["NetClaw:Channels:PollInterval"], out TimeSpan configuredPollInterval))
+        {
+            pollInterval = configuredPollInterval;
+        }
+
+        return new ChannelWorkerOptions
+        {
+            PollInterval = pollInterval,
+            InitialSyncOnStart = !bool.TryParse(configuration["NetClaw:Channels:InitialSyncOnStart"], out bool initialSyncOnStart) || initialSyncOnStart
+        };
+    }
+
+    private static ReferenceFileChannelOptions CreateReferenceFileChannelOptions(IConfiguration configuration, HostPathOptions hostPathOptions)
+    {
+        return new ReferenceFileChannelOptions
+        {
+            Enabled = bool.TryParse(configuration["NetClaw:Channels:ReferenceFile:Enabled"], out bool enabled) && enabled,
+            RootDirectory = configuration["NetClaw:Channels:ReferenceFile:RootDirectory"]
+                ?? Path.Combine(hostPathOptions.ProjectRoot, "data", "channels", "reference-file"),
+            ClaimAllChats = !bool.TryParse(configuration["NetClaw:Channels:ReferenceFile:ClaimAllChats"], out bool claimAllChats) || claimAllChats
         };
     }
 

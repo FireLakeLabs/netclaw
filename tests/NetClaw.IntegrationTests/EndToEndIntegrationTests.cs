@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using System.Text.Json;
 using NetClaw.Application.Execution;
 using NetClaw.Domain.Contracts.Channels;
 using NetClaw.Domain.Contracts.Ipc;
@@ -255,18 +256,92 @@ public sealed class EndToEndIntegrationTests
         }
     }
 
-    private static IHost CreateHost(string projectRoot, Action<IServiceCollection>? configureServices = null)
+    [Fact]
+    public async Task ReferenceFileChannel_IngestsInboundMessageAndWritesOutboundReply()
+    {
+        string projectRoot = CreateTemporaryPath();
+        string homeDirectory = CreateTemporaryPath();
+        FakeAgentRuntime fakeRuntime = new();
+
+        try
+        {
+            using IHost host = CreateHost(projectRoot, services =>
+            {
+                services.AddSingleton<IAgentRuntime>(fakeRuntime);
+            }, new Dictionary<string, string?>
+            {
+                ["NetClaw:Channels:PollInterval"] = "00:00:01",
+                ["NetClaw:Channels:ReferenceFile:Enabled"] = "true",
+                ["NetClaw:Channels:ReferenceFile:ClaimAllChats"] = "false",
+                ["NetClaw:MessageLoop:PollInterval"] = "00:00:01"
+            });
+            await host.StartAsync();
+
+            IGroupRepository groupRepository = host.Services.GetRequiredService<IGroupRepository>();
+            await groupRepository.UpsertAsync(
+                new ChatJid("team@jid"),
+                new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow));
+
+            string channelRoot = Path.Combine(projectRoot, "data", "channels", "reference-file");
+            Directory.CreateDirectory(Path.Combine(channelRoot, "inbox"));
+            string inboundPath = Path.Combine(channelRoot, "inbox", "message.json");
+            await File.WriteAllTextAsync(
+                inboundPath,
+                """
+                {
+                  "id": "message-1",
+                  "chatJid": "team@jid",
+                  "sender": "sender-1",
+                  "senderName": "User",
+                  "content": "@Andy please respond",
+                  "timestamp": "2026-03-10T00:00:00Z",
+                  "chatName": "Team",
+                  "isGroup": true
+                }
+                """);
+
+            string outboxPath = await WaitForSingleFileAsync(Path.Combine(channelRoot, "outbox"), TimeSpan.FromSeconds(5));
+            using JsonDocument document = JsonDocument.Parse(await File.ReadAllTextAsync(outboxPath));
+
+            Assert.Equal("team@jid", document.RootElement.GetProperty("chatJid").GetString());
+            Assert.Equal("assistant reply", document.RootElement.GetProperty("text").GetString());
+            Assert.Contains("@Andy please respond", fakeRuntime.LastPrompt);
+
+            IMessageRepository messageRepository = host.Services.GetRequiredService<IMessageRepository>();
+            IReadOnlyList<ChatInfo> chats = await messageRepository.GetAllChatsAsync();
+            Assert.Equal("reference-file", Assert.Single(chats).Channel.Value);
+
+            await host.StopAsync();
+        }
+        finally
+        {
+            DeleteTemporaryPath(projectRoot);
+            DeleteTemporaryPath(homeDirectory);
+        }
+    }
+
+    private static IHost CreateHost(string projectRoot, Action<IServiceCollection>? configureServices = null, IReadOnlyDictionary<string, string?>? overrides = null)
     {
         IHostBuilder builder = NetClaw.Host.Program.CreateHostBuilder([])
             .ConfigureAppConfiguration(configurationBuilder =>
             {
-                configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
+                Dictionary<string, string?> settings = new()
                 {
                     ["NetClaw:ProjectRoot"] = projectRoot,
                     ["NetClaw:MessageLoop:PollInterval"] = "00:10:00",
                     ["NetClaw:MessageLoop:Timezone"] = "UTC",
                     ["NetClaw:Scheduler:PollInterval"] = "00:10:00"
-                });
+                };
+
+                if (overrides is not null)
+                {
+                    foreach ((string key, string? value) in overrides)
+                    {
+                        settings[key] = value;
+                    }
+                }
+
+                configurationBuilder.AddInMemoryCollection(settings);
             });
 
         if (configureServices is not null)
@@ -299,6 +374,25 @@ public sealed class EndToEndIntegrationTests
         {
             Directory.Delete(path, recursive: true);
         }
+    }
+
+    private static async Task<string> WaitForSingleFileAsync(string directoryPath, TimeSpan timeout)
+    {
+        DateTimeOffset deadline = DateTimeOffset.UtcNow.Add(timeout);
+        Directory.CreateDirectory(directoryPath);
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            string[] files = Directory.GetFiles(directoryPath, "*.json");
+            if (files.Length == 1)
+            {
+                return files[0];
+            }
+
+            await Task.Delay(100);
+        }
+
+        throw new TimeoutException($"Timed out waiting for file in {directoryPath}.");
     }
 
     private sealed class FakeAgentRuntime : IAgentRuntime

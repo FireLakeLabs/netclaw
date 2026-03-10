@@ -25,3 +25,11 @@ public interface IChannel
 
     Task SyncGroupsAsync(bool force, CancellationToken cancellationToken = default);
 }
+
+public interface IInboundChannel : IChannel
+{
+    Task PollInboundAsync(
+        Func<ChannelMessage, CancellationToken, Task> onMessage,
+        Func<ChannelMetadataEvent, CancellationToken, Task> onMetadata,
+        CancellationToken cancellationToken = default);
+}
