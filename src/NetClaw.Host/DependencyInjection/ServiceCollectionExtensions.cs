@@ -318,7 +318,8 @@ public static class ServiceCollectionExtensions
             SenderName = configuration["NetClaw:Channels:Terminal:SenderName"] ?? "Terminal User",
             ChatName = configuration["NetClaw:Channels:Terminal:ChatName"] ?? "Terminal",
             IsGroup = bool.TryParse(configuration["NetClaw:Channels:Terminal:IsGroup"], out bool isGroup) && isGroup,
-            OutboundPrefix = configuration["NetClaw:Channels:Terminal:OutboundPrefix"] ?? "assistant> "
+            OutboundPrefix = configuration["NetClaw:Channels:Terminal:OutboundPrefix"] ?? "assistant> ",
+            InputPrompt = configuration["NetClaw:Channels:Terminal:InputPrompt"] ?? "you> "
         };
     }
 

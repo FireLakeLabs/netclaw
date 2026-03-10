@@ -12,6 +12,7 @@ public sealed class TerminalChannel : IInboundChannel
     private readonly TextReader input;
     private readonly TerminalChannelOptions options;
     private readonly TextWriter output;
+    private readonly SemaphoreSlim outputLock = new(1, 1);
     private readonly ConcurrentQueue<StoredMessage> pendingMessages = new();
     private CancellationTokenSource? readLoopCancellation;
     private Task? readLoopTask;
@@ -108,8 +109,7 @@ public sealed class TerminalChannel : IInboundChannel
             throw new InvalidOperationException("Terminal channel is not connected.");
         }
 
-        await output.WriteLineAsync($"{options.OutboundPrefix}{text}");
-        await output.FlushAsync(cancellationToken);
+        await WriteOutputAsync($"{options.OutboundPrefix}{text}", appendNewLine: true, cancellationToken);
     }
 
     public Task SetTypingAsync(ChatJid chatJid, bool isTyping, CancellationToken cancellationToken = default)
@@ -155,6 +155,8 @@ public sealed class TerminalChannel : IInboundChannel
     {
         while (!cancellationToken.IsCancellationRequested)
         {
+            await WritePromptAsync(cancellationToken);
+
             string? line;
             try
             {
@@ -183,6 +185,38 @@ public sealed class TerminalChannel : IInboundChannel
                 options.SenderName,
                 line,
                 DateTimeOffset.UtcNow));
+        }
+    }
+
+    private Task WritePromptAsync(CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(options.InputPrompt))
+        {
+            return Task.CompletedTask;
+        }
+
+        return WriteOutputAsync(options.InputPrompt, appendNewLine: false, cancellationToken);
+    }
+
+    private async Task WriteOutputAsync(string text, bool appendNewLine, CancellationToken cancellationToken)
+    {
+        await outputLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (appendNewLine)
+            {
+                await output.WriteLineAsync(text);
+            }
+            else
+            {
+                await output.WriteAsync(text);
+            }
+
+            await output.FlushAsync(cancellationToken);
+        }
+        finally
+        {
+            outputLock.Release();
         }
     }
 }

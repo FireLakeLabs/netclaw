@@ -59,6 +59,7 @@ Enable it with configuration like:
 - `NetClaw:Channels:Terminal:SenderName=Terminal User`
 - `NetClaw:Channels:Terminal:ChatName=Terminal Chat`
 - `NetClaw:Channels:Terminal:IsGroup=true`
+- `NetClaw:Channels:Terminal:InputPrompt=you> `
 - `NetClaw:Channels:PollInterval=00:00:01`
 - `NetClaw:MessageLoop:PollInterval=00:00:01`
 
@@ -81,6 +82,7 @@ env \
 	NetClaw__Channels__Terminal__SenderName='Terminal User' \
 	NetClaw__Channels__Terminal__ChatName='Terminal Chat' \
 	NetClaw__Channels__Terminal__IsGroup=true \
+	NetClaw__Channels__Terminal__InputPrompt='you> ' \
 	NetClaw__Channels__PollInterval=00:00:01 \
 	NetClaw__MessageLoop__PollInterval=00:00:01 \
 	NetClaw__MessageLoop__Timezone=UTC \
@@ -88,4 +90,16 @@ env \
 	dotnet run --project src/NetClaw.Host
 ```
 
-Type a triggered message such as `@Andy hello` and the assistant reply will be written to stdout with the configured prefix.
+For the common local workflow, you can also run the root helper script:
+
+```bash
+./run-terminal-channel.sh
+```
+
+It wraps the register step plus host startup. By default, the helper registers the terminal chat with `--no-trigger-required`, so plain prompts like `What is the capital of Missouri?` will be processed without `@Andy`.
+
+If you want parity with the triggered group flow instead, start it with `NETCLAW_REQUIRE_TRIGGER=true`; in that mode prompts must include the configured trigger such as `@Andy What is the capital of Missouri?`.
+
+The terminal channel now shows a `you> ` input prompt while it is waiting for input. You can override the defaults with environment variables such as `NETCLAW_PROJECT_ROOT`, `NETCLAW_CHAT_JID`, `NETCLAW_AGENT_TRIGGER`, `NETCLAW_REQUIRE_TRIGGER`, `NETCLAW_TERMINAL_SENDER_NAME`, and `NETCLAW_TERMINAL_INPUT_PROMPT`.
+
+Type a prompt such as `What is the capital of Missouri?` or, in trigger-required mode, `@Andy hello`, and the assistant reply will be written to stdout with the configured prefix.

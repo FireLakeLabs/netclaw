@@ -348,6 +348,7 @@ public sealed class EndToEndIntegrationTests
                         SenderName = "User",
                         ChatName = "Terminal Chat",
                         IsGroup = true,
+                        InputPrompt = "you> ",
                         OutboundPrefix = "assistant> "
                     },
                     input,
@@ -371,6 +372,7 @@ public sealed class EndToEndIntegrationTests
             await fakeRuntime.Completion.Task.WaitAsync(TimeSpan.FromSeconds(5));
             await Task.Delay(500);
 
+            Assert.Contains("you> ", output.ToString(), StringComparison.Ordinal);
             Assert.Contains("assistant> assistant reply", output.ToString(), StringComparison.Ordinal);
             Assert.Contains("@Andy terminal test", fakeRuntime.LastPrompt, StringComparison.Ordinal);
 

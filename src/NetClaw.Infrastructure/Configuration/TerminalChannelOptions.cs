@@ -16,6 +16,8 @@ public sealed record TerminalChannelOptions
 
     public string OutboundPrefix { get; init; } = "assistant> ";
 
+    public string InputPrompt { get; init; } = "you> ";
+
     public void Validate()
     {
         if (!Enabled)
@@ -36,6 +38,11 @@ public sealed record TerminalChannelOptions
         if (string.IsNullOrWhiteSpace(SenderName))
         {
             throw new InvalidOperationException("Terminal channel sender name is required when enabled.");
+        }
+
+        if (InputPrompt is null)
+        {
+            throw new InvalidOperationException("Terminal channel input prompt cannot be null.");
         }
     }
 }
