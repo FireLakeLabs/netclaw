@@ -2,8 +2,12 @@
 
 public static class Program
 {
-	public static int Main(string[] args)
+	public static async Task<int> Main(string[] args)
 	{
-		return 0;
+		SetupCommand command = SetupCommand.Parse(args);
+		SetupRunner runner = SetupRunner.CreateDefault();
+		SetupResult result = await runner.RunAsync(command);
+		SetupStatusWriter.Write(result);
+		return result.ExitCode;
 	}
 }
