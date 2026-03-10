@@ -15,9 +15,19 @@ namespace NetClaw.Infrastructure.Tests.Runtime;
 public sealed class AgentRuntimeServicesTests
 {
     [Fact]
-    public async Task CopilotPlaceholderEngine_ReturnsStructuredNotImplementedError()
+    public async Task CopilotEngine_CreatesSessionAndReturnsResponse()
     {
-        CopilotCodingAgentEngine engine = new();
+        FakeCopilotClientAdapter client = new(new FakeCopilotSessionAdapter("copilot-session-1", "/runtime/workspace", "done"));
+        CopilotCodingAgentEngine engine = new(
+            new FakeCopilotClientPool(client),
+            new AgentRuntimeOptions
+            {
+                CopilotClientName = "NetClaw",
+                CopilotConfigDirectory = "/runtime/config",
+                CopilotModel = "gpt-5.4",
+                CopilotReasoningEffort = "high"
+            });
+
         AgentExecutionRequest request = new(
             AgentProviderKind.Copilot,
             new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow),
@@ -28,9 +38,40 @@ public sealed class AgentRuntimeServicesTests
 
         AgentExecutionResult result = await engine.ExecuteAsync(request);
 
-        Assert.Equal(ContainerRunStatus.Error, result.Status);
-        Assert.Equal("Copilot engine is not implemented yet.", result.Error);
+        Assert.Equal(ContainerRunStatus.Success, result.Status);
+        Assert.Equal("done", result.Result);
+        Assert.Equal("copilot-session-1", result.Session?.SessionId);
+        Assert.NotNull(client.CreatedConfiguration);
+        Assert.Equal("gpt-5.4", client.CreatedConfiguration!.Model);
+        Assert.Equal("/workspace/group", client.CreatedConfiguration.WorkingDirectory);
+        Assert.NotNull(client.CreatedConfiguration.SystemMessage);
+        Assert.Contains("instruction_document", client.CreatedConfiguration.SystemMessage);
         Assert.True(engine.Capabilities.SupportsWorkspaceInstructions);
+    }
+
+    [Fact]
+    public async Task CopilotEngine_ResumesExistingSession()
+    {
+        FakeCopilotClientAdapter client = new(new FakeCopilotSessionAdapter("persisted-session", "/runtime/workspace", "done"));
+        CopilotCodingAgentEngine engine = new(
+            new FakeCopilotClientPool(client),
+            new AgentRuntimeOptions
+            {
+                CopilotConfigDirectory = "/runtime/config"
+            });
+
+        AgentExecutionRequest request = new(
+            AgentProviderKind.Copilot,
+            new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow),
+            new ContainerInput("Prompt", new SessionId("persisted-session"), new GroupFolder("team"), new ChatJid("team@jid"), false, false, "Andy"),
+            new AgentWorkspaceContext(new GroupFolder("team"), "/workspace/group", "/workspace/sessions/team", "/workspace/runtime/team", false, [], new AgentInstructionSet([new AgentInstructionDocument("AGENTS.md", "# A", true)])),
+            new AgentSessionReference(AgentProviderKind.Copilot, "persisted-session", "/workspace/runtime/team"),
+            []);
+
+        AgentExecutionResult result = await engine.ExecuteAsync(request);
+
+        Assert.Equal(ContainerRunStatus.Success, result.Status);
+        Assert.Equal("persisted-session", client.ResumedSessionId);
     }
 
     [Fact]
@@ -57,6 +98,11 @@ public sealed class AgentRuntimeServicesTests
             Assert.Equal(Path.Combine(root, "data", "agent-workspaces", "team"), context.WorkspaceDirectory);
             Assert.Single(context.AdditionalDirectories);
             Assert.Equal("AGENTS.md", context.Instructions.Documents[0].RelativePath);
+            Assert.True(Directory.Exists(context.WorkingDirectory));
+            Assert.True(Directory.Exists(context.SessionDirectory));
+            Assert.True(Directory.Exists(context.WorkspaceDirectory));
+            Assert.True(File.Exists(Path.Combine(context.WorkingDirectory, "AGENTS.md")));
+            Assert.True(File.Exists(Path.Combine(context.WorkspaceDirectory, "AGENTS.md")));
         }
         finally
         {
@@ -123,6 +169,74 @@ public sealed class AgentRuntimeServicesTests
         public Task<AgentWorkspaceContext> BuildAsync(RegisteredGroup group, ContainerInput input, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(new AgentWorkspaceContext(group.Folder, "/workspace/group", "/workspace/sessions/team", "/workspace/runtime/team", false, [], new AgentInstructionSet([new AgentInstructionDocument("AGENTS.md", "# A", true)])));
+        }
+    }
+
+    private sealed class FakeCopilotClientPool : ICopilotClientPool
+    {
+        private readonly ICopilotClientAdapter client;
+
+        public FakeCopilotClientPool(ICopilotClientAdapter client)
+        {
+            this.client = client;
+        }
+
+        public Task<ICopilotClientAdapter> GetClientAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(client);
+        }
+    }
+
+    private sealed class FakeCopilotClientAdapter : ICopilotClientAdapter
+    {
+        private readonly ICopilotSessionAdapter session;
+
+        public FakeCopilotClientAdapter(ICopilotSessionAdapter session)
+        {
+            this.session = session;
+        }
+
+        public CopilotSessionConfiguration? CreatedConfiguration { get; private set; }
+
+        public string? ResumedSessionId { get; private set; }
+
+        public Task<ICopilotSessionAdapter> CreateSessionAsync(CopilotSessionConfiguration configuration, Func<AgentStreamEvent, CancellationToken, Task>? onStreamEvent = null, CancellationToken cancellationToken = default)
+        {
+            CreatedConfiguration = configuration;
+            return Task.FromResult(session);
+        }
+
+        public Task<ICopilotSessionAdapter> ResumeSessionAsync(string sessionId, CopilotSessionConfiguration configuration, Func<AgentStreamEvent, CancellationToken, Task>? onStreamEvent = null, CancellationToken cancellationToken = default)
+        {
+            ResumedSessionId = sessionId;
+            CreatedConfiguration = configuration;
+            return Task.FromResult(session);
+        }
+    }
+
+    private sealed class FakeCopilotSessionAdapter : ICopilotSessionAdapter
+    {
+        private readonly string result;
+
+        public FakeCopilotSessionAdapter(string sessionId, string? workspacePath, string result)
+        {
+            SessionId = sessionId;
+            WorkspacePath = workspacePath;
+            this.result = result;
+        }
+
+        public string SessionId { get; }
+
+        public string? WorkspacePath { get; }
+
+        public Task<string?> SendPromptAsync(string prompt, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<string?>(result);
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return ValueTask.CompletedTask;
         }
     }
 

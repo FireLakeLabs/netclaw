@@ -27,11 +27,15 @@ public sealed class NetClawAgentWorkspaceBuilder : IAgentWorkspaceBuilder
         this.assistantIdentityOptions = assistantIdentityOptions;
     }
 
-    public Task<AgentWorkspaceContext> BuildAsync(RegisteredGroup group, ContainerInput input, CancellationToken cancellationToken = default)
+    public async Task<AgentWorkspaceContext> BuildAsync(RegisteredGroup group, ContainerInput input, CancellationToken cancellationToken = default)
     {
         string workingDirectory = groupPathResolver.ResolveGroupDirectory(group.Folder);
         string sessionDirectory = groupPathResolver.ResolveGroupSessionDirectory(group.Folder);
         string workspaceDirectory = groupPathResolver.ResolveGroupAgentWorkspaceDirectory(group.Folder);
+
+        fileSystem.CreateDirectory(workingDirectory);
+        fileSystem.CreateDirectory(sessionDirectory);
+        fileSystem.CreateDirectory(workspaceDirectory);
 
         List<string> additionalDirectories = [];
         string globalDirectory = Path.Combine(storageOptions.GroupsDirectory, "global");
@@ -61,6 +65,8 @@ public sealed class NetClawAgentWorkspaceBuilder : IAgentWorkspaceBuilder
                 ? "This execution originated from a scheduled task."
                 : "This execution originated from an interactive group flow.");
 
+        await MaterializeInstructionsAsync(workingDirectory, workspaceDirectory, instructionSet, cancellationToken);
+
         AgentWorkspaceContext context = new(
             group.Folder,
             workingDirectory,
@@ -70,6 +76,52 @@ public sealed class NetClawAgentWorkspaceBuilder : IAgentWorkspaceBuilder
             additionalDirectories,
             instructionSet);
 
-        return Task.FromResult(context);
+        return context;
+    }
+
+    private async Task MaterializeInstructionsAsync(
+        string workingDirectory,
+        string workspaceDirectory,
+        AgentInstructionSet instructionSet,
+        CancellationToken cancellationToken)
+    {
+        foreach (AgentInstructionDocument document in instructionSet.Documents)
+        {
+            string workingPath = ResolveDocumentPath(workingDirectory, document.RelativePath);
+            string workspacePath = ResolveDocumentPath(workspaceDirectory, document.RelativePath);
+
+            string? workingParent = Path.GetDirectoryName(workingPath);
+            if (!string.IsNullOrWhiteSpace(workingParent))
+            {
+                fileSystem.CreateDirectory(workingParent);
+            }
+
+            string? workspaceParent = Path.GetDirectoryName(workspacePath);
+            if (!string.IsNullOrWhiteSpace(workspaceParent))
+            {
+                fileSystem.CreateDirectory(workspaceParent);
+            }
+
+            if (document.IsGenerated || !fileSystem.FileExists(workingPath))
+            {
+                await fileSystem.WriteAllTextAsync(workingPath, document.Content, cancellationToken);
+            }
+
+            await fileSystem.WriteAllTextAsync(workspacePath, document.Content, cancellationToken);
+        }
+    }
+
+    private string ResolveDocumentPath(string root, string relativePath)
+    {
+        string fullRoot = fileSystem.GetFullPath(root);
+        string fullPath = fileSystem.GetFullPath(Path.Combine(root, relativePath));
+        string relative = Path.GetRelativePath(fullRoot, fullPath);
+
+        if (relative.StartsWith("..", StringComparison.Ordinal) || Path.IsPathFullyQualified(relative))
+        {
+            throw new InvalidOperationException($"Instruction path escapes workspace root: {relativePath}");
+        }
+
+        return fullPath;
     }
 }

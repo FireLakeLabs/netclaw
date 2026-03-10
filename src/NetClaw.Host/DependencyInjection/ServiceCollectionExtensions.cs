@@ -43,7 +43,7 @@ public static class ServiceCollectionExtensions
         ContainerRuntimeOptions containerRuntimeOptions = CreateContainerRuntimeOptions(configuration);
         containerRuntimeOptions.Validate();
 
-        AgentRuntimeOptions agentRuntimeOptions = CreateAgentRuntimeOptions(configuration);
+        AgentRuntimeOptions agentRuntimeOptions = CreateAgentRuntimeOptions(configuration, hostPathOptions);
         agentRuntimeOptions.Validate();
 
         SchedulerOptions schedulerOptions = CreateSchedulerOptions(configuration);
@@ -75,6 +75,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IContainerRuntime, DockerContainerRuntime>();
         services.AddSingleton<IAgentWorkspaceBuilder, NetClawAgentWorkspaceBuilder>();
         services.AddSingleton<IAgentToolRegistry, NetClawAgentToolRegistry>();
+        services.AddSingleton<ICopilotClientAdapterFactory, SdkCopilotClientAdapterFactory>();
+        services.AddSingleton<ICopilotClientPool, CopilotClientPool>();
         services.AddSingleton<ICodingAgentEngine, CopilotCodingAgentEngine>();
         services.AddSingleton<ICodingAgentEngine, ClaudeCodePlaceholderEngine>();
         services.AddSingleton<ICodingAgentEngine, CodexPlaceholderEngine>();
@@ -161,7 +163,7 @@ public static class ServiceCollectionExtensions
         };
     }
 
-    private static AgentRuntimeOptions CreateAgentRuntimeOptions(IConfiguration configuration)
+    private static AgentRuntimeOptions CreateAgentRuntimeOptions(IConfiguration configuration, HostPathOptions hostPathOptions)
     {
         bool keepContainerBoundary = true;
         if (bool.TryParse(configuration["NetClaw:AgentRuntime:KeepContainerBoundary"], out bool configuredKeepContainerBoundary))
@@ -173,7 +175,28 @@ public static class ServiceCollectionExtensions
         {
             DefaultProvider = configuration["NetClaw:AgentRuntime:DefaultProvider"] ?? "copilot",
             KeepContainerBoundary = keepContainerBoundary,
-            CopilotCliPath = configuration["NetClaw:AgentRuntime:CopilotCliPath"] ?? "copilot"
+            CopilotCliPath = configuration["NetClaw:AgentRuntime:CopilotCliPath"] ?? "copilot",
+            CopilotConfigDirectory = configuration["NetClaw:AgentRuntime:CopilotConfigDirectory"] ?? Path.Combine(hostPathOptions.ProjectRoot, "data", "copilot"),
+            CopilotCliUrl = configuration["NetClaw:AgentRuntime:CopilotCliUrl"],
+            CopilotLogLevel = configuration["NetClaw:AgentRuntime:CopilotLogLevel"] ?? "info",
+            CopilotUseStdio = !bool.TryParse(configuration["NetClaw:AgentRuntime:CopilotUseStdio"], out bool useStdio) || useStdio,
+            CopilotAutoStart = !bool.TryParse(configuration["NetClaw:AgentRuntime:CopilotAutoStart"], out bool autoStart) || autoStart,
+            CopilotAutoRestart = !bool.TryParse(configuration["NetClaw:AgentRuntime:CopilotAutoRestart"], out bool autoRestart) || autoRestart,
+            CopilotGitHubToken = configuration["NetClaw:AgentRuntime:CopilotGitHubToken"],
+            CopilotUseLoggedInUser = bool.TryParse(configuration["NetClaw:AgentRuntime:CopilotUseLoggedInUser"], out bool useLoggedInUser)
+                ? useLoggedInUser
+                : null,
+            CopilotClientName = configuration["NetClaw:AgentRuntime:CopilotClientName"] ?? "NetClaw",
+            CopilotModel = configuration["NetClaw:AgentRuntime:CopilotModel"] ?? "gpt-5",
+            CopilotReasoningEffort = configuration["NetClaw:AgentRuntime:CopilotReasoningEffort"],
+            CopilotStreaming = !bool.TryParse(configuration["NetClaw:AgentRuntime:CopilotStreaming"], out bool streaming) || streaming,
+            CopilotEnableInfiniteSessions = !bool.TryParse(configuration["NetClaw:AgentRuntime:CopilotEnableInfiniteSessions"], out bool infiniteSessions) || infiniteSessions,
+            CopilotBackgroundCompactionThreshold = double.TryParse(configuration["NetClaw:AgentRuntime:CopilotBackgroundCompactionThreshold"], out double backgroundThreshold)
+                ? backgroundThreshold
+                : null,
+            CopilotBufferExhaustionThreshold = double.TryParse(configuration["NetClaw:AgentRuntime:CopilotBufferExhaustionThreshold"], out double bufferThreshold)
+                ? bufferThreshold
+                : null
         };
     }
 

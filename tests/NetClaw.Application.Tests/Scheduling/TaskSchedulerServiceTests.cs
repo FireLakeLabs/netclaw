@@ -80,6 +80,46 @@ public sealed class TaskSchedulerServiceTests
         Assert.Equal(TaskStatusEnum.Completed, taskRepository.Tasks[0].Status);
     }
 
+    [Fact]
+    public async Task RunDueTasksAsync_PersistsRunWhenMessageDeliveryFails()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        ScheduledTask task = new(
+            new TaskId("task-1"),
+            new GroupFolder("team"),
+            new ChatJid("team@jid"),
+            "Prompt",
+            ScheduleType.Once,
+            now.ToString("O"),
+            TaskContextMode.Group,
+            now.AddSeconds(-1),
+            null,
+            null,
+            TaskStatusEnum.Active,
+            now.AddMinutes(-1));
+
+        InMemoryTaskRepository taskRepository = new([task]);
+        InMemoryGroupRepository groupRepository = new(new Dictionary<ChatJid, RegisteredGroup>
+        {
+            [new ChatJid("team@jid")] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", now)
+        });
+        InMemorySessionRepository sessionRepository = new(new Dictionary<GroupFolder, SessionId>());
+        TaskSchedulerService service = new(
+            taskRepository,
+            groupRepository,
+            sessionRepository,
+            (_, _, _) => Task.FromResult<(string?, string?)>(("assistant reply", null)),
+            (_, _, _) => throw new InvalidOperationException("No connected channel owns chat JID 'team@jid'."));
+
+        await service.RunDueTasksAsync(now);
+
+        Assert.Single(taskRepository.RunLogs);
+        Assert.Equal(ContainerRunStatus.Error, taskRepository.RunLogs[0].Status);
+        Assert.NotNull(taskRepository.RunLogs[0].Error);
+        Assert.Contains("No connected channel owns chat JID", taskRepository.RunLogs[0].Error!);
+        Assert.Equal(TaskStatusEnum.Completed, taskRepository.Tasks[0].Status);
+    }
+
     private static TaskSchedulerService CreateService(InMemoryTaskRepository taskRepository)
     {
         return new TaskSchedulerService(

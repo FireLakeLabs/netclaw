@@ -100,14 +100,23 @@ public sealed class TaskSchedulerService : ITaskSchedulerService
             DateTimeOffset startedAt = now;
             (string? Result, string? Error) executionResult = await executeTaskAsync(task, sessionId, cancellationToken);
             TimeSpan duration = DateTimeOffset.UtcNow - startedAt;
+            string? deliveryError = null;
 
             if (!string.IsNullOrWhiteSpace(executionResult.Result))
             {
-                await sendMessageAsync(task.ChatJid, executionResult.Result, cancellationToken);
+                try
+                {
+                    await sendMessageAsync(task.ChatJid, executionResult.Result, cancellationToken);
+                }
+                catch (Exception exception)
+                {
+                    deliveryError = exception.Message;
+                }
             }
 
             DateTimeOffset? nextRun = ComputeNextRun(task, now);
             TaskStatusEnum status = task.ScheduleType == ScheduleType.Once ? TaskStatusEnum.Completed : TaskStatusEnum.Active;
+            string? combinedError = CombineErrors(executionResult.Error, deliveryError);
             ScheduledTask updatedTask = new(
                 task.Id,
                 task.GroupFolder,
@@ -118,14 +127,29 @@ public sealed class TaskSchedulerService : ITaskSchedulerService
                 task.ContextMode,
                 nextRun,
                 now,
-                executionResult.Error is null ? executionResult.Result ?? "Completed" : $"Error: {executionResult.Error}",
+                combinedError is null ? executionResult.Result ?? "Completed" : $"Error: {combinedError}",
                 status,
                 task.CreatedAt);
 
             await taskRepository.UpdateAsync(updatedTask, cancellationToken);
             await taskRepository.AppendRunLogAsync(
-                new TaskRunLog(task.Id, now, duration, executionResult.Error is null ? ContainerRunStatus.Success : ContainerRunStatus.Error, executionResult.Result, executionResult.Error),
+                new TaskRunLog(task.Id, now, duration, combinedError is null ? ContainerRunStatus.Success : ContainerRunStatus.Error, executionResult.Result, combinedError),
                 cancellationToken);
         }
+    }
+
+    private static string? CombineErrors(string? executionError, string? deliveryError)
+    {
+        if (string.IsNullOrWhiteSpace(executionError))
+        {
+            return string.IsNullOrWhiteSpace(deliveryError) ? null : deliveryError;
+        }
+
+        if (string.IsNullOrWhiteSpace(deliveryError))
+        {
+            return executionError;
+        }
+
+        return $"{executionError}; message delivery failed: {deliveryError}";
     }
 }

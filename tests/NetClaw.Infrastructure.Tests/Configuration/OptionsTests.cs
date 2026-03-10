@@ -34,7 +34,12 @@ public sealed class OptionsTests
     [Fact]
     public void AgentRuntimeOptions_ParseConfiguredProvider()
     {
-        AgentRuntimeOptions options = new() { DefaultProvider = "copilot", KeepContainerBoundary = true };
+        AgentRuntimeOptions options = new()
+        {
+            DefaultProvider = "copilot",
+            KeepContainerBoundary = true,
+            CopilotConfigDirectory = "/tmp/netclaw/copilot"
+        };
 
         options.Validate();
 
@@ -45,7 +50,33 @@ public sealed class OptionsTests
     [Fact]
     public void AgentRuntimeOptions_RejectUnsupportedProvider()
     {
-        AgentRuntimeOptions options = new() { DefaultProvider = "unknown" };
+        AgentRuntimeOptions options = new() { DefaultProvider = "unknown", CopilotConfigDirectory = "/tmp/netclaw/copilot" };
+
+        Assert.Throws<InvalidOperationException>(() => options.Validate());
+    }
+
+    [Fact]
+    public void AgentRuntimeOptions_RejectInvalidThresholds()
+    {
+        AgentRuntimeOptions options = new()
+        {
+            CopilotBackgroundCompactionThreshold = 0.95,
+            CopilotBufferExhaustionThreshold = 0.90,
+            CopilotConfigDirectory = "/tmp/netclaw/copilot"
+        };
+
+        Assert.Throws<InvalidOperationException>(() => options.Validate());
+    }
+
+    [Fact]
+    public void AgentRuntimeOptions_RejectExternalCliAuthConflict()
+    {
+        AgentRuntimeOptions options = new()
+        {
+            CopilotCliUrl = "http://127.0.0.1:3000",
+            CopilotGitHubToken = "token",
+            CopilotConfigDirectory = "/tmp/netclaw/copilot"
+        };
 
         Assert.Throws<InvalidOperationException>(() => options.Validate());
     }

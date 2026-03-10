@@ -22,20 +22,26 @@ public sealed class SchedulerWorker : BackgroundService
     {
         using PeriodicTimer timer = new(options.PollInterval);
 
-        while (await timer.WaitForNextTickAsync(stoppingToken))
+        try
         {
-            try
+            while (await timer.WaitForNextTickAsync(stoppingToken))
             {
-                await schedulerService.RunDueTasksAsync(DateTimeOffset.UtcNow, stoppingToken);
+                try
+                {
+                    await schedulerService.RunDueTasksAsync(DateTimeOffset.UtcNow, stoppingToken);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (Exception exception)
+                {
+                    logger.LogError(exception, "Task scheduler iteration failed.");
+                }
             }
-            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-            {
-                break;
-            }
-            catch (Exception exception)
-            {
-                logger.LogError(exception, "Task scheduler iteration failed.");
-            }
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
         }
     }
 }
