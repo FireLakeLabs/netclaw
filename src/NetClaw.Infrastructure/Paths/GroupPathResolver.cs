@@ -25,6 +25,16 @@ public sealed class GroupPathResolver
         return EnsureWithinBase(Path.Combine(storageOptions.DataDirectory, "ipc"), Path.Combine(storageOptions.DataDirectory, "ipc", groupFolder.Value));
     }
 
+    public string ResolveGroupSessionDirectory(GroupFolder groupFolder)
+    {
+        return EnsureWithinBase(Path.Combine(storageOptions.DataDirectory, "sessions"), Path.Combine(storageOptions.DataDirectory, "sessions", groupFolder.Value));
+    }
+
+    public string ResolveGroupAgentWorkspaceDirectory(GroupFolder groupFolder)
+    {
+        return EnsureWithinBase(Path.Combine(storageOptions.DataDirectory, "agent-workspaces"), Path.Combine(storageOptions.DataDirectory, "agent-workspaces", groupFolder.Value));
+    }
+
     private string EnsureWithinBase(string baseDirectory, string path)
     {
         string fullBaseDirectory = fileSystem.GetFullPath(baseDirectory);

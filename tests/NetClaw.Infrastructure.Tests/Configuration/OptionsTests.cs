@@ -30,4 +30,23 @@ public sealed class OptionsTests
 
         Assert.Throws<InvalidOperationException>(() => options.Validate());
     }
+
+    [Fact]
+    public void AgentRuntimeOptions_ParseConfiguredProvider()
+    {
+        AgentRuntimeOptions options = new() { DefaultProvider = "copilot", KeepContainerBoundary = true };
+
+        options.Validate();
+
+        Assert.Equal(NetClaw.Domain.Enums.AgentProviderKind.Copilot, options.GetDefaultProvider());
+        Assert.True(options.KeepContainerBoundary);
+    }
+
+    [Fact]
+    public void AgentRuntimeOptions_RejectUnsupportedProvider()
+    {
+        AgentRuntimeOptions options = new() { DefaultProvider = "unknown" };
+
+        Assert.Throws<InvalidOperationException>(() => options.Validate());
+    }
 }

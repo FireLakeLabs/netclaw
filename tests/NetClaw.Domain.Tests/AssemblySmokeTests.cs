@@ -18,7 +18,9 @@ public sealed class AssemblySmokeTests
             typeof(NetClaw.Domain.Contracts.Persistence.IMessageRepository),
             typeof(NetClaw.Domain.Contracts.Services.IMessageFormatter),
             typeof(NetClaw.Domain.Contracts.Containers.ContainerInput),
-            typeof(NetClaw.Domain.Contracts.Ipc.IpcMessageCommand)
+            typeof(NetClaw.Domain.Contracts.Ipc.IpcMessageCommand),
+            typeof(NetClaw.Domain.Contracts.Agents.AgentExecutionRequest),
+            typeof(NetClaw.Domain.Enums.AgentProviderKind)
         ];
 
         Assert.All(

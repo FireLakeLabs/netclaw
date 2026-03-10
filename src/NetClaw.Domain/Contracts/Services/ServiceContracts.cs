@@ -1,7 +1,9 @@
 using NetClaw.Domain.Contracts.Channels;
+using NetClaw.Domain.Contracts.Agents;
 using NetClaw.Domain.Contracts.Containers;
 using NetClaw.Domain.Contracts.Ipc;
 using NetClaw.Domain.Entities;
+using NetClaw.Domain.Enums;
 using NetClaw.Domain.ValueObjects;
 
 namespace NetClaw.Domain.Contracts.Services;
@@ -75,4 +77,29 @@ public interface ICredentialProxyService
     Task StopAsync(CancellationToken cancellationToken = default);
 
     Uri BindAddress { get; }
+}
+
+public interface ICodingAgentEngine
+{
+    AgentProviderKind Provider { get; }
+
+    AgentCapabilityProfile Capabilities { get; }
+
+    Task<AgentExecutionResult> ExecuteAsync(
+        AgentExecutionRequest request,
+        Func<AgentStreamEvent, CancellationToken, Task>? onStreamEvent = null,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IAgentWorkspaceBuilder
+{
+    Task<AgentWorkspaceContext> BuildAsync(
+        RegisteredGroup group,
+        ContainerInput input,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IAgentToolRegistry
+{
+    IReadOnlyList<AgentToolDefinition> GetTools(RegisteredGroup group, ContainerInput input);
 }

@@ -28,4 +28,26 @@ public sealed class GroupPathResolverTests
 
         Assert.Equal("/tmp/netclaw/data/ipc/team", ipcPath);
     }
+
+    [Fact]
+    public void ResolveGroupSessionDirectory_ReturnsPathWithinSessionRoot()
+    {
+        StorageOptions options = StorageOptions.Create("/tmp/netclaw");
+        GroupPathResolver resolver = new(options, new PhysicalFileSystem());
+
+        string sessionPath = resolver.ResolveGroupSessionDirectory(new GroupFolder("team"));
+
+        Assert.Equal("/tmp/netclaw/data/sessions/team", sessionPath);
+    }
+
+    [Fact]
+    public void ResolveGroupAgentWorkspaceDirectory_ReturnsPathWithinWorkspaceRoot()
+    {
+        StorageOptions options = StorageOptions.Create("/tmp/netclaw");
+        GroupPathResolver resolver = new(options, new PhysicalFileSystem());
+
+        string workspacePath = resolver.ResolveGroupAgentWorkspaceDirectory(new GroupFolder("team"));
+
+        Assert.Equal("/tmp/netclaw/data/agent-workspaces/team", workspacePath);
+    }
 }

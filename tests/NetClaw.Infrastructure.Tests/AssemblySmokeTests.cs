@@ -17,7 +17,9 @@ public sealed class AssemblySmokeTests
         [
             typeof(NetClaw.Infrastructure.Persistence.Sqlite.SqliteConnectionFactory),
             typeof(NetClaw.Infrastructure.Persistence.Sqlite.SqliteSchemaInitializer),
-            typeof(NetClaw.Infrastructure.Persistence.Sqlite.SqliteMessageRepository)
+            typeof(NetClaw.Infrastructure.Persistence.Sqlite.SqliteMessageRepository),
+            typeof(NetClaw.Infrastructure.Runtime.Agents.CopilotCodingAgentEngine),
+            typeof(NetClaw.Infrastructure.Runtime.Agents.NetClawAgentRuntime)
         ];
 
         Assert.All(types, type => Assert.Equal("NetClaw.Infrastructure", type.Assembly.GetName().Name));

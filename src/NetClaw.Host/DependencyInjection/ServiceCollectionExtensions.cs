@@ -6,13 +6,17 @@ using NetClaw.Application.Formatting;
 using NetClaw.Application.Ipc;
 using NetClaw.Application.Routing;
 using NetClaw.Application.Scheduling;
+using NetClaw.Domain.Contracts.Agents;
 using NetClaw.Domain.Contracts.Channels;
+using NetClaw.Domain.Contracts.Containers;
 using NetClaw.Domain.Contracts.Persistence;
 using NetClaw.Domain.Contracts.Services;
 using NetClaw.Domain.Entities;
+using NetClaw.Domain.Enums;
 using NetClaw.Domain.ValueObjects;
 using NetClaw.Host.Configuration;
 using NetClaw.Host.Services;
+using NetClaw.Infrastructure.Runtime.Agents;
 using NetClaw.Infrastructure.Configuration;
 using NetClaw.Infrastructure.FileSystem;
 using NetClaw.Infrastructure.Paths;
@@ -39,6 +43,9 @@ public static class ServiceCollectionExtensions
         ContainerRuntimeOptions containerRuntimeOptions = CreateContainerRuntimeOptions(configuration);
         containerRuntimeOptions.Validate();
 
+        AgentRuntimeOptions agentRuntimeOptions = CreateAgentRuntimeOptions(configuration);
+        agentRuntimeOptions.Validate();
+
         SchedulerOptions schedulerOptions = CreateSchedulerOptions(configuration);
         schedulerOptions.Validate();
 
@@ -47,6 +54,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(assistantIdentityOptions);
         services.AddSingleton(credentialProxyOptions);
         services.AddSingleton(containerRuntimeOptions);
+        services.AddSingleton(agentRuntimeOptions);
         services.AddSingleton(schedulerOptions);
 
         services.AddSingleton<IFileSystem, PhysicalFileSystem>();
@@ -65,6 +73,13 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ITaskRepository, SqliteTaskRepository>();
         services.AddSingleton<IRouterStateRepository, SqliteRouterStateRepository>();
         services.AddSingleton<IContainerRuntime, DockerContainerRuntime>();
+        services.AddSingleton<IAgentWorkspaceBuilder, NetClawAgentWorkspaceBuilder>();
+        services.AddSingleton<IAgentToolRegistry, NetClawAgentToolRegistry>();
+        services.AddSingleton<ICodingAgentEngine, CopilotCodingAgentEngine>();
+        services.AddSingleton<ICodingAgentEngine, ClaudeCodePlaceholderEngine>();
+        services.AddSingleton<ICodingAgentEngine, CodexPlaceholderEngine>();
+        services.AddSingleton<ICodingAgentEngine, OpenCodePlaceholderEngine>();
+        services.AddSingleton<IAgentRuntime, NetClawAgentRuntime>();
 
         services.AddSingleton<IReadOnlyList<IChannel>>(_ => Array.Empty<IChannel>());
         services.AddSingleton<IMessageFormatter, XmlMessageFormatter>();
@@ -85,7 +100,16 @@ public static class ServiceCollectionExtensions
                 return router.RouteAsync(channels, chatJid, text, cancellationToken);
             });
         services.AddSingleton<Func<ScheduledTask, SessionId?, CancellationToken, Task<(string? Result, string? Error)>>>(
-            _ => static (_, _, _) => Task.FromResult<(string? Result, string? Error)>((null, "Task execution integration is not configured yet.")));
+            serviceProvider =>
+                async (task, sessionId, cancellationToken) =>
+                {
+                    IAgentRuntime runtime = serviceProvider.GetRequiredService<IAgentRuntime>();
+                    AssistantIdentityOptions identity = serviceProvider.GetRequiredService<AssistantIdentityOptions>();
+                    ContainerExecutionResult result = await runtime.ExecuteAsync(
+                        new ContainerInput(task.Prompt, sessionId, task.GroupFolder, task.ChatJid, false, true, identity.Name),
+                        cancellationToken: cancellationToken);
+                    return (result.Result, result.Error);
+                });
         services.AddSingleton<ITaskSchedulerService>(serviceProvider => new TaskSchedulerService(
             serviceProvider.GetRequiredService<ITaskRepository>(),
             serviceProvider.GetRequiredService<IGroupRepository>(),
@@ -134,6 +158,22 @@ public static class ServiceCollectionExtensions
             RuntimeBinary = configuration["NetClaw:ContainerRuntime:RuntimeBinary"] ?? "docker",
             HostGatewayName = configuration["NetClaw:ContainerRuntime:HostGatewayName"] ?? "host.docker.internal",
             ProxyBindHostOverride = configuration["NetClaw:ContainerRuntime:ProxyBindHostOverride"] ?? string.Empty
+        };
+    }
+
+    private static AgentRuntimeOptions CreateAgentRuntimeOptions(IConfiguration configuration)
+    {
+        bool keepContainerBoundary = true;
+        if (bool.TryParse(configuration["NetClaw:AgentRuntime:KeepContainerBoundary"], out bool configuredKeepContainerBoundary))
+        {
+            keepContainerBoundary = configuredKeepContainerBoundary;
+        }
+
+        return new AgentRuntimeOptions
+        {
+            DefaultProvider = configuration["NetClaw:AgentRuntime:DefaultProvider"] ?? "copilot",
+            KeepContainerBoundary = keepContainerBoundary,
+            CopilotCliPath = configuration["NetClaw:AgentRuntime:CopilotCliPath"] ?? "copilot"
         };
     }
 

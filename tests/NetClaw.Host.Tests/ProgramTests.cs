@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using NetClaw.Domain.Contracts.Agents;
 using NetClaw.Domain.Contracts.Persistence;
 using NetClaw.Domain.Contracts.Services;
 using NetClaw.Infrastructure.Configuration;
@@ -76,8 +77,13 @@ public sealed class ProgramTests
             Assert.NotNull(host.Services.GetService<ITaskSchedulerService>());
             Assert.NotNull(host.Services.GetService<IIpcCommandProcessor>());
             Assert.NotNull(host.Services.GetService<IContainerRuntime>());
+            Assert.NotNull(host.Services.GetService<IAgentRuntime>());
+            Assert.NotNull(host.Services.GetService<IAgentWorkspaceBuilder>());
+            Assert.NotNull(host.Services.GetService<IAgentToolRegistry>());
+            Assert.True(host.Services.GetServices<ICodingAgentEngine>().Any());
             Assert.Equal("NetClaw", host.Services.GetRequiredService<AssistantIdentityOptions>().Name);
             Assert.Equal(TimeSpan.FromSeconds(45), host.Services.GetRequiredService<SchedulerOptions>().PollInterval);
+            Assert.Equal(NetClaw.Domain.Enums.AgentProviderKind.Copilot, host.Services.GetRequiredService<AgentRuntimeOptions>().GetDefaultProvider());
             Assert.NotNull(host.Services.GetRequiredService<PlatformInfo>());
 
             await host.StopAsync();
