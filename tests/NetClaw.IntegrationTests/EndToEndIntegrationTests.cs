@@ -3,6 +3,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using System.Threading.Channels;
+using NetClaw.Infrastructure.Channels;
 using System.Text.Json;
 using NetClaw.Application.Execution;
 using NetClaw.Domain.Contracts.Channels;
@@ -320,6 +322,67 @@ public sealed class EndToEndIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task TerminalChannel_ProcessesConsoleInputAndWritesReply()
+    {
+        string projectRoot = CreateTemporaryPath();
+        string homeDirectory = CreateTemporaryPath();
+        FakeAgentRuntime fakeRuntime = new();
+        ControlledTextReader input = new();
+        StringWriter output = new();
+
+        try
+        {
+            using IHost host = CreateHost(projectRoot, services =>
+            {
+                services.AddSingleton<IAgentRuntime>(fakeRuntime);
+                services.RemoveAll<IChannel>();
+                services.RemoveAll<IReadOnlyList<IChannel>>();
+
+                TerminalChannel terminalChannel = new(
+                    new NetClaw.Infrastructure.Configuration.TerminalChannelOptions
+                    {
+                        Enabled = true,
+                        ChatJid = "team@jid",
+                        Sender = "sender-1",
+                        SenderName = "User",
+                        ChatName = "Terminal Chat",
+                        IsGroup = true,
+                        OutboundPrefix = "assistant> "
+                    },
+                    input,
+                    output);
+
+                services.AddSingleton<IChannel>(terminalChannel);
+                services.AddSingleton<IReadOnlyList<IChannel>>([terminalChannel]);
+            }, new Dictionary<string, string?>
+            {
+                ["NetClaw:Channels:PollInterval"] = "00:00:01",
+                ["NetClaw:MessageLoop:PollInterval"] = "00:00:01"
+            });
+            await host.StartAsync();
+
+            IGroupRepository groupRepository = host.Services.GetRequiredService<IGroupRepository>();
+            await groupRepository.UpsertAsync(
+                new ChatJid("team@jid"),
+                new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow));
+
+            input.Enqueue("@Andy terminal test");
+            await fakeRuntime.Completion.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await Task.Delay(500);
+
+            Assert.Contains("assistant> assistant reply", output.ToString(), StringComparison.Ordinal);
+            Assert.Contains("@Andy terminal test", fakeRuntime.LastPrompt, StringComparison.Ordinal);
+
+            await host.StopAsync();
+        }
+        finally
+        {
+            DeleteTemporaryPath(projectRoot);
+            DeleteTemporaryPath(homeDirectory);
+        }
+    }
+
     private static IHost CreateHost(string projectRoot, Action<IServiceCollection>? configureServices = null, IReadOnlyDictionary<string, string?>? overrides = null)
     {
         IHostBuilder builder = NetClaw.Host.Program.CreateHostBuilder([])
@@ -478,5 +541,20 @@ public sealed class EndToEndIntegrationTests
         public Task SetTypingAsync(ChatJid chatJid, bool isTyping, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task SyncGroupsAsync(bool force, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private sealed class ControlledTextReader : TextReader
+    {
+        private readonly Channel<string?> lines = Channel.CreateUnbounded<string?>();
+
+        public void Enqueue(string line)
+        {
+            lines.Writer.TryWrite(line);
+        }
+
+        public override async ValueTask<string?> ReadLineAsync(CancellationToken cancellationToken)
+        {
+            return await lines.Reader.ReadAsync(cancellationToken);
+        }
     }
 }

@@ -64,6 +64,9 @@ public static class ServiceCollectionExtensions
         ReferenceFileChannelOptions referenceFileChannelOptions = CreateReferenceFileChannelOptions(configuration, hostPathOptions);
         referenceFileChannelOptions.Validate();
 
+        TerminalChannelOptions terminalChannelOptions = CreateTerminalChannelOptions(configuration);
+        terminalChannelOptions.Validate();
+
         services.AddSingleton(hostPathOptions);
         services.AddSingleton(storageOptions);
         services.AddSingleton(assistantIdentityOptions);
@@ -75,6 +78,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(schedulerOptions);
         services.AddSingleton(channelWorkerOptions);
         services.AddSingleton(referenceFileChannelOptions);
+        services.AddSingleton(terminalChannelOptions);
 
         services.AddSingleton<IFileSystem, PhysicalFileSystem>();
         services.AddSingleton<GroupPathResolver>();
@@ -108,6 +112,11 @@ public static class ServiceCollectionExtensions
         if (referenceFileChannelOptions.Enabled)
         {
             services.AddSingleton<IChannel, ReferenceFileChannel>();
+        }
+
+        if (terminalChannelOptions.Enabled)
+        {
+            services.AddSingleton<IChannel, TerminalChannel>();
         }
 
         services.AddSingleton<IReadOnlyList<IChannel>>(serviceProvider => serviceProvider.GetServices<IChannel>().ToArray());
@@ -296,6 +305,20 @@ public static class ServiceCollectionExtensions
             RootDirectory = configuration["NetClaw:Channels:ReferenceFile:RootDirectory"]
                 ?? Path.Combine(hostPathOptions.ProjectRoot, "data", "channels", "reference-file"),
             ClaimAllChats = !bool.TryParse(configuration["NetClaw:Channels:ReferenceFile:ClaimAllChats"], out bool claimAllChats) || claimAllChats
+        };
+    }
+
+    private static TerminalChannelOptions CreateTerminalChannelOptions(IConfiguration configuration)
+    {
+        return new TerminalChannelOptions
+        {
+            Enabled = bool.TryParse(configuration["NetClaw:Channels:Terminal:Enabled"], out bool enabled) && enabled,
+            ChatJid = configuration["NetClaw:Channels:Terminal:ChatJid"] ?? "terminal@local",
+            Sender = configuration["NetClaw:Channels:Terminal:Sender"] ?? "terminal-user",
+            SenderName = configuration["NetClaw:Channels:Terminal:SenderName"] ?? "Terminal User",
+            ChatName = configuration["NetClaw:Channels:Terminal:ChatName"] ?? "Terminal",
+            IsGroup = bool.TryParse(configuration["NetClaw:Channels:Terminal:IsGroup"], out bool isGroup) && isGroup,
+            OutboundPrefix = configuration["NetClaw:Channels:Terminal:OutboundPrefix"] ?? "assistant> "
         };
     }
 

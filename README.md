@@ -46,3 +46,46 @@ Outbound file shape:
 	"timestamp": "2026-03-10T00:00:00Z"
 }
 ```
+
+## Terminal Channel
+
+NetClaw also includes an optional `terminal` channel for local development and engine validation. When enabled, the host reads inbound messages from `stdin` and writes outbound replies to `stdout`.
+
+Enable it with configuration like:
+
+- `NetClaw:Channels:Terminal:Enabled=true`
+- `NetClaw:Channels:Terminal:ChatJid=team@jid`
+- `NetClaw:Channels:Terminal:Sender=terminal-user`
+- `NetClaw:Channels:Terminal:SenderName=Terminal User`
+- `NetClaw:Channels:Terminal:ChatName=Terminal Chat`
+- `NetClaw:Channels:Terminal:IsGroup=true`
+- `NetClaw:Channels:PollInterval=00:00:01`
+- `NetClaw:MessageLoop:PollInterval=00:00:01`
+
+Example live run:
+
+```bash
+export NETCLAW_PROJECT_ROOT=/tmp/netclaw-terminal
+
+dotnet run --project src/NetClaw.Setup -- --step register \
+	--jid team@jid \
+	--name Team \
+	--trigger @Andy \
+	--folder team
+
+env \
+	NetClaw__ProjectRoot=/tmp/netclaw-terminal \
+	NetClaw__Channels__Terminal__Enabled=true \
+	NetClaw__Channels__Terminal__ChatJid=team@jid \
+	NetClaw__Channels__Terminal__Sender=terminal-user \
+	NetClaw__Channels__Terminal__SenderName='Terminal User' \
+	NetClaw__Channels__Terminal__ChatName='Terminal Chat' \
+	NetClaw__Channels__Terminal__IsGroup=true \
+	NetClaw__Channels__PollInterval=00:00:01 \
+	NetClaw__MessageLoop__PollInterval=00:00:01 \
+	NetClaw__MessageLoop__Timezone=UTC \
+	NetClaw__AgentRuntime__CopilotUseLoggedInUser=true \
+	dotnet run --project src/NetClaw.Host
+```
+
+Type a triggered message such as `@Andy hello` and the assistant reply will be written to stdout with the configured prefix.
