@@ -103,3 +103,28 @@ If you want parity with the triggered group flow instead, start it with `NETCLAW
 The terminal channel now shows a `you> ` input prompt while it is waiting for input. You can override the defaults with environment variables such as `NETCLAW_PROJECT_ROOT`, `NETCLAW_CHAT_JID`, `NETCLAW_AGENT_TRIGGER`, `NETCLAW_REQUIRE_TRIGGER`, `NETCLAW_TERMINAL_SENDER_NAME`, and `NETCLAW_TERMINAL_INPUT_PROMPT`.
 
 Type a prompt such as `What is the capital of Missouri?` or, in trigger-required mode, `@Andy hello`, and the assistant reply will be written to stdout with the configured prefix.
+
+## Slack Channel
+
+NetClaw now includes an optional `slack` channel for real workspace messaging through Slack Socket Mode. The current implementation supports inbound message ingestion, outbound replies, a visible working indicator, and mention normalization so Slack bot mentions can map onto the existing trigger flow.
+
+Enable it with configuration like:
+
+- `NetClaw:Channels:Slack:Enabled=true`
+- `NetClaw:Channels:Slack:BotToken=xoxb-...`
+- `NetClaw:Channels:Slack:AppToken=xapp-...`
+- `NetClaw:Channels:Slack:MentionReplacement=@Andy`
+- `NetClaw:Channels:Slack:WorkingIndicatorText=Evaluating...`
+- `NetClaw:Channels:Slack:ReplyInThreadByDefault=true`
+- `NetClaw:Channels:PollInterval=00:00:01`
+- `NetClaw:MessageLoop:PollInterval=00:00:01`
+
+Current behavior:
+
+- Register Slack conversations using their Slack conversation IDs as the group JID, for example `C...`, `G...`, or `D...`.
+- Channel and group messages can remain trigger-gated using the existing group registration settings.
+- Slack bot mentions such as `<@BOT_USER_ID>` are normalized to the configured mention replacement, so a registered trigger like `@Andy` still works with Slack mentions.
+- While the agent is working, the Slack channel posts a placeholder message such as `Evaluating...`; when the final reply is ready, that placeholder is updated in place.
+- Channel and group replies default to thread replies based on the triggering message; direct messages reply directly.
+
+The code is ready for live validation, but the actual Slack app tokens and scopes still need to be created before a real Slack smoke test can run.

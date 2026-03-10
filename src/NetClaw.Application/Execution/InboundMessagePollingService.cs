@@ -1,4 +1,5 @@
 using NetClaw.Domain.Contracts.Persistence;
+using NetClaw.Domain.Contracts.Channels;
 using NetClaw.Domain.Contracts.Services;
 using NetClaw.Domain.Entities;
 
@@ -13,6 +14,7 @@ public sealed class InboundMessagePollingService
     private readonly IMessageFormatter messageFormatter;
     private readonly IMessageRepository messageRepository;
     private readonly IRouterStateRepository routerStateRepository;
+    private readonly IReadOnlyList<IChannel> channels;
     private readonly string assistantName;
     private readonly ISenderAuthorizationService senderAuthorizationService;
     private readonly string timezone;
@@ -21,6 +23,7 @@ public sealed class InboundMessagePollingService
         IMessageRepository messageRepository,
         IGroupRepository groupRepository,
         IRouterStateRepository routerStateRepository,
+        IReadOnlyList<IChannel> channels,
         ISenderAuthorizationService senderAuthorizationService,
         IMessageFormatter messageFormatter,
         string assistantName,
@@ -30,6 +33,7 @@ public sealed class InboundMessagePollingService
         this.messageRepository = messageRepository;
         this.groupRepository = groupRepository;
         this.routerStateRepository = routerStateRepository;
+        this.channels = channels;
         this.senderAuthorizationService = senderAuthorizationService;
         this.messageFormatter = messageFormatter;
         this.assistantName = assistantName;
@@ -79,6 +83,7 @@ public sealed class InboundMessagePollingService
                 string formatted = messageFormatter.FormatInbound(messagesToSend, timezone);
                 if (groupExecutionQueue.SendMessage(messageGroup.Key, formatted))
                 {
+                    await SetTypingAsync(messageGroup.Key, isTyping: true, cancellationToken);
                     await SetLastAgentTimestampAsync(messageGroup.Key, messagesToSend[^1].Timestamp, cancellationToken);
                     continue;
                 }
@@ -117,5 +122,22 @@ public sealed class InboundMessagePollingService
     private static string GetLastAgentTimestampKey(NetClaw.Domain.ValueObjects.ChatJid chatJid)
     {
         return $"last_agent_timestamp:{chatJid.Value}";
+    }
+
+    private async Task SetTypingAsync(NetClaw.Domain.ValueObjects.ChatJid chatJid, bool isTyping, CancellationToken cancellationToken)
+    {
+        IChannel? channel = channels.FirstOrDefault(candidate => candidate.IsConnected && candidate.Owns(chatJid));
+        if (channel is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await channel.SetTypingAsync(chatJid, isTyping, cancellationToken);
+        }
+        catch
+        {
+        }
     }
 }

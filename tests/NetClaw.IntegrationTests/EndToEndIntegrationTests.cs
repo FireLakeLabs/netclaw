@@ -387,6 +387,84 @@ public sealed class EndToEndIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task SlackChannel_IngestsInboundMessageAndUpdatesWorkingIndicatorWithReply()
+    {
+        string projectRoot = CreateTemporaryPath();
+        string homeDirectory = CreateTemporaryPath();
+        FakeAgentRuntime fakeRuntime = new();
+        FakeSlackSocketModeClient slackClient = new("U-BOT", new SlackConversationInfo("C12345", "general", true));
+
+        try
+        {
+            using IHost host = CreateHost(projectRoot, services =>
+            {
+                services.AddSingleton<IAgentRuntime>(fakeRuntime);
+                services.RemoveAll<IChannel>();
+                services.RemoveAll<IReadOnlyList<IChannel>>();
+                services.AddSingleton<ISlackSocketModeClient>(slackClient);
+
+                SlackChannel slackChannel = new(
+                    new NetClaw.Infrastructure.Configuration.SlackChannelOptions
+                    {
+                        Enabled = true,
+                        BotToken = "xoxb-test",
+                        AppToken = "xapp-test",
+                        MentionReplacement = "@Andy",
+                        WorkingIndicatorText = "Evaluating..."
+                    },
+                    slackClient);
+
+                services.AddSingleton<IChannel>(slackChannel);
+                services.AddSingleton<IReadOnlyList<IChannel>>([slackChannel]);
+            }, new Dictionary<string, string?>
+            {
+                ["NetClaw:Channels:PollInterval"] = "00:00:01",
+                ["NetClaw:MessageLoop:PollInterval"] = "00:00:01"
+            });
+            await host.StartAsync();
+
+            IGroupRepository groupRepository = host.Services.GetRequiredService<IGroupRepository>();
+            await groupRepository.UpsertAsync(
+                new ChatJid("C12345"),
+                new RegisteredGroup("General", new GroupFolder("general"), "@Andy", DateTimeOffset.UtcNow));
+
+            slackClient.Connection.Enqueue(new SlackSocketEnvelope(
+                "envelope-1",
+                "events_api",
+                new SlackSocketPayload(
+                    "events_api",
+                    new SlackEventPayload(
+                        "message",
+                        "C12345",
+                        "channel",
+                        "U-USER",
+                        "<@U-BOT> please respond",
+                        "1710115200.000100",
+                        null,
+                        "client-message-1",
+                        null,
+                        null))));
+
+            await fakeRuntime.Completion.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await Task.Delay(500);
+
+            Assert.Single(slackClient.PostedMessages);
+            Assert.Equal("Evaluating...", slackClient.PostedMessages[0].Text);
+            Assert.Single(slackClient.UpdatedMessages);
+            Assert.Equal("assistant reply", slackClient.UpdatedMessages[0].Text);
+            Assert.Equal(slackClient.PostedMessages[0].Ts, slackClient.UpdatedMessages[0].Ts);
+            Assert.Contains("@Andy please respond", fakeRuntime.LastPrompt, StringComparison.Ordinal);
+
+            await host.StopAsync();
+        }
+        finally
+        {
+            DeleteTemporaryPath(projectRoot);
+            DeleteTemporaryPath(homeDirectory);
+        }
+    }
+
     private static IHost CreateHost(string projectRoot, Action<IServiceCollection>? configureServices = null, IReadOnlyDictionary<string, string?>? overrides = null)
     {
         IHostBuilder builder = NetClaw.Host.Program.CreateHostBuilder([])
@@ -559,6 +637,87 @@ public sealed class EndToEndIntegrationTests
         public override async ValueTask<string?> ReadLineAsync(CancellationToken cancellationToken)
         {
             return await lines.Reader.ReadAsync(cancellationToken);
+        }
+    }
+
+    private sealed class FakeSlackSocketModeClient : ISlackSocketModeClient
+    {
+        private int messageSequence;
+
+        public FakeSlackSocketModeClient(string botUserId, SlackConversationInfo conversationInfo)
+        {
+            BotUserId = botUserId;
+            ConversationInfo = conversationInfo;
+            Connection = new FakeSlackSocketModeConnection();
+        }
+
+        public string BotUserId { get; }
+
+        public SlackConversationInfo ConversationInfo { get; }
+
+        public FakeSlackSocketModeConnection Connection { get; }
+
+        public List<(string ConversationId, string Text, string? ThreadTs, string Ts)> PostedMessages { get; } = [];
+
+        public List<(string ConversationId, string Ts, string Text)> UpdatedMessages { get; } = [];
+
+        public List<(string ConversationId, string Ts)> DeletedMessages { get; } = [];
+
+        public Task<SlackAuthInfo> AuthTestAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult(new SlackAuthInfo(BotUserId));
+
+        public Task<ISlackSocketModeConnection> ConnectAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<ISlackSocketModeConnection>(Connection);
+
+        public Task<SlackConversationInfo> GetConversationInfoAsync(string conversationId, CancellationToken cancellationToken = default)
+            => Task.FromResult(ConversationInfo);
+
+        public Task<SlackPostedMessage> PostMessageAsync(string conversationId, string text, string? threadTs, CancellationToken cancellationToken = default)
+        {
+            string ts = $"posted-{Interlocked.Increment(ref messageSequence):D4}";
+            PostedMessages.Add((conversationId, text, threadTs, ts));
+            return Task.FromResult(new SlackPostedMessage(conversationId, ts));
+        }
+
+        public Task UpdateMessageAsync(string conversationId, string ts, string text, CancellationToken cancellationToken = default)
+        {
+            UpdatedMessages.Add((conversationId, ts, text));
+            return Task.CompletedTask;
+        }
+
+        public Task DeleteMessageAsync(string conversationId, string ts, CancellationToken cancellationToken = default)
+        {
+            DeletedMessages.Add((conversationId, ts));
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeSlackSocketModeConnection : ISlackSocketModeConnection
+    {
+        private readonly Channel<SlackSocketEnvelope?> envelopes = Channel.CreateUnbounded<SlackSocketEnvelope?>();
+
+        public List<string> AcknowledgedEnvelopeIds { get; } = [];
+
+        public void Enqueue(SlackSocketEnvelope envelope)
+        {
+            envelopes.Writer.TryWrite(envelope);
+        }
+
+        public Task AcknowledgeAsync(string envelopeId, CancellationToken cancellationToken = default)
+        {
+            AcknowledgedEnvelopeIds.Add(envelopeId);
+            return Task.CompletedTask;
+        }
+
+        public async Task<SlackSocketEnvelope?> ReceiveAsync(CancellationToken cancellationToken = default)
+        {
+            return await envelopes.Reader.ReadAsync(cancellationToken);
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            envelopes.Writer.TryComplete();
+            return ValueTask.CompletedTask;
         }
     }
 }

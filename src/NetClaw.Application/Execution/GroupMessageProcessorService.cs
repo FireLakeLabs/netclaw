@@ -53,6 +53,8 @@ public sealed class GroupMessageProcessorService
 
     public async Task<bool> ProcessAsync(ChatJid groupJid, CancellationToken cancellationToken = default)
     {
+        IChannel? channel = channels.FirstOrDefault(candidate => candidate.IsConnected && candidate.Owns(groupJid));
+
         try
         {
             RegisteredGroup? group = await groupRepository.GetByJidAsync(groupJid, cancellationToken);
@@ -77,57 +79,66 @@ public sealed class GroupMessageProcessorService
 
             string prompt = messageFormatter.FormatInbound(pendingMessages, timezone);
             bool streamedCompletedMessage = false;
-            await using IInteractiveContainerSession interactiveSession = await agentRuntime.StartInteractiveSessionAsync(
-                new ContainerInput(prompt, null, group.Folder, groupJid, group.IsMain, false, assistantName),
-                async (streamEvent, ct) =>
-                {
-                    switch (streamEvent.Kind)
-                    {
-                        case ContainerEventKind.MessageCompleted:
-                        {
-                            string text = messageFormatter.NormalizeOutbound(streamEvent.Output.Result ?? string.Empty);
-                            if (!string.IsNullOrWhiteSpace(text))
-                            {
-                                await outboundRouter.RouteAsync(channels, groupJid, text, ct);
-                                streamedCompletedMessage = true;
-                            }
-
-                            break;
-                        }
-                        case ContainerEventKind.Idle:
-                            groupExecutionQueue.NotifyIdle(groupJid);
-                            break;
-                    }
-                },
-                cancellationToken: cancellationToken);
-
-            activeSessionRegistry.Register(groupJid, interactiveSession);
-            ContainerExecutionResult executionResult;
             try
             {
-                executionResult = await interactiveSession.Completion;
+                await SetTypingAsync(channel, groupJid, isTyping: true, cancellationToken);
+
+                await using IInteractiveContainerSession interactiveSession = await agentRuntime.StartInteractiveSessionAsync(
+                    new ContainerInput(prompt, null, group.Folder, groupJid, group.IsMain, false, assistantName),
+                    async (streamEvent, ct) =>
+                    {
+                        switch (streamEvent.Kind)
+                        {
+                            case ContainerEventKind.MessageCompleted:
+                            {
+                                string text = messageFormatter.NormalizeOutbound(streamEvent.Output.Result ?? string.Empty);
+                                if (!string.IsNullOrWhiteSpace(text))
+                                {
+                                    await outboundRouter.RouteAsync(channels, groupJid, text, ct);
+                                    streamedCompletedMessage = true;
+                                }
+
+                                break;
+                            }
+                            case ContainerEventKind.Idle:
+                                groupExecutionQueue.NotifyIdle(groupJid);
+                                break;
+                        }
+                    },
+                    cancellationToken: cancellationToken);
+
+                activeSessionRegistry.Register(groupJid, interactiveSession);
+                ContainerExecutionResult executionResult;
+                try
+                {
+                    executionResult = await interactiveSession.Completion;
+                }
+                finally
+                {
+                    activeSessionRegistry.Remove(groupJid, interactiveSession);
+                }
+
+                if (executionResult.Status != ContainerRunStatus.Success)
+                {
+                    return false;
+                }
+
+                string outboundText = messageFormatter.NormalizeOutbound(executionResult.Result ?? string.Empty);
+                if (!streamedCompletedMessage && !string.IsNullOrWhiteSpace(outboundText))
+                {
+                    await outboundRouter.RouteAsync(channels, groupJid, outboundText, cancellationToken);
+                }
+
+                await routerStateRepository.SetAsync(
+                    new RouterStateEntry(GetLastAgentTimestampKey(groupJid), pendingMessages[^1].Timestamp.ToString("O")),
+                    cancellationToken);
+
+                return true;
             }
             finally
             {
-                activeSessionRegistry.Remove(groupJid, interactiveSession);
+                await SetTypingAsync(channel, groupJid, isTyping: false, cancellationToken);
             }
-
-            if (executionResult.Status != ContainerRunStatus.Success)
-            {
-                return false;
-            }
-
-            string outboundText = messageFormatter.NormalizeOutbound(executionResult.Result ?? string.Empty);
-            if (!streamedCompletedMessage && !string.IsNullOrWhiteSpace(outboundText))
-            {
-                await outboundRouter.RouteAsync(channels, groupJid, outboundText, cancellationToken);
-            }
-
-            await routerStateRepository.SetAsync(
-                new RouterStateEntry(GetLastAgentTimestampKey(groupJid), pendingMessages[^1].Timestamp.ToString("O")),
-                cancellationToken);
-
-            return true;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -155,5 +166,21 @@ public sealed class GroupMessageProcessorService
     private static bool ContainsTrigger(string content, string trigger)
     {
         return content.Contains(trigger, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static async Task SetTypingAsync(IChannel? channel, ChatJid groupJid, bool isTyping, CancellationToken cancellationToken)
+    {
+        if (channel is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await channel.SetTypingAsync(groupJid, isTyping, cancellationToken);
+        }
+        catch
+        {
+        }
     }
 }

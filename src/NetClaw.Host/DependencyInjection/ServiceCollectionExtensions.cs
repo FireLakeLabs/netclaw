@@ -67,6 +67,9 @@ public static class ServiceCollectionExtensions
         TerminalChannelOptions terminalChannelOptions = CreateTerminalChannelOptions(configuration);
         terminalChannelOptions.Validate();
 
+        SlackChannelOptions slackChannelOptions = CreateSlackChannelOptions(configuration, assistantIdentityOptions);
+        slackChannelOptions.Validate();
+
         services.AddSingleton(hostPathOptions);
         services.AddSingleton(storageOptions);
         services.AddSingleton(assistantIdentityOptions);
@@ -79,6 +82,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(channelWorkerOptions);
         services.AddSingleton(referenceFileChannelOptions);
         services.AddSingleton(terminalChannelOptions);
+        services.AddSingleton(slackChannelOptions);
 
         services.AddSingleton<IFileSystem, PhysicalFileSystem>();
         services.AddSingleton<GroupPathResolver>();
@@ -119,6 +123,12 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IChannel, TerminalChannel>();
         }
 
+        if (slackChannelOptions.Enabled)
+        {
+            services.AddSingleton<ISlackSocketModeClient, SlackSocketModeClient>();
+            services.AddSingleton<IChannel, SlackChannel>();
+        }
+
         services.AddSingleton<IReadOnlyList<IChannel>>(serviceProvider => serviceProvider.GetServices<IChannel>().ToArray());
         services.AddSingleton<ChannelIngressService>();
         services.AddSingleton<IMessageFormatter, XmlMessageFormatter>();
@@ -128,6 +138,7 @@ public static class ServiceCollectionExtensions
             serviceProvider.GetRequiredService<IMessageRepository>(),
             serviceProvider.GetRequiredService<IGroupRepository>(),
             serviceProvider.GetRequiredService<IRouterStateRepository>(),
+            serviceProvider.GetRequiredService<IReadOnlyList<IChannel>>(),
             serviceProvider.GetRequiredService<ISenderAuthorizationService>(),
             serviceProvider.GetRequiredService<IMessageFormatter>(),
             serviceProvider.GetRequiredService<AssistantIdentityOptions>().Name,
@@ -320,6 +331,20 @@ public static class ServiceCollectionExtensions
             IsGroup = bool.TryParse(configuration["NetClaw:Channels:Terminal:IsGroup"], out bool isGroup) && isGroup,
             OutboundPrefix = configuration["NetClaw:Channels:Terminal:OutboundPrefix"] ?? "assistant> ",
             InputPrompt = configuration["NetClaw:Channels:Terminal:InputPrompt"] ?? "you> "
+        };
+    }
+
+    private static SlackChannelOptions CreateSlackChannelOptions(IConfiguration configuration, AssistantIdentityOptions assistantIdentityOptions)
+    {
+        return new SlackChannelOptions
+        {
+            Enabled = bool.TryParse(configuration["NetClaw:Channels:Slack:Enabled"], out bool enabled) && enabled,
+            BotToken = configuration["NetClaw:Channels:Slack:BotToken"] ?? string.Empty,
+            AppToken = configuration["NetClaw:Channels:Slack:AppToken"] ?? string.Empty,
+            ApiBaseUrl = configuration["NetClaw:Channels:Slack:ApiBaseUrl"] ?? "https://slack.com/api",
+            MentionReplacement = configuration["NetClaw:Channels:Slack:MentionReplacement"] ?? $"@{assistantIdentityOptions.Name}",
+            WorkingIndicatorText = configuration["NetClaw:Channels:Slack:WorkingIndicatorText"] ?? "Evaluating...",
+            ReplyInThreadByDefault = !bool.TryParse(configuration["NetClaw:Channels:Slack:ReplyInThreadByDefault"], out bool replyInThreadByDefault) || replyInThreadByDefault
         };
     }
 

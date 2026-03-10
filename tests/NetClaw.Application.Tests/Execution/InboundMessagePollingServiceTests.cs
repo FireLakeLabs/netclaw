@@ -1,4 +1,5 @@
 using NetClaw.Application.Execution;
+using NetClaw.Domain.Contracts.Channels;
 using NetClaw.Domain.Contracts.Persistence;
 using NetClaw.Domain.Contracts.Services;
 using NetClaw.Domain.Entities;
@@ -24,6 +25,7 @@ public sealed class InboundMessagePollingServiceTests
                 [teamJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", timestamp)
             }),
             routerStateRepository,
+            [],
             new PassThroughSenderAuthorizationService(),
             new FakeMessageFormatter(),
             "Andy",
@@ -51,6 +53,7 @@ public sealed class InboundMessagePollingServiceTests
                 [teamJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow)
             }),
             new InMemoryRouterStateRepository(),
+            [],
             new PassThroughSenderAuthorizationService(),
             new FakeMessageFormatter(),
             "Andy",
@@ -76,6 +79,7 @@ public sealed class InboundMessagePollingServiceTests
                 [teamJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow)
             }),
             new InMemoryRouterStateRepository(),
+            [],
             new FilteringSenderAuthorizationService(["allowed"]),
             new FakeMessageFormatter(),
             "Andy",
@@ -93,6 +97,7 @@ public sealed class InboundMessagePollingServiceTests
         ChatJid teamJid = new("team@jid");
         DateTimeOffset timestamp = DateTimeOffset.UtcNow;
         InMemoryRouterStateRepository routerStateRepository = new();
+        RecordingChannel channel = new(teamJid);
         RecordingGroupExecutionQueue queue = new()
         {
             SendMessageResult = true
@@ -106,6 +111,7 @@ public sealed class InboundMessagePollingServiceTests
                 [teamJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", timestamp)
             }),
             routerStateRepository,
+            [channel],
             new PassThroughSenderAuthorizationService(),
             new FakeMessageFormatter(),
             "Andy",
@@ -116,7 +122,37 @@ public sealed class InboundMessagePollingServiceTests
 
         Assert.Empty(queue.EnqueuedGroups);
         Assert.Equal("formatted:@Andy hello", Assert.Single(queue.SentMessages).Text);
+        Assert.Equal([(teamJid, true)], channel.TypingCalls);
         Assert.Equal(timestamp.ToString("O"), routerStateRepository.Entries["last_agent_timestamp:team@jid"].Value);
+    }
+
+    [Fact]
+    public async Task PollOnceAsync_DoesNotFailWhenTypingIndicatorThrows()
+    {
+        ChatJid teamJid = new("team@jid");
+        RecordingGroupExecutionQueue queue = new()
+        {
+            SendMessageResult = true
+        };
+        InboundMessagePollingService service = new(
+            new InMemoryMessageRepository([
+                new StoredMessage("message-1", teamJid, "sender-1", "User", "@Andy hello", DateTimeOffset.UtcNow)
+            ]),
+            new InMemoryGroupRepository(new Dictionary<ChatJid, RegisteredGroup>
+            {
+                [teamJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow)
+            }),
+            new InMemoryRouterStateRepository(),
+            [new ThrowingChannel(teamJid)],
+            new PassThroughSenderAuthorizationService(),
+            new FakeMessageFormatter(),
+            "Andy",
+            "UTC",
+            queue);
+
+        await service.PollOnceAsync();
+
+        Assert.Single(queue.SentMessages);
     }
 
     private sealed class FakeMessageFormatter : IMessageFormatter
@@ -236,5 +272,66 @@ public sealed class InboundMessagePollingServiceTests
             SentMessages.Add((groupJid, text));
             return SendMessageResult;
         }
+    }
+
+    private sealed class RecordingChannel : IChannel
+    {
+        private readonly ChatJid ownedJid;
+
+        public RecordingChannel(ChatJid ownedJid)
+        {
+            this.ownedJid = ownedJid;
+        }
+
+        public List<(ChatJid ChatJid, bool IsTyping)> TypingCalls { get; } = [];
+
+        public ChannelName Name => new("recording");
+
+        public bool IsConnected => true;
+
+        public Task ConnectAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task SendMessageAsync(ChatJid chatJid, string text, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public bool Owns(ChatJid chatJid) => chatJid == ownedJid;
+
+        public Task DisconnectAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task SetTypingAsync(ChatJid chatJid, bool isTyping, CancellationToken cancellationToken = default)
+        {
+            TypingCalls.Add((chatJid, isTyping));
+            return Task.CompletedTask;
+        }
+
+        public Task SyncGroupsAsync(bool force, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private sealed class ThrowingChannel : IChannel
+    {
+        private readonly ChatJid ownedJid;
+
+        public ThrowingChannel(ChatJid ownedJid)
+        {
+            this.ownedJid = ownedJid;
+        }
+
+        public ChannelName Name => new("throwing");
+
+        public bool IsConnected => true;
+
+        public Task ConnectAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task SendMessageAsync(ChatJid chatJid, string text, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public bool Owns(ChatJid chatJid) => chatJid == ownedJid;
+
+        public Task DisconnectAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task SetTypingAsync(ChatJid chatJid, bool isTyping, CancellationToken cancellationToken = default)
+        {
+            throw new InvalidOperationException("typing failed");
+        }
+
+        public Task SyncGroupsAsync(bool force, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }

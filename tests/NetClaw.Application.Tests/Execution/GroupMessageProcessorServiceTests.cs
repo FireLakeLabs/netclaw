@@ -19,6 +19,7 @@ public sealed class GroupMessageProcessorServiceTests
         InMemoryRouterStateRepository routerStateRepository = new();
         RecordingOutboundRouter outboundRouter = new();
         RecordingAgentRuntime runtime = new(ContainerRunStatus.Success, "<internal>reasoning</internal>assistant reply");
+        RecordingChannel channel = new(groupJid);
         GroupMessageProcessorService service = new(
             new InMemoryMessageRepository(new Dictionary<ChatJid, IReadOnlyList<StoredMessage>>
             {
@@ -35,7 +36,7 @@ public sealed class GroupMessageProcessorServiceTests
             runtime,
             new RecordingGroupExecutionQueue(),
             new ActiveGroupSessionRegistry(),
-            [],
+            [channel],
             "Andy",
             "UTC");
 
@@ -44,6 +45,7 @@ public sealed class GroupMessageProcessorServiceTests
         Assert.True(result);
         Assert.Equal("formatted:@Andy hello", runtime.LastPrompt);
         Assert.Equal("assistant reply", Assert.Single(outboundRouter.Messages).Text);
+        Assert.Equal([(groupJid, true), (groupJid, false)], channel.TypingCalls);
         Assert.Equal(timestamp.ToString("O"), routerStateRepository.Entries["last_agent_timestamp:team@jid"].Value);
     }
 
@@ -85,6 +87,7 @@ public sealed class GroupMessageProcessorServiceTests
     {
         ChatJid groupJid = new("team@jid");
         InMemoryRouterStateRepository routerStateRepository = new();
+        RecordingChannel channel = new(groupJid);
         GroupMessageProcessorService service = new(
             new InMemoryMessageRepository(new Dictionary<ChatJid, IReadOnlyList<StoredMessage>>
             {
@@ -101,13 +104,14 @@ public sealed class GroupMessageProcessorServiceTests
             new RecordingAgentRuntime(ContainerRunStatus.Error, null),
             new RecordingGroupExecutionQueue(),
             new ActiveGroupSessionRegistry(),
-            [],
+            [channel],
             "Andy",
             "UTC");
 
         bool result = await service.ProcessAsync(groupJid);
 
         Assert.False(result);
+        Assert.Equal([(groupJid, true), (groupJid, false)], channel.TypingCalls);
         Assert.Empty(routerStateRepository.Entries);
     }
 
@@ -116,6 +120,7 @@ public sealed class GroupMessageProcessorServiceTests
     {
         ChatJid groupJid = new("team@jid");
         InMemoryRouterStateRepository routerStateRepository = new();
+        RecordingChannel channel = new(groupJid);
         GroupMessageProcessorService service = new(
             new InMemoryMessageRepository(new Dictionary<ChatJid, IReadOnlyList<StoredMessage>>
             {
@@ -132,13 +137,14 @@ public sealed class GroupMessageProcessorServiceTests
             new RecordingAgentRuntime(ContainerRunStatus.Interrupted, null),
             new RecordingGroupExecutionQueue(),
             new ActiveGroupSessionRegistry(),
-            [],
+            [channel],
             "Andy",
             "UTC");
 
         bool result = await service.ProcessAsync(groupJid);
 
         Assert.False(result);
+        Assert.Equal([(groupJid, true), (groupJid, false)], channel.TypingCalls);
         Assert.Empty(routerStateRepository.Entries);
     }
 
@@ -191,6 +197,7 @@ public sealed class GroupMessageProcessorServiceTests
     {
         ChatJid groupJid = new("team@jid");
         RecordingAgentRuntime runtime = new(ContainerRunStatus.Success, "assistant reply");
+        RecordingChannel channel = new(groupJid);
         GroupMessageProcessorService service = new(
             new InMemoryMessageRepository(new Dictionary<ChatJid, IReadOnlyList<StoredMessage>>
             {
@@ -211,7 +218,7 @@ public sealed class GroupMessageProcessorServiceTests
             runtime,
             new RecordingGroupExecutionQueue(),
             new ActiveGroupSessionRegistry(),
-            [],
+            [channel],
             "Andy",
             "UTC");
 
@@ -219,6 +226,36 @@ public sealed class GroupMessageProcessorServiceTests
 
         Assert.True(result);
         Assert.Equal("formatted:@Andy allowed", runtime.LastPrompt);
+        Assert.Equal([(groupJid, true), (groupJid, false)], channel.TypingCalls);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_IgnoresTypingIndicatorFailures()
+    {
+        ChatJid groupJid = new("team@jid");
+        GroupMessageProcessorService service = new(
+            new InMemoryMessageRepository(new Dictionary<ChatJid, IReadOnlyList<StoredMessage>>
+            {
+                [groupJid] = [new StoredMessage("message-1", groupJid, "sender-1", "User", "@Andy hello", DateTimeOffset.UtcNow)]
+            }),
+            new InMemoryGroupRepository(new Dictionary<ChatJid, RegisteredGroup>
+            {
+                [groupJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow)
+            }),
+            new InMemoryRouterStateRepository(),
+            new PassThroughSenderAuthorizationService(),
+            new FakeMessageFormatter(),
+            new RecordingOutboundRouter(),
+            new RecordingAgentRuntime(ContainerRunStatus.Success, "assistant reply"),
+            new RecordingGroupExecutionQueue(),
+            new ActiveGroupSessionRegistry(),
+            [new ThrowingChannel(groupJid)],
+            "Andy",
+            "UTC");
+
+        bool result = await service.ProcessAsync(groupJid);
+
+        Assert.True(result);
     }
 
     private sealed class FakeMessageFormatter : IMessageFormatter
@@ -339,6 +376,67 @@ public sealed class GroupMessageProcessorServiceTests
         {
             return false;
         }
+    }
+
+    private sealed class RecordingChannel : IChannel
+    {
+        private readonly ChatJid ownedJid;
+
+        public RecordingChannel(ChatJid ownedJid)
+        {
+            this.ownedJid = ownedJid;
+        }
+
+        public List<(ChatJid ChatJid, bool IsTyping)> TypingCalls { get; } = [];
+
+        public ChannelName Name => new("recording");
+
+        public bool IsConnected => true;
+
+        public Task ConnectAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task SendMessageAsync(ChatJid chatJid, string text, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public bool Owns(ChatJid chatJid) => chatJid == ownedJid;
+
+        public Task DisconnectAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task SetTypingAsync(ChatJid chatJid, bool isTyping, CancellationToken cancellationToken = default)
+        {
+            TypingCalls.Add((chatJid, isTyping));
+            return Task.CompletedTask;
+        }
+
+        public Task SyncGroupsAsync(bool force, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private sealed class ThrowingChannel : IChannel
+    {
+        private readonly ChatJid ownedJid;
+
+        public ThrowingChannel(ChatJid ownedJid)
+        {
+            this.ownedJid = ownedJid;
+        }
+
+        public ChannelName Name => new("throwing");
+
+        public bool IsConnected => true;
+
+        public Task ConnectAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task SendMessageAsync(ChatJid chatJid, string text, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public bool Owns(ChatJid chatJid) => chatJid == ownedJid;
+
+        public Task DisconnectAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task SetTypingAsync(ChatJid chatJid, bool isTyping, CancellationToken cancellationToken = default)
+        {
+            throw new InvalidOperationException("typing failed");
+        }
+
+        public Task SyncGroupsAsync(bool force, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
     private sealed class InMemoryMessageRepository : IMessageRepository
