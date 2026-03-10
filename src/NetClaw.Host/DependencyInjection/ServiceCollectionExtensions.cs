@@ -108,6 +108,7 @@ public static class ServiceCollectionExtensions
             serviceProvider.GetRequiredService<IMessageFormatter>(),
             serviceProvider.GetRequiredService<IOutboundRouter>(),
             serviceProvider.GetRequiredService<IAgentRuntime>(),
+            serviceProvider.GetRequiredService<IGroupExecutionQueue>(),
             serviceProvider.GetRequiredService<IReadOnlyList<IChannel>>(),
             serviceProvider.GetRequiredService<AssistantIdentityOptions>().Name,
             serviceProvider.GetRequiredService<MessageLoopOptions>().Timezone));

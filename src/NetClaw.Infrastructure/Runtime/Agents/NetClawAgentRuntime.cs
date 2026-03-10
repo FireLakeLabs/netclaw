@@ -109,8 +109,25 @@ public sealed class NetClawAgentRuntime : IAgentRuntime
         SessionId? sessionId = agentEvent.Session is null ? null : new SessionId(agentEvent.Session.SessionId);
 
         return new ContainerStreamEvent(
+            TranslateEventKind(agentEvent.Kind),
             new ContainerOutput(status, agentEvent.Content, sessionId, agentEvent.Error),
             agentEvent.ObservedAt);
+    }
+
+    private static ContainerEventKind TranslateEventKind(AgentEventKind kind)
+    {
+        return kind switch
+        {
+            AgentEventKind.SessionStarted => ContainerEventKind.SessionStarted,
+            AgentEventKind.TextDelta => ContainerEventKind.TextDelta,
+            AgentEventKind.MessageCompleted => ContainerEventKind.MessageCompleted,
+            AgentEventKind.ToolStarted => ContainerEventKind.ToolStarted,
+            AgentEventKind.ToolCompleted => ContainerEventKind.ToolCompleted,
+            AgentEventKind.ReasoningDelta => ContainerEventKind.ReasoningDelta,
+            AgentEventKind.Idle => ContainerEventKind.Idle,
+            AgentEventKind.Error => ContainerEventKind.Error,
+            _ => ContainerEventKind.Error
+        };
     }
 
     private static ContainerName BuildContainerName(AgentProviderKind provider, GroupFolder groupFolder)

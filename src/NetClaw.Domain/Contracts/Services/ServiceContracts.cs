@@ -29,6 +29,8 @@ public interface IGroupExecutionQueue
     bool SendMessage(ChatJid groupJid, string text);
 
     void CloseInput(ChatJid groupJid);
+
+    void NotifyIdle(ChatJid groupJid);
 }
 
 public interface ITaskSchedulerService

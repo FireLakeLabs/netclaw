@@ -126,6 +126,10 @@ public sealed class InboundMessagePollingServiceTests
         {
         }
 
+        public void NotifyIdle(ChatJid groupJid)
+        {
+        }
+
         public bool SendMessage(ChatJid groupJid, string text)
         {
             return false;

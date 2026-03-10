@@ -13,6 +13,7 @@ public sealed class GroupMessageProcessorService
     private readonly IAgentRuntime agentRuntime;
     private readonly string assistantName;
     private readonly IReadOnlyList<IChannel> channels;
+    private readonly IGroupExecutionQueue groupExecutionQueue;
     private readonly IMessageFormatter messageFormatter;
     private readonly IMessageRepository messageRepository;
     private readonly IGroupRepository groupRepository;
@@ -27,6 +28,7 @@ public sealed class GroupMessageProcessorService
         IMessageFormatter messageFormatter,
         IOutboundRouter outboundRouter,
         IAgentRuntime agentRuntime,
+        IGroupExecutionQueue groupExecutionQueue,
         IReadOnlyList<IChannel> channels,
         string assistantName,
         string timezone)
@@ -37,6 +39,7 @@ public sealed class GroupMessageProcessorService
         this.messageFormatter = messageFormatter;
         this.outboundRouter = outboundRouter;
         this.agentRuntime = agentRuntime;
+        this.groupExecutionQueue = groupExecutionQueue;
         this.channels = channels;
         this.assistantName = assistantName;
         this.timezone = timezone;
@@ -65,8 +68,29 @@ public sealed class GroupMessageProcessorService
             }
 
             string prompt = messageFormatter.FormatInbound(pendingMessages, timezone);
+            bool streamedCompletedMessage = false;
             ContainerExecutionResult executionResult = await agentRuntime.ExecuteAsync(
                 new ContainerInput(prompt, null, group.Folder, groupJid, group.IsMain, false, assistantName),
+                async (streamEvent, ct) =>
+                {
+                    switch (streamEvent.Kind)
+                    {
+                        case ContainerEventKind.MessageCompleted:
+                        {
+                            string text = messageFormatter.NormalizeOutbound(streamEvent.Output.Result ?? string.Empty);
+                            if (!string.IsNullOrWhiteSpace(text))
+                            {
+                                await outboundRouter.RouteAsync(channels, groupJid, text, ct);
+                                streamedCompletedMessage = true;
+                            }
+
+                            break;
+                        }
+                        case ContainerEventKind.Idle:
+                            groupExecutionQueue.NotifyIdle(groupJid);
+                            break;
+                    }
+                },
                 cancellationToken: cancellationToken);
 
             if (executionResult.Status == ContainerRunStatus.Error)
@@ -75,7 +99,7 @@ public sealed class GroupMessageProcessorService
             }
 
             string outboundText = messageFormatter.NormalizeOutbound(executionResult.Result ?? string.Empty);
-            if (!string.IsNullOrWhiteSpace(outboundText))
+            if (!streamedCompletedMessage && !string.IsNullOrWhiteSpace(outboundText))
             {
                 await outboundRouter.RouteAsync(channels, groupJid, outboundText, cancellationToken);
             }

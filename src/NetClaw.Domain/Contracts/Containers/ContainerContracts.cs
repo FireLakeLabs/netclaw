@@ -15,7 +15,7 @@ public sealed record ContainerInput(
 
 public sealed record ContainerOutput(ContainerRunStatus Status, string? Result, SessionId? NewSessionId, string? Error);
 
-public sealed record ContainerStreamEvent(ContainerOutput Output, DateTimeOffset ObservedAt);
+public sealed record ContainerStreamEvent(ContainerEventKind Kind, ContainerOutput Output, DateTimeOffset ObservedAt);
 
 public sealed record AvailableGroup(ChatJid Jid, string Name, DateTimeOffset? LastActivity, bool IsRegistered);
 

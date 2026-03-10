@@ -32,6 +32,7 @@ public sealed class GroupMessageProcessorServiceTests
             new FakeMessageFormatter(),
             outboundRouter,
             runtime,
+            new RecordingGroupExecutionQueue(),
             [],
             "Andy",
             "UTC");
@@ -63,6 +64,7 @@ public sealed class GroupMessageProcessorServiceTests
             new FakeMessageFormatter(),
             new RecordingOutboundRouter(),
             runtime,
+            new RecordingGroupExecutionQueue(),
             [],
             "Andy",
             "UTC");
@@ -92,6 +94,7 @@ public sealed class GroupMessageProcessorServiceTests
             new FakeMessageFormatter(),
             new RecordingOutboundRouter(),
             new RecordingAgentRuntime(ContainerRunStatus.Error, null),
+            new RecordingGroupExecutionQueue(),
             [],
             "Andy",
             "UTC");
@@ -100,6 +103,48 @@ public sealed class GroupMessageProcessorServiceTests
 
         Assert.False(result);
         Assert.Empty(routerStateRepository.Entries);
+    }
+
+    [Fact]
+    public async Task ProcessAsync_RoutesStreamedCompletedMessageWithoutDuplicatingFinalResult()
+    {
+        ChatJid groupJid = new("team@jid");
+        RecordingOutboundRouter outboundRouter = new();
+        RecordingGroupExecutionQueue queue = new();
+        GroupMessageProcessorService service = new(
+            new InMemoryMessageRepository(new Dictionary<ChatJid, IReadOnlyList<StoredMessage>>
+            {
+                [groupJid] = [new StoredMessage("message-1", groupJid, "sender-1", "User", "@Andy hello", DateTimeOffset.UtcNow)]
+            }),
+            new InMemoryGroupRepository(new Dictionary<ChatJid, RegisteredGroup>
+            {
+                [groupJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow)
+            }),
+            new InMemoryRouterStateRepository(),
+            new FakeMessageFormatter(),
+            outboundRouter,
+            new RecordingAgentRuntime(
+                ContainerRunStatus.Success,
+                "assistant reply",
+                [new ContainerStreamEvent(
+                    ContainerEventKind.MessageCompleted,
+                    new ContainerOutput(ContainerRunStatus.Running, "assistant reply", new SessionId("session-1"), null),
+                    DateTimeOffset.UtcNow),
+                 new ContainerStreamEvent(
+                    ContainerEventKind.Idle,
+                    new ContainerOutput(ContainerRunStatus.Running, null, new SessionId("session-1"), null),
+                    DateTimeOffset.UtcNow)]),
+            queue,
+            [],
+            "Andy",
+            "UTC");
+
+        bool result = await service.ProcessAsync(groupJid);
+
+        Assert.True(result);
+        Assert.Single(outboundRouter.Messages);
+        Assert.Equal("assistant reply", outboundRouter.Messages[0].Text);
+        Assert.Equal(groupJid, Assert.Single(queue.IdleNotifications));
     }
 
     private sealed class FakeMessageFormatter : IMessageFormatter
@@ -124,13 +169,15 @@ public sealed class GroupMessageProcessorServiceTests
 
     private sealed class RecordingAgentRuntime : IAgentRuntime
     {
+        private readonly IReadOnlyList<ContainerStreamEvent> streamEvents;
         private readonly string? result;
         private readonly ContainerRunStatus status;
 
-        public RecordingAgentRuntime(ContainerRunStatus status, string? result)
+        public RecordingAgentRuntime(ContainerRunStatus status, string? result, IReadOnlyList<ContainerStreamEvent>? streamEvents = null)
         {
             this.status = status;
             this.result = result;
+            this.streamEvents = streamEvents ?? [];
         }
 
         public string LastPrompt { get; private set; } = string.Empty;
@@ -138,7 +185,43 @@ public sealed class GroupMessageProcessorServiceTests
         public Task<ContainerExecutionResult> ExecuteAsync(ContainerInput input, Func<ContainerStreamEvent, CancellationToken, Task>? onStreamEvent = null, CancellationToken cancellationToken = default)
         {
             LastPrompt = input.Prompt;
+
+            if (onStreamEvent is not null)
+            {
+                foreach (ContainerStreamEvent streamEvent in streamEvents)
+                {
+                    onStreamEvent(streamEvent, cancellationToken).GetAwaiter().GetResult();
+                }
+            }
+
             return Task.FromResult(new ContainerExecutionResult(status, result, new SessionId("session-1"), status == ContainerRunStatus.Error ? "runtime failed" : null, new ContainerName("agent-fake-team")));
+        }
+    }
+
+    private sealed class RecordingGroupExecutionQueue : IGroupExecutionQueue
+    {
+        public List<ChatJid> IdleNotifications { get; } = [];
+
+        public void CloseInput(ChatJid groupJid)
+        {
+        }
+
+        public void EnqueueMessageCheck(ChatJid groupJid)
+        {
+        }
+
+        public void EnqueueTask(ChatJid groupJid, TaskId taskId, Func<CancellationToken, Task> workItem)
+        {
+        }
+
+        public void NotifyIdle(ChatJid groupJid)
+        {
+            IdleNotifications.Add(groupJid);
+        }
+
+        public bool SendMessage(ChatJid groupJid, string text)
+        {
+            return false;
         }
     }
 
