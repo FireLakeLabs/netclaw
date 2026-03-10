@@ -32,6 +32,14 @@ public sealed class OptionsTests
     }
 
     [Fact]
+    public void MessageLoopOptions_RejectsMissingTimezone()
+    {
+        MessageLoopOptions options = new() { Timezone = " " };
+
+        Assert.Throws<InvalidOperationException>(() => options.Validate());
+    }
+
+    [Fact]
     public void CredentialProxyOptions_RejectsInvalidPort()
     {
         CredentialProxyOptions options = new() { Port = 70000 };

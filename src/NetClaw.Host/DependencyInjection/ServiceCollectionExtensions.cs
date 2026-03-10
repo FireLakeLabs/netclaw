@@ -50,6 +50,9 @@ public static class ServiceCollectionExtensions
         IpcWatcherOptions ipcWatcherOptions = CreateIpcWatcherOptions(configuration);
         ipcWatcherOptions.Validate();
 
+        MessageLoopOptions messageLoopOptions = CreateMessageLoopOptions(configuration);
+        messageLoopOptions.Validate();
+
         SchedulerOptions schedulerOptions = CreateSchedulerOptions(configuration);
         schedulerOptions.Validate();
 
@@ -60,6 +63,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(containerRuntimeOptions);
         services.AddSingleton(agentRuntimeOptions);
         services.AddSingleton(ipcWatcherOptions);
+        services.AddSingleton(messageLoopOptions);
         services.AddSingleton(schedulerOptions);
 
         services.AddSingleton<IFileSystem, PhysicalFileSystem>();
@@ -92,10 +96,25 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IReadOnlyList<IChannel>>(_ => Array.Empty<IChannel>());
         services.AddSingleton<IMessageFormatter, XmlMessageFormatter>();
         services.AddSingleton<IOutboundRouter, ChannelOutboundRouter>();
+        services.AddSingleton<InboundMessagePollingService>(serviceProvider => new InboundMessagePollingService(
+            serviceProvider.GetRequiredService<IMessageRepository>(),
+            serviceProvider.GetRequiredService<IGroupRepository>(),
+            serviceProvider.GetRequiredService<IRouterStateRepository>(),
+            serviceProvider.GetRequiredService<IGroupExecutionQueue>()));
+        services.AddSingleton<GroupMessageProcessorService>(serviceProvider => new GroupMessageProcessorService(
+            serviceProvider.GetRequiredService<IMessageRepository>(),
+            serviceProvider.GetRequiredService<IGroupRepository>(),
+            serviceProvider.GetRequiredService<IRouterStateRepository>(),
+            serviceProvider.GetRequiredService<IMessageFormatter>(),
+            serviceProvider.GetRequiredService<IOutboundRouter>(),
+            serviceProvider.GetRequiredService<IAgentRuntime>(),
+            serviceProvider.GetRequiredService<IReadOnlyList<IChannel>>(),
+            serviceProvider.GetRequiredService<AssistantIdentityOptions>().Name,
+            serviceProvider.GetRequiredService<MessageLoopOptions>().Timezone));
         services.AddSingleton(serviceProvider =>
         {
             GroupExecutionQueue queue = new(maxConcurrentExecutions: 1);
-            queue.SetMessageProcessor(static (_, _) => Task.FromResult(true));
+            queue.SetMessageProcessor((groupJid, cancellationToken) => serviceProvider.GetRequiredService<GroupMessageProcessorService>().ProcessAsync(groupJid, cancellationToken));
             queue.SetInputHandlers(static (_, _) => false, static _ => { });
             return queue;
         });
@@ -130,6 +149,7 @@ public static class ServiceCollectionExtensions
             serviceProvider.GetRequiredService<Func<ChatJid, string, CancellationToken, Task>>()));
 
         services.AddHostedService<HostInitializationService>();
+        services.AddHostedService<MessageLoopWorker>();
         services.AddHostedService<IpcWatcherWorker>();
         services.AddHostedService<SchedulerWorker>();
 
@@ -218,6 +238,21 @@ public static class ServiceCollectionExtensions
         return new IpcWatcherOptions
         {
             PollInterval = pollInterval
+        };
+    }
+
+    private static MessageLoopOptions CreateMessageLoopOptions(IConfiguration configuration)
+    {
+        TimeSpan pollInterval = TimeSpan.FromSeconds(2);
+        if (TimeSpan.TryParse(configuration["NetClaw:MessageLoop:PollInterval"], out TimeSpan configuredPollInterval))
+        {
+            pollInterval = configuredPollInterval;
+        }
+
+        return new MessageLoopOptions
+        {
+            PollInterval = pollInterval,
+            Timezone = configuration["NetClaw:MessageLoop:Timezone"] ?? "UTC"
         };
     }
 

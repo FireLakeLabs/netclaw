@@ -1,10 +1,14 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using NetClaw.Application.Execution;
+using NetClaw.Domain.Contracts.Channels;
 using NetClaw.Domain.Contracts.Ipc;
 using NetClaw.Domain.Contracts.Persistence;
 using NetClaw.Domain.Contracts.Services;
+using NetClaw.Domain.Contracts.Containers;
 using NetClaw.Domain.Entities;
 using NetClaw.Domain.Enums;
 using NetClaw.Domain.ValueObjects;
@@ -195,18 +199,82 @@ public sealed class EndToEndIntegrationTests
         }
     }
 
-    private static IHost CreateHost(string projectRoot)
+    [Fact]
+    public async Task MessageLoop_EnqueuesStoredMessagesAndRoutesRuntimeReply()
     {
-        return NetClaw.Host.Program.CreateHostBuilder([])
+        string projectRoot = CreateTemporaryPath();
+        string homeDirectory = CreateTemporaryPath();
+        FakeAgentRuntime fakeRuntime = new();
+        FakeChannel fakeChannel = new(new ChatJid("team@jid"));
+
+        try
+        {
+            using IHost host = CreateHost(projectRoot, services =>
+            {
+                services.AddSingleton<IAgentRuntime>(fakeRuntime);
+                services.AddSingleton<IReadOnlyList<IChannel>>([fakeChannel]);
+            });
+            await host.StartAsync();
+
+            IGroupRepository groupRepository = host.Services.GetRequiredService<IGroupRepository>();
+            await groupRepository.UpsertAsync(
+                new ChatJid("team@jid"),
+                new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow));
+
+            IMessageRepository messageRepository = host.Services.GetRequiredService<IMessageRepository>();
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            await messageRepository.StoreMessageAsync(new StoredMessage(
+                "message-1",
+                new ChatJid("team@jid"),
+                "sender-1",
+                "User",
+                "@Andy please respond",
+                now,
+                isFromMe: false,
+                isBotMessage: false));
+
+            InboundMessagePollingService pollingService = host.Services.GetRequiredService<InboundMessagePollingService>();
+            await pollingService.PollOnceAsync();
+
+            await fakeChannel.SendCompletion.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+            Assert.Single(fakeChannel.Messages);
+            Assert.Equal("assistant reply", fakeChannel.Messages[0]);
+            Assert.Contains("@Andy please respond", fakeRuntime.LastPrompt);
+
+            IRouterStateRepository routerStateRepository = host.Services.GetRequiredService<IRouterStateRepository>();
+            RouterStateEntry? state = await routerStateRepository.GetAsync("last_agent_timestamp:team@jid");
+            Assert.NotNull(state);
+
+            await host.StopAsync();
+        }
+        finally
+        {
+            DeleteTemporaryPath(projectRoot);
+            DeleteTemporaryPath(homeDirectory);
+        }
+    }
+
+    private static IHost CreateHost(string projectRoot, Action<IServiceCollection>? configureServices = null)
+    {
+        IHostBuilder builder = NetClaw.Host.Program.CreateHostBuilder([])
             .ConfigureAppConfiguration(configurationBuilder =>
             {
                 configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["NetClaw:ProjectRoot"] = projectRoot,
+                    ["NetClaw:MessageLoop:PollInterval"] = "00:10:00",
+                    ["NetClaw:MessageLoop:Timezone"] = "UTC",
                     ["NetClaw:Scheduler:PollInterval"] = "00:10:00"
                 });
-            })
-            .Build();
+            });
+
+        if (configureServices is not null)
+        {
+            builder = builder.ConfigureServices((_, services) => configureServices(services));
+        }
+
+        return builder.Build();
     }
 
     private static SetupRunner CreateRunner(string projectRoot, string homeDirectory)
@@ -231,5 +299,60 @@ public sealed class EndToEndIntegrationTests
         {
             Directory.Delete(path, recursive: true);
         }
+    }
+
+    private sealed class FakeAgentRuntime : IAgentRuntime
+    {
+        public TaskCompletionSource<bool> Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public string LastPrompt { get; private set; } = string.Empty;
+
+        public Task<ContainerExecutionResult> ExecuteAsync(ContainerInput input, Func<ContainerStreamEvent, CancellationToken, Task>? onStreamEvent = null, CancellationToken cancellationToken = default)
+        {
+            LastPrompt = input.Prompt;
+            Completion.TrySetResult(true);
+
+            return Task.FromResult(new ContainerExecutionResult(
+                ContainerRunStatus.Success,
+                "assistant reply",
+                new SessionId("session-1"),
+                null,
+                new ContainerName("agent-fake-team")));
+        }
+    }
+
+    private sealed class FakeChannel : IChannel
+    {
+        private readonly ChatJid ownedJid;
+
+        public FakeChannel(ChatJid ownedJid)
+        {
+            this.ownedJid = ownedJid;
+        }
+
+        public List<string> Messages { get; } = [];
+
+    public TaskCompletionSource<bool> SendCompletion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public ChannelName Name => new("fake");
+
+        public bool IsConnected => true;
+
+        public Task ConnectAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task DisconnectAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public bool Owns(ChatJid chatJid) => chatJid == ownedJid;
+
+        public Task SendMessageAsync(ChatJid chatJid, string text, CancellationToken cancellationToken = default)
+        {
+            Messages.Add(text);
+            SendCompletion.TrySetResult(true);
+            return Task.CompletedTask;
+        }
+
+        public Task SetTypingAsync(ChatJid chatJid, bool isTyping, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task SyncGroupsAsync(bool force, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 }
