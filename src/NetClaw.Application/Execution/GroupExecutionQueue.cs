@@ -76,7 +76,7 @@ public sealed class GroupExecutionQueue : IGroupExecutionQueue
             if (state.Active)
             {
                 state.PendingTasks.Enqueue(new QueuedTask(taskId.Value, workItem));
-                if (state.IdleWaiting)
+                if (!state.IsTaskExecution)
                 {
                     inputCloser?.Invoke(groupJid);
                 }
@@ -99,7 +99,7 @@ public sealed class GroupExecutionQueue : IGroupExecutionQueue
         lock (gate)
         {
             GroupExecutionState state = GetState(groupJid);
-            if (!state.Active || state.IsTaskExecution || inputWriter is null)
+            if (!state.Active || state.IsTaskExecution || state.PendingTasks.Count > 0 || inputWriter is null)
             {
                 return false;
             }

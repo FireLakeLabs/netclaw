@@ -71,4 +71,54 @@ public sealed class GroupExecutionQueueTests
         Assert.True(sent);
         Assert.Single(sentMessages);
     }
+
+    [Fact]
+    public async Task EnqueueTask_RequestsCloseImmediatelyWhenTaskQueuedDuringActiveMessageRun()
+    {
+        TaskCompletionSource<bool> processorStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<bool> releaseProcessor = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<bool> closeRequested = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        GroupExecutionQueue queue = new(1);
+        queue.SetInputHandlers((_, _) => true, _ => closeRequested.TrySetResult(true));
+        queue.SetMessageProcessor(async (_, _) =>
+        {
+            processorStarted.TrySetResult(true);
+            await releaseProcessor.Task;
+            return true;
+        });
+
+        queue.EnqueueMessageCheck(new ChatJid("group@jid"));
+        await processorStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        queue.EnqueueTask(new ChatJid("group@jid"), new TaskId("task-1"), _ => Task.CompletedTask);
+
+        Assert.True(await closeRequested.Task.WaitAsync(TimeSpan.FromSeconds(1)));
+        releaseProcessor.TrySetResult(true);
+    }
+
+    [Fact]
+    public async Task SendMessage_ReturnsFalseWhenTaskIsPendingForActiveSession()
+    {
+        TaskCompletionSource<bool> processorStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource<bool> releaseProcessor = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        GroupExecutionQueue queue = new(1);
+        queue.SetInputHandlers((_, _) => true, _ => { });
+        queue.SetMessageProcessor(async (_, _) =>
+        {
+            processorStarted.TrySetResult(true);
+            await releaseProcessor.Task;
+            return true;
+        });
+
+        queue.EnqueueMessageCheck(new ChatJid("group@jid"));
+        await processorStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        queue.EnqueueTask(new ChatJid("group@jid"), new TaskId("task-1"), _ => Task.CompletedTask);
+
+        bool sent = queue.SendMessage(new ChatJid("group@jid"), "follow-up");
+        releaseProcessor.TrySetResult(true);
+
+        Assert.False(sent);
+    }
 }

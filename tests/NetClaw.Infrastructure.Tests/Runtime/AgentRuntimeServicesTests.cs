@@ -75,6 +75,38 @@ public sealed class AgentRuntimeServicesTests
     }
 
     [Fact]
+    public async Task CopilotEngine_InteractiveSession_CloseCancelsInFlightPrompt()
+    {
+        BlockingCopilotSessionAdapter session = new("copilot-session-1", "/runtime/workspace");
+        FakeCopilotClientAdapter client = new(session);
+        CopilotCodingAgentEngine engine = new(
+            new FakeCopilotClientPool(client),
+            new AgentRuntimeOptions
+            {
+                CopilotConfigDirectory = "/runtime/config",
+                InteractiveIdleTimeout = TimeSpan.FromMinutes(5)
+            });
+
+        AgentExecutionRequest request = new(
+            AgentProviderKind.Copilot,
+            new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow),
+            new ContainerInput("Prompt", null, new GroupFolder("team"), new ChatJid("team@jid"), false, false, "Andy"),
+            new AgentWorkspaceContext(new GroupFolder("team"), "/workspace/group", "/workspace/sessions/team", "/workspace/runtime/team", false, [], new AgentInstructionSet([new AgentInstructionDocument("AGENTS.md", "# A", true)])),
+            null,
+            []);
+
+        await using IInteractiveAgentSession interactiveSession = await engine.StartInteractiveSessionAsync(request);
+        await session.PromptStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        interactiveSession.RequestClose();
+        AgentExecutionResult result = await interactiveSession.Completion.WaitAsync(TimeSpan.FromSeconds(1));
+
+        Assert.Equal(ContainerRunStatus.Error, result.Status);
+        Assert.Equal("Interactive session interrupted.", result.Error);
+        Assert.True(await session.CancellationObserved.Task.WaitAsync(TimeSpan.FromSeconds(1)));
+    }
+
+    [Fact]
     public async Task WorkspaceBuilder_ProducesAgensDocumentAndDirectories()
     {
         string root = Path.Combine(Path.GetTempPath(), $"netclaw-agent-workspace-{Guid.NewGuid():N}");
@@ -138,7 +170,7 @@ public sealed class AgentRuntimeServicesTests
         Assert.Equal("copilot-session-1", sessionRepository.Stored[new GroupFolder("team")].Value);
     }
 
-    private sealed class TestCodingAgentEngine : ICodingAgentEngine
+    private sealed class TestCodingAgentEngine : IInteractiveCodingAgentEngine
     {
         public AgentProviderKind Provider => AgentProviderKind.Copilot;
 
@@ -162,6 +194,32 @@ public sealed class AgentRuntimeServicesTests
         {
             return Task.FromResult(new AgentExecutionResult(ContainerRunStatus.Success, "done", new AgentSessionReference(AgentProviderKind.Copilot, "copilot-session-1", request.Workspace.WorkspaceDirectory), null));
         }
+
+        public Task<IInteractiveAgentSession> StartInteractiveSessionAsync(AgentExecutionRequest request, Func<AgentStreamEvent, CancellationToken, Task>? onStreamEvent = null, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IInteractiveAgentSession>(new TestInteractiveAgentSession(request.Workspace.WorkspaceDirectory));
+        }
+    }
+
+    private sealed class TestInteractiveAgentSession : IInteractiveAgentSession
+    {
+        public TestInteractiveAgentSession(string workspaceDirectory)
+        {
+            Session = new AgentSessionReference(AgentProviderKind.Copilot, "copilot-session-1", workspaceDirectory);
+            Completion = Task.FromResult(new AgentExecutionResult(ContainerRunStatus.Success, "done", Session, null));
+        }
+
+        public AgentSessionReference Session { get; }
+
+        public Task<AgentExecutionResult> Completion { get; }
+
+        public bool TryPostInput(string text) => true;
+
+        public void RequestClose()
+        {
+        }
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
     private sealed class TestWorkspaceBuilder : IAgentWorkspaceBuilder
@@ -232,6 +290,45 @@ public sealed class AgentRuntimeServicesTests
         public Task<string?> SendPromptAsync(string prompt, CancellationToken cancellationToken = default)
         {
             return Task.FromResult<string?>(result);
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class BlockingCopilotSessionAdapter : ICopilotSessionAdapter
+    {
+        public BlockingCopilotSessionAdapter(string sessionId, string? workspacePath)
+        {
+            SessionId = sessionId;
+            WorkspacePath = workspacePath;
+        }
+
+        public string SessionId { get; }
+
+        public string? WorkspacePath { get; }
+
+        public TaskCompletionSource<bool> PromptStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TaskCompletionSource<bool> CancellationObserved { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task<string?> SendPromptAsync(string prompt, CancellationToken cancellationToken = default)
+        {
+            PromptStarted.TrySetResult(true);
+
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                CancellationObserved.TrySetResult(true);
+                throw;
+            }
+
+            return "done";
         }
 
         public ValueTask DisposeAsync()

@@ -143,7 +143,11 @@ public sealed class CopilotCodingAgentEngine : IInteractiveCodingAgentEngine
     {
         private readonly Channel<string> inputs = Channel.CreateUnbounded<string>();
         private readonly TimeSpan idleTimeout;
+        private readonly object promptGate = new();
         private readonly ICopilotSessionAdapter session;
+        private CancellationTokenSource? activePromptCancellation;
+        private int closeRequested;
+        private int disposeState;
 
         public CopilotInteractiveAgentSession(
             ICopilotSessionAdapter session,
@@ -163,18 +167,40 @@ public sealed class CopilotCodingAgentEngine : IInteractiveCodingAgentEngine
 
         public bool TryPostInput(string text)
         {
+            if (Volatile.Read(ref closeRequested) == 1)
+            {
+                return false;
+            }
+
             return inputs.Writer.TryWrite(text);
         }
 
         public void RequestClose()
         {
+            if (Interlocked.Exchange(ref closeRequested, 1) == 1)
+            {
+                return;
+            }
+
             inputs.Writer.TryComplete();
+
+            lock (promptGate)
+            {
+                activePromptCancellation?.Cancel();
+            }
         }
 
         public async ValueTask DisposeAsync()
         {
             RequestClose();
-            await session.DisposeAsync();
+            try
+            {
+                await Completion;
+            }
+            finally
+            {
+                await DisposeSessionAsync();
+            }
         }
 
         private async Task<AgentExecutionResult> RunAsync(string initialPrompt)
@@ -186,7 +212,26 @@ public sealed class CopilotCodingAgentEngine : IInteractiveCodingAgentEngine
             {
                 while (true)
                 {
-                    latestResult = await session.SendPromptAsync(currentPrompt);
+                    if (Volatile.Read(ref closeRequested) == 1)
+                    {
+                        return CreateInterruptedResult(latestResult);
+                    }
+
+                    using CancellationTokenSource promptCancellation = new();
+                    SetActivePromptCancellation(promptCancellation);
+
+                    try
+                    {
+                        latestResult = await session.SendPromptAsync(currentPrompt, promptCancellation.Token);
+                    }
+                    catch (OperationCanceledException) when (Volatile.Read(ref closeRequested) == 1)
+                    {
+                        return CreateInterruptedResult(latestResult);
+                    }
+                    finally
+                    {
+                        ClearActivePromptCancellation(promptCancellation);
+                    }
 
                     string? nextInput = await WaitForNextInputAsync();
                     if (string.IsNullOrWhiteSpace(nextInput))
@@ -203,8 +248,47 @@ public sealed class CopilotCodingAgentEngine : IInteractiveCodingAgentEngine
             }
             finally
             {
-                await session.DisposeAsync();
+                await DisposeSessionAsync();
             }
+        }
+
+        private AgentExecutionResult CreateInterruptedResult(string? latestResult)
+        {
+            return new AgentExecutionResult(ContainerRunStatus.Error, latestResult, Session, "Interactive session interrupted.");
+        }
+
+        private void SetActivePromptCancellation(CancellationTokenSource promptCancellation)
+        {
+            lock (promptGate)
+            {
+                if (Volatile.Read(ref closeRequested) == 1)
+                {
+                    promptCancellation.Cancel();
+                }
+
+                activePromptCancellation = promptCancellation;
+            }
+        }
+
+        private void ClearActivePromptCancellation(CancellationTokenSource promptCancellation)
+        {
+            lock (promptGate)
+            {
+                if (ReferenceEquals(activePromptCancellation, promptCancellation))
+                {
+                    activePromptCancellation = null;
+                }
+            }
+        }
+
+        private async ValueTask DisposeSessionAsync()
+        {
+            if (Interlocked.Exchange(ref disposeState, 1) == 1)
+            {
+                return;
+            }
+
+            await session.DisposeAsync();
         }
 
         private async Task<string?> WaitForNextInputAsync()
