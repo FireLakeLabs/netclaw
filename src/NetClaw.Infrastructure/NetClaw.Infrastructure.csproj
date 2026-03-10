@@ -1,6 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\NetClaw.Domain\NetClaw.Domain.csproj" />
     <ProjectReference Include="..\NetClaw.Application\NetClaw.Application.csproj" />
   </ItemGroup>
