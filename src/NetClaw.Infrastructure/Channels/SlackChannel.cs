@@ -168,6 +168,8 @@ public sealed class SlackChannel : IInboundChannel
             return;
         }
 
+        bool isDirectMessage = LooksLikeDirectMessageConversationId(chatJid.Value);
+
         if (TryGetAssistantThreadTs(chatJid.Value, out string? assistantThreadTs)
             && await TrySetAssistantStatusAsync(chatJid.Value, assistantThreadTs, isTyping ? options.WorkingIndicatorText : string.Empty, cancellationToken))
         {
@@ -177,6 +179,16 @@ public sealed class SlackChannel : IInboundChannel
             }
 
             ownedChats.TryAdd(chatJid.Value, 0);
+            return;
+        }
+
+        if (isDirectMessage)
+        {
+            if (!isTyping)
+            {
+                await ClearActivePlaceholderAsync(chatJid.Value, cancellationToken);
+            }
+
             return;
         }
 

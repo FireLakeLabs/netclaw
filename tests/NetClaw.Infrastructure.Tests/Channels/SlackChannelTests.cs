@@ -118,7 +118,7 @@ public sealed class SlackChannelTests
     }
 
     [Fact]
-    public async Task SetTypingAsync_FalseDeletesPlaceholderWhenNoReplyIsSent()
+    public async Task DirectMessageTypingWithoutAssistantThread_DoesNotCreateOrDeletePlaceholder()
     {
         FakeSlackSocketModeClient client = new("U-BOT", new SlackConversationInfo("D12345", "Direct Message", false));
         SlackChannel channel = new(
@@ -137,9 +137,37 @@ public sealed class SlackChannelTests
         await channel.SetTypingAsync(chatJid, true);
         await channel.SetTypingAsync(chatJid, false);
 
-        Assert.Single(client.PostedMessages);
-        Assert.Single(client.DeletedMessages);
-        Assert.Equal(client.PostedMessages[0].Ts, client.DeletedMessages[0].Ts);
+        Assert.Empty(client.PostedMessages);
+        Assert.Empty(client.DeletedMessages);
+
+        await channel.DisconnectAsync();
+    }
+
+    [Fact]
+    public async Task DirectMessageWithoutAssistantThread_DoesNotPostPlaceholder()
+    {
+        FakeSlackSocketModeClient client = new("U-BOT", new SlackConversationInfo("D12345", "Direct Message", false))
+        {
+            FailAssistantStatus = true
+        };
+        SlackChannel channel = new(
+            new SlackChannelOptions
+            {
+                Enabled = true,
+                BotToken = "xoxb-test",
+                AppToken = "xapp-test",
+                WorkingIndicatorText = "Evaluating..."
+            },
+            client);
+
+        await channel.ConnectAsync();
+
+        await channel.SetTypingAsync(new ChatJid("D12345"), true);
+
+        Assert.Empty(client.PostedMessages);
+        Assert.Empty(client.UpdatedMessages);
+        Assert.Empty(client.DeletedMessages);
+        Assert.Empty(client.AssistantStatusUpdates);
 
         await channel.DisconnectAsync();
     }
@@ -237,13 +265,10 @@ public sealed class SlackChannelTests
         await channel.SetTypingAsync(chatJid, true);
         await channel.SendMessageAsync(chatJid, "assistant reply");
 
-        Assert.Equal(2, client.PostedMessages.Count);
-        Assert.Equal("Evaluating...", client.PostedMessages[0].Text);
+        Assert.Single(client.PostedMessages);
+        Assert.Equal("assistant reply", client.PostedMessages[0].Text);
         Assert.Equal("1710115200.000100", client.PostedMessages[0].ThreadTs);
-        Assert.Equal("assistant reply", client.PostedMessages[1].Text);
-        Assert.Equal("1710115200.000100", client.PostedMessages[1].ThreadTs);
-        Assert.Single(client.DeletedMessages);
-        Assert.Equal(client.PostedMessages[0].Ts, client.DeletedMessages[0].Ts);
+        Assert.Empty(client.DeletedMessages);
         Assert.Empty(client.UpdatedMessages);
         Assert.NotEmpty(client.AssistantStatusUpdates);
 
@@ -291,13 +316,10 @@ public sealed class SlackChannelTests
         await channel.SetTypingAsync(chatJid, true);
         await channel.SendMessageAsync(chatJid, "assistant reply");
 
-        Assert.Equal(2, client.PostedMessages.Count);
-        Assert.Equal("Evaluating...", client.PostedMessages[0].Text);
-        Assert.Null(client.PostedMessages[0].ThreadTs);
-        Assert.Equal("assistant reply", client.PostedMessages[1].Text);
-        Assert.Equal("1710115200.000100", client.PostedMessages[1].ThreadTs);
-        Assert.Single(client.DeletedMessages);
-        Assert.Equal(client.PostedMessages[0].Ts, client.DeletedMessages[0].Ts);
+        Assert.Single(client.PostedMessages);
+        Assert.Equal("assistant reply", client.PostedMessages[0].Text);
+        Assert.Equal("1710115200.000100", client.PostedMessages[0].ThreadTs);
+        Assert.Empty(client.DeletedMessages);
         Assert.Empty(client.UpdatedMessages);
         Assert.Single(client.AssistantStatusUpdates);
         Assert.Equal("Evaluating...", client.AssistantStatusUpdates[0].Status);
