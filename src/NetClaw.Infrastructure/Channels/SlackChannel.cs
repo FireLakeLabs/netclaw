@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using NetClaw.Domain.Contracts.Channels;
 using NetClaw.Domain.Entities;
 using NetClaw.Domain.ValueObjects;
@@ -10,6 +12,7 @@ namespace NetClaw.Infrastructure.Channels;
 public sealed class SlackChannel : IInboundChannel
 {
     private readonly object gate = new();
+    private readonly ILogger<SlackChannel> logger;
     private readonly SlackChannelOptions options;
     private readonly ISlackSocketModeClient slackClient;
     private readonly ConcurrentDictionary<string, byte> ownedChats = new(StringComparer.Ordinal);
@@ -25,9 +28,15 @@ public sealed class SlackChannel : IInboundChannel
     private bool isConnected;
 
     public SlackChannel(SlackChannelOptions options, ISlackSocketModeClient slackClient)
+        : this(options, slackClient, NullLogger<SlackChannel>.Instance)
+    {
+    }
+
+    public SlackChannel(SlackChannelOptions options, ISlackSocketModeClient slackClient, ILogger<SlackChannel> logger)
     {
         this.options = options;
         this.slackClient = slackClient;
+        this.logger = logger;
     }
 
     public ChannelName Name => new("slack");
@@ -59,6 +68,7 @@ public sealed class SlackChannel : IInboundChannel
         try
         {
             botUserId = (await slackClient.AuthTestAsync(cancellationToken)).UserId;
+            logger.LogInformation("Slack channel authenticated as bot user {BotUserId}.", botUserId);
             receiveLoopTask = Task.Run(() => ReceiveLoopAsync(receiveLoopCancellation!.Token), CancellationToken.None);
         }
         catch
@@ -133,11 +143,13 @@ public sealed class SlackChannel : IInboundChannel
         if (activePlaceholderTs.TryRemove(chatJid.Value, out string? placeholderTs)
             && !string.IsNullOrWhiteSpace(placeholderTs))
         {
+            logger.LogDebug("Updating Slack placeholder for {ChatJid} with final response.", chatJid.Value);
             await slackClient.UpdateMessageAsync(chatJid.Value, placeholderTs, text, cancellationToken);
             return;
         }
 
         replyThreads.TryGetValue(chatJid.Value, out string? threadTs);
+        logger.LogDebug("Posting Slack response to {ChatJid}. ThreadTs={ThreadTs}", chatJid.Value, threadTs ?? "<none>");
         await slackClient.PostMessageAsync(chatJid.Value, text, threadTs, cancellationToken);
     }
 
@@ -156,6 +168,7 @@ public sealed class SlackChannel : IInboundChannel
             }
 
             replyThreads.TryGetValue(chatJid.Value, out string? threadTs);
+            logger.LogDebug("Posting Slack working indicator for {ChatJid}. ThreadTs={ThreadTs}", chatJid.Value, threadTs ?? "<none>");
             SlackPostedMessage placeholder = await slackClient.PostMessageAsync(chatJid.Value, options.WorkingIndicatorText, threadTs, cancellationToken);
             activePlaceholderTs[chatJid.Value] = placeholder.Ts;
             ownedChats.TryAdd(chatJid.Value, 0);
@@ -167,6 +180,7 @@ public sealed class SlackChannel : IInboundChannel
         {
             try
             {
+                logger.LogDebug("Deleting Slack working indicator for {ChatJid}.", chatJid.Value);
                 await slackClient.DeleteMessageAsync(chatJid.Value, placeholderTs, cancellationToken);
             }
             catch
@@ -228,15 +242,19 @@ public sealed class SlackChannel : IInboundChannel
             }
             catch
             {
+                logger.LogWarning("Slack socket receive failed; resetting connection.");
                 await ResetConnectionAsync(currentConnection);
                 continue;
             }
 
             if (envelope is null)
             {
+                logger.LogInformation("Slack socket closed by remote endpoint; reconnecting.");
                 await ResetConnectionAsync(currentConnection);
                 continue;
             }
+
+            logger.LogDebug("Received Slack socket envelope. Type={EnvelopeType}", envelope.Type);
 
             try
             {
@@ -254,6 +272,7 @@ public sealed class SlackChannel : IInboundChannel
     {
         if (!string.Equals(envelope.Type, "events_api", StringComparison.Ordinal) || envelope.Payload?.Event is null)
         {
+            logger.LogDebug("Ignoring Slack envelope. Type={EnvelopeType}", envelope.Type);
             return;
         }
 
@@ -267,6 +286,12 @@ public sealed class SlackChannel : IInboundChannel
             || string.IsNullOrWhiteSpace(slackEvent.Ts)
             || string.Equals(slackEvent.User, botUserId, StringComparison.Ordinal))
         {
+            logger.LogDebug(
+                "Ignoring Slack event. EventType={EventType}, Subtype={Subtype}, Channel={Channel}, User={User}",
+                slackEvent.Type,
+                slackEvent.Subtype ?? "<none>",
+                slackEvent.Channel ?? "<none>",
+                slackEvent.User ?? "<none>");
             return;
         }
 
@@ -274,6 +299,11 @@ public sealed class SlackChannel : IInboundChannel
         SlackConversationInfo conversationInfo = await GetConversationInfoAsync(conversationId, slackEvent.ChannelType, cancellationToken);
         ownedChats.TryAdd(conversationId, 0);
         replyThreads[conversationId] = GetReplyThreadTs(conversationInfo.IsGroup, slackEvent);
+        logger.LogInformation(
+            "Queued Slack inbound message for {ConversationId}. IsGroup={IsGroup}, ThreadTs={ThreadTs}",
+            conversationId,
+            conversationInfo.IsGroup,
+            replyThreads[conversationId] ?? "<none>");
 
         DateTimeOffset timestamp = ParseSlackTimestamp(slackEvent.Ts);
         ChatJid chatJid = new(conversationId);
@@ -303,6 +333,7 @@ public sealed class SlackChannel : IInboundChannel
         }
 
         ISlackSocketModeConnection created = await slackClient.ConnectAsync(cancellationToken);
+        logger.LogInformation("Slack Socket Mode connection established.");
         lock (gate)
         {
             connection ??= created;
