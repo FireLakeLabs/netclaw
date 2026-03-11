@@ -128,3 +128,24 @@ Current behavior:
 - Channel and group replies default to thread replies based on the triggering message; direct messages reply directly.
 
 The code is ready for live validation, but the actual Slack app tokens and scopes still need to be created before a real Slack smoke test can run.
+
+For the common local Slack workflow, you can also run the root helper script:
+
+```bash
+./run-slack-channel.sh
+```
+
+The helper reads Slack secrets from environment variables instead of storing them in the repo. At minimum, set:
+
+```bash
+export NETCLAW_SLACK_BOT_TOKEN='xoxb-...'
+export NETCLAW_SLACK_APP_TOKEN='xapp-...'
+export NETCLAW_CHAT_JID='C0123456789'
+```
+
+Useful optional overrides:
+
+- `NETCLAW_CHAT_NAME` for the registration name shown in NetClaw
+- `NETCLAW_GROUP_FOLDER` for the persisted group folder name
+- `NETCLAW_REQUIRE_TRIGGER=true|false` to control mention/trigger gating for the registered Slack conversation
+- `NETCLAW_SLACK_WORKING_INDICATOR_TEXT` to change the placeholder shown while the agent is working
