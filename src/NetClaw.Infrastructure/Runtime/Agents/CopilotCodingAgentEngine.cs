@@ -1,8 +1,8 @@
+using System.Threading.Channels;
 using NetClaw.Domain.Contracts.Agents;
 using NetClaw.Domain.Contracts.Services;
 using NetClaw.Domain.Enums;
 using NetClaw.Infrastructure.Configuration;
-using System.Threading.Channels;
 
 namespace NetClaw.Infrastructure.Runtime.Agents;
 

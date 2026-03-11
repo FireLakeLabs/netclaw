@@ -150,9 +150,9 @@ public sealed class SlackChannel : IInboundChannel
             }
             else
             {
-            logger.LogDebug("Updating Slack placeholder for {ChatJid} with final response.", chatJid.Value);
-            await slackClient.UpdateMessageAsync(chatJid.Value, placeholderTs, text, cancellationToken);
-            return;
+                logger.LogDebug("Updating Slack placeholder for {ChatJid} with final response.", chatJid.Value);
+                await slackClient.UpdateMessageAsync(chatJid.Value, placeholderTs, text, cancellationToken);
+                return;
             }
         }
 

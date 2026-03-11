@@ -17,14 +17,14 @@ using NetClaw.Domain.Enums;
 using NetClaw.Domain.ValueObjects;
 using NetClaw.Host.Configuration;
 using NetClaw.Host.Services;
-using NetClaw.Infrastructure.Runtime.Agents;
-using NetClaw.Infrastructure.Configuration;
 using NetClaw.Infrastructure.Channels;
+using NetClaw.Infrastructure.Configuration;
 using NetClaw.Infrastructure.FileSystem;
 using NetClaw.Infrastructure.Ipc;
 using NetClaw.Infrastructure.Paths;
 using NetClaw.Infrastructure.Persistence.Sqlite;
 using NetClaw.Infrastructure.Runtime;
+using NetClaw.Infrastructure.Runtime.Agents;
 using NetClaw.Infrastructure.Security;
 
 namespace NetClaw.Host;

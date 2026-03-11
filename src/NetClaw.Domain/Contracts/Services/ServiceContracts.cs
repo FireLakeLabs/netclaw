@@ -1,5 +1,5 @@
-using NetClaw.Domain.Contracts.Channels;
 using NetClaw.Domain.Contracts.Agents;
+using NetClaw.Domain.Contracts.Channels;
 using NetClaw.Domain.Contracts.Containers;
 using NetClaw.Domain.Contracts.Ipc;
 using NetClaw.Domain.Entities;

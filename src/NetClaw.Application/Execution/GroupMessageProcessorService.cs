@@ -90,16 +90,16 @@ public sealed class GroupMessageProcessorService
                         switch (streamEvent.Kind)
                         {
                             case ContainerEventKind.MessageCompleted:
-                            {
-                                string text = messageFormatter.NormalizeOutbound(streamEvent.Output.Result ?? string.Empty);
-                                if (!string.IsNullOrWhiteSpace(text))
                                 {
-                                    await outboundRouter.RouteAsync(channels, groupJid, text, ct);
-                                    streamedCompletedMessage = true;
-                                }
+                                    string text = messageFormatter.NormalizeOutbound(streamEvent.Output.Result ?? string.Empty);
+                                    if (!string.IsNullOrWhiteSpace(text))
+                                    {
+                                        await outboundRouter.RouteAsync(channels, groupJid, text, ct);
+                                        streamedCompletedMessage = true;
+                                    }
 
-                                break;
-                            }
+                                    break;
+                                }
                             case ContainerEventKind.Idle:
                                 groupExecutionQueue.NotifyIdle(groupJid);
                                 break;

@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Microsoft.Extensions.AI;
 using NetClaw.Domain.Contracts.Agents;
 using NetClaw.Domain.Contracts.Containers;
 using NetClaw.Domain.Contracts.Persistence;
@@ -9,8 +11,6 @@ using NetClaw.Infrastructure.Configuration;
 using NetClaw.Infrastructure.FileSystem;
 using NetClaw.Infrastructure.Paths;
 using NetClaw.Infrastructure.Runtime.Agents;
-using Microsoft.Extensions.AI;
-using System.Text.Json;
 
 namespace NetClaw.Infrastructure.Tests.Runtime;
 

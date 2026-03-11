@@ -1,189 +1,101 @@
 # NetClaw
 
-NetClaw is a .NET rewrite workspace for NanoClaw.
+NetClaw is a loose port of NanoClaw to .NET.
 
-## Solution Layout
+The point of this repo is not to present a finished agent platform. The point is to build an agent host we understand well enough to change, debug, and live with. A lot of the shape of the project comes from NanoClaw, but the runtime choices are different: Linux first, .NET 10, xUnit, SQLite, and Copilot as the first working agent provider.
 
-- `src/NetClaw.Domain`: core contracts and domain model
-- `src/NetClaw.Application`: orchestration services and workflows
-- `src/NetClaw.Infrastructure`: persistence and external adapters
-- `src/NetClaw.Host`: long-running Linux-first host process
-- `src/NetClaw.Setup`: setup and operational CLI
-- `tests/*`: xUnit test projects aligned to the production projects they cover
-- `status/*`: per-step implementation status documents
+If you want to study it, borrow from it, fork it, or laugh at it, that is fine.
 
-## Reference File Channel
+## What It Does Today
 
-NetClaw includes an optional `reference-file` channel for development and smoke testing. When enabled, the host polls inbound JSON messages from `data/channels/reference-file/inbox`, writes processed files to `processed`, invalid files to `errors`, and emits outbound replies as JSON envelopes in `outbox`.
+- Runs a hosted .NET process that polls inbound channels and routes messages into an agent runtime.
+- Persists groups, messages, sessions, and scheduled tasks in SQLite.
+- Supports terminal, reference-file, and Slack channels.
+- Supports interactive sessions and a small control-plane tool surface for group management and scheduling.
+- Uses Copilot as the only real provider today. Other providers are placeholders.
 
-Enable it with configuration like:
+## What It Is Not
 
-- `NetClaw:Channels:ReferenceFile:Enabled=true`
-- `NetClaw:Channels:PollInterval=00:00:01`
-- `NetClaw:Channels:ReferenceFile:RootDirectory=/path/to/project/data/channels/reference-file`
+- Not feature-complete relative to NanoClaw.
+- Not channel-complete.
+- Not a polished product.
+- Not a claim that .NET is the objectively right way to do this.
 
-Inbound file shape:
+## Repo Layout
 
-```json
-{
-	"id": "message-1",
-	"chatJid": "team@jid",
-	"sender": "sender-1",
-	"senderName": "User",
-	"content": "@Andy hello",
-	"timestamp": "2026-03-10T00:00:00Z",
-	"chatName": "Team",
-	"isGroup": true
-}
-```
+- `src/NetClaw.Domain`: contracts, entities, enums, value objects
+- `src/NetClaw.Application`: orchestration, routing, scheduling, execution
+- `src/NetClaw.Infrastructure`: channels, persistence, runtime adapters, filesystem and platform integration
+- `src/NetClaw.Host`: the long-running host process and dependency wiring
+- `src/NetClaw.Setup`: CLI for setup and operational steps
+- `tests`: xUnit coverage aligned to the production projects
+- `status`: step-by-step implementation notes
+- `future-features`: research notes for missing parity and delayed work
+- `docs`: architecture, user guide, coding standards
 
-Outbound file shape:
+## Running It
 
-```json
-{
-	"chatJid": "team@jid",
-	"text": "assistant reply",
-	"timestamp": "2026-03-10T00:00:00Z"
-}
-```
-
-## Terminal Channel
-
-NetClaw also includes an optional `terminal` channel for local development and engine validation. When enabled, the host reads inbound messages from `stdin` and writes outbound replies to `stdout`.
-
-Enable it with configuration like:
-
-- `NetClaw:Channels:Terminal:Enabled=true`
-- `NetClaw:Channels:Terminal:ChatJid=team@jid`
-- `NetClaw:Channels:Terminal:Sender=terminal-user`
-- `NetClaw:Channels:Terminal:SenderName=Terminal User`
-- `NetClaw:Channels:Terminal:ChatName=Terminal Chat`
-- `NetClaw:Channels:Terminal:IsGroup=true`
-- `NetClaw:Channels:Terminal:InputPrompt=you> `
-- `NetClaw:Channels:PollInterval=00:00:01`
-- `NetClaw:MessageLoop:PollInterval=00:00:01`
-
-Example live run:
-
-```bash
-export NETCLAW_PROJECT_ROOT=/tmp/netclaw-terminal
-
-dotnet run --project src/NetClaw.Setup -- --step register \
-	--jid team@jid \
-	--name Team \
-	--trigger @Andy \
-	--folder team
-
-env \
-	NetClaw__ProjectRoot=/tmp/netclaw-terminal \
-	NetClaw__Channels__Terminal__Enabled=true \
-	NetClaw__Channels__Terminal__ChatJid=team@jid \
-	NetClaw__Channels__Terminal__Sender=terminal-user \
-	NetClaw__Channels__Terminal__SenderName='Terminal User' \
-	NetClaw__Channels__Terminal__ChatName='Terminal Chat' \
-	NetClaw__Channels__Terminal__IsGroup=true \
-	NetClaw__Channels__Terminal__InputPrompt='you> ' \
-	NetClaw__Channels__PollInterval=00:00:01 \
-	NetClaw__MessageLoop__PollInterval=00:00:01 \
-	NetClaw__MessageLoop__Timezone=UTC \
-	NetClaw__AgentRuntime__CopilotUseLoggedInUser=true \
-	dotnet run --project src/NetClaw.Host
-```
-
-For the common local workflow, you can also run the root helper script:
+### Terminal smoke run
 
 ```bash
 ./run-terminal-channel.sh
 ```
 
-It wraps the register step plus host startup. By default, the helper registers the terminal chat with `--no-trigger-required`, so plain prompts like `What is the capital of Missouri?` will be processed without `@Andy`.
+This registers a local chat and starts the host with the terminal channel enabled.
 
-If you want parity with the triggered group flow instead, start it with `NETCLAW_REQUIRE_TRIGGER=true`; in that mode prompts must include the configured trigger such as `@Andy What is the capital of Missouri?`.
-
-The terminal channel now shows a `you> ` input prompt while it is waiting for input. You can override the defaults with environment variables such as `NETCLAW_PROJECT_ROOT`, `NETCLAW_CHAT_JID`, `NETCLAW_AGENT_TRIGGER`, `NETCLAW_REQUIRE_TRIGGER`, `NETCLAW_TERMINAL_SENDER_NAME`, and `NETCLAW_TERMINAL_INPUT_PROMPT`.
-
-Type a prompt such as `What is the capital of Missouri?` or, in trigger-required mode, `@Andy hello`, and the assistant reply will be written to stdout with the configured prefix.
-
-## Slack Channel
-
-NetClaw now includes an optional `slack` channel for real workspace messaging through Slack Socket Mode. The current implementation supports inbound message ingestion, outbound replies, a visible working indicator, mention normalization so Slack bot mentions can map onto the existing trigger flow, and native assistant-thread behavior when the Slack app has Agents & AI Apps enabled.
-
-Enable it with configuration like:
-
-- `NetClaw:Channels:Slack:Enabled=true`
-- `NetClaw:Channels:Slack:BotToken=xoxb-...`
-- `NetClaw:Channels:Slack:AppToken=xapp-...`
-- `NetClaw:Channels:Slack:MentionReplacement=@Andy`
-- `NetClaw:Channels:Slack:WorkingIndicatorText=Evaluating...`
-- `NetClaw:Channels:Slack:ReplyInThreadByDefault=true`
-- `NetClaw:Channels:PollInterval=00:00:01`
-- `NetClaw:MessageLoop:PollInterval=00:00:01`
-
-Current behavior:
-
-- Register Slack conversations using their Slack conversation IDs as the group JID, for example `C...`, `G...`, or `D...`.
-- Channel and group messages can remain trigger-gated using the existing group registration settings.
-- Slack bot mentions such as `<@BOT_USER_ID>` are normalized to the configured mention replacement, so a registered trigger like `@Andy` still works with Slack mentions.
-- Channel and group replies default to thread replies based on the triggering message.
-- Direct messages continue in the Slack-provided `thread_ts` when Slack sends one, which keeps AI-app conversations in a single back-and-forth thread instead of spawning separate top-level replies.
-- While the agent is working, the Slack channel prefers Slack's native assistant status indicator for DM assistant threads and falls back to a placeholder message such as `Evaluating...` when the app is not using the AI surfaces.
-
-For the native DM assistant experience, enable Slack's Agents & AI Apps feature and subscribe to `assistant_thread_started`, `assistant_thread_context_changed`, and `message.im` in the Slack app configuration. Without those AI features, NetClaw still falls back to the plain bot-message flow.
-
-The code is ready for live validation, but the actual Slack app tokens and scopes still need to be created before a real Slack smoke test can run.
-
-For the common local Slack workflow, you can also run the root helper script:
-
-```bash
-./run-slack-channel.sh
-```
-
-The helper reads Slack secrets from environment variables instead of storing them in the repo. At minimum, set:
+### Slack smoke run
 
 ```bash
 export NETCLAW_SLACK_BOT_TOKEN='xoxb-...'
 export NETCLAW_SLACK_APP_TOKEN='xapp-...'
 export NETCLAW_CHAT_JID='C0123456789'
+
+./run-slack-channel.sh
 ```
 
-Useful optional overrides:
+### Manual setup and host run
 
-- `NETCLAW_CHAT_NAME` for the registration name shown in NetClaw
-- `NETCLAW_GROUP_FOLDER` for the persisted group folder name
-- `NETCLAW_REQUIRE_TRIGGER=true|false` to control mention/trigger gating for the registered Slack conversation
-- `NETCLAW_SLACK_WORKING_INDICATOR_TEXT` to change the placeholder shown while the agent is working
+Register a chat:
 
-## Agent Tools
+```bash
+dotnet run --project src/NetClaw.Setup -- --step register \
+  --jid team@jid \
+  --name Team \
+  --trigger @Andy \
+  --folder team \
+  --no-trigger-required
+```
 
-NetClaw now forwards its built-in control-plane tools into live Copilot sessions. That means the assistant can execute runtime actions directly from terminal, reference-file, and Slack conversations instead of only replying in text.
+Start the host:
 
-Currently wired tools:
+```bash
+dotnet run --project src/NetClaw.Host
+```
 
-- `send_group_message`: send an immediate outbound message to the active group and, from the main group, optionally to another registered group
-- `list_registered_groups`: inspect the registered group list, including JIDs, folders, triggers, and main-group status
-- `schedule_group_task`: create one-shot, interval, or cron-backed reminders/tasks using the persisted scheduler
-- `list_scheduled_tasks`: inspect scheduled tasks for the current group or, from the main group, across groups
-- `pause_scheduled_task`: pause a scheduled task by `taskId`
-- `resume_scheduled_task`: resume a paused scheduled task by `taskId`
-- `cancel_scheduled_task`: cancel a scheduled task by `taskId` while preserving its record for history
-- `lookup_session_state`: inspect whether a registered group currently has a persisted interactive session
-- `close_group_input`: force-close the active interactive input stream for a registered group
-- `register_group`: register a new group from the main-group control plane
+## Testing
 
-For reminders, the current scheduling tool contract expects:
+Run the full suite:
 
-- `scheduleType`: `once`, `interval`, or `cron`
-- `scheduleValue`: ISO-8601 timestamp for `once`, milliseconds for `interval`, or cron expression for `cron`
-- `contextMode`: optional `isolated` or `group`
-- `targetJid`: optional alternate registered group JID when the request is made from the main group
+```bash
+dotnet test
+```
 
-For scheduler management, the current task-control contracts expect:
+Common focused suites:
 
-- `list_scheduled_tasks`: optional `targetJid` plus optional `includeInactive=true` to include completed and cancelled tasks
-- `pause_scheduled_task`: required `taskId`
-- `resume_scheduled_task`: required `taskId`
-- `cancel_scheduled_task`: required `taskId`
+```bash
+dotnet test tests/NetClaw.Infrastructure.Tests/NetClaw.Infrastructure.Tests.csproj --filter "AgentRuntimeServicesTests"
+dotnet test tests/NetClaw.Infrastructure.Tests/NetClaw.Infrastructure.Tests.csproj --filter "SlackChannelTests"
+dotnet test tests/NetClaw.Application.Tests/NetClaw.Application.Tests.csproj --filter "TaskSchedulerServiceTests"
+```
 
-With this bridge in place, prompts such as `remind me in 5 minutes to check the pot` can be fulfilled by the agent through the scheduler instead of being treated as plain unsupported text.
+## Documentation
 
-The main-group control plane can also handle prompts such as `list all scheduled tasks across groups`, `pause the Monday briefing task`, `resume task task-123`, or `cancel task task-456`.
+- [AGENTS.md](AGENTS.md)
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [docs/architecture.md](docs/architecture.md)
+- [docs/user-guide.md](docs/user-guide.md)
+- [docs/coding-standards.md](docs/coding-standards.md)
+
+## Current Reality
+
+NetClaw is most useful right now as a working experiment and a readable codebase. It already has enough moving parts to be interesting, and still has enough missing parts that nobody should confuse it for a finished system.

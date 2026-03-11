@@ -1,20 +1,20 @@
+using System.Text.Json;
+using System.Threading.Channels;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using System.Threading.Channels;
-using NetClaw.Infrastructure.Channels;
-using System.Text.Json;
 using NetClaw.Application.Execution;
 using NetClaw.Domain.Contracts.Channels;
+using NetClaw.Domain.Contracts.Containers;
 using NetClaw.Domain.Contracts.Ipc;
 using NetClaw.Domain.Contracts.Persistence;
 using NetClaw.Domain.Contracts.Services;
-using NetClaw.Domain.Contracts.Containers;
 using NetClaw.Domain.Entities;
 using NetClaw.Domain.Enums;
 using NetClaw.Domain.ValueObjects;
+using NetClaw.Infrastructure.Channels;
 using NetClaw.Infrastructure.Persistence.Sqlite;
 using NetClaw.Setup;
 
@@ -601,7 +601,7 @@ public sealed class EndToEndIntegrationTests
 
         public List<string> Messages { get; } = [];
 
-    public TaskCompletionSource<bool> SendCompletion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource<bool> SendCompletion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public ChannelName Name => new("fake");
 

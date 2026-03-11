@@ -350,9 +350,9 @@ public sealed class SlackChannelTests
 
         public List<(string ConversationId, string Ts)> DeletedMessages { get; } = [];
 
-    public List<(string ConversationId, string ThreadTs, string Status)> AssistantStatusUpdates { get; } = [];
+        public List<(string ConversationId, string ThreadTs, string Status)> AssistantStatusUpdates { get; } = [];
 
-    public bool FailAssistantStatus { get; set; }
+        public bool FailAssistantStatus { get; set; }
 
         public Task<SlackAuthInfo> AuthTestAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(new SlackAuthInfo(BotUserId));
