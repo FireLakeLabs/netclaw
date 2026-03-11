@@ -1,0 +1,22 @@
+{
+  "default": {
+    "allow": "*",
+    "mode": "trigger"
+  },
+  "chats": {
+    "team@jid": {
+      "allow": [
+        "terminal-user",
+        "slack-user-1"
+      ],
+      "mode": "trigger"
+    },
+    "locked-down@jid": {
+      "allow": [
+        "owner-id"
+      ],
+      "mode": "drop"
+    }
+  },
+  "logDenied": true
+}

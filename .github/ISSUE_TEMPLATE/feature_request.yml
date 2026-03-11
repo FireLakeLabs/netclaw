@@ -1,0 +1,30 @@
+name: Feature request
+description: Propose a new feature or parity improvement
+title: "feature: "
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or need
+      description: What problem are you trying to solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the behavior you want, not just the implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: prior-art
+    attributes:
+      label: Prior art or related docs
+      description: Link relevant status notes, future-features docs, issues, or NanoClaw behavior if it exists.
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks or tradeoffs
+      description: Mention any channel, provider, security, or operational tradeoffs you already see.
