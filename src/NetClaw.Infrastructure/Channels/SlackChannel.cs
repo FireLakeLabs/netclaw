@@ -140,12 +140,20 @@ public sealed class SlackChannel : IInboundChannel
         }
 
         ownedChats.TryAdd(chatJid.Value, 0);
+        bool hasAssistantThread = TryGetAssistantThreadTs(chatJid.Value, out _);
         if (activePlaceholderTs.TryRemove(chatJid.Value, out string? placeholderTs)
             && !string.IsNullOrWhiteSpace(placeholderTs))
         {
+            if (hasAssistantThread)
+            {
+                await DeletePlaceholderAsync(chatJid.Value, placeholderTs, cancellationToken);
+            }
+            else
+            {
             logger.LogDebug("Updating Slack placeholder for {ChatJid} with final response.", chatJid.Value);
             await slackClient.UpdateMessageAsync(chatJid.Value, placeholderTs, text, cancellationToken);
             return;
+            }
         }
 
         replyThreads.TryGetValue(chatJid.Value, out string? threadTs);
@@ -163,6 +171,11 @@ public sealed class SlackChannel : IInboundChannel
         if (TryGetAssistantThreadTs(chatJid.Value, out string? assistantThreadTs)
             && await TrySetAssistantStatusAsync(chatJid.Value, assistantThreadTs, isTyping ? options.WorkingIndicatorText : string.Empty, cancellationToken))
         {
+            if (isTyping)
+            {
+                await ClearActivePlaceholderAsync(chatJid.Value, cancellationToken);
+            }
+
             ownedChats.TryAdd(chatJid.Value, 0);
             return;
         }
@@ -399,6 +412,27 @@ public sealed class SlackChannel : IInboundChannel
         {
             logger.LogDebug(exception, "Slack assistant thread status failed for {ConversationId}; falling back to placeholder messaging.", conversationId);
             return false;
+        }
+    }
+
+    private async Task ClearActivePlaceholderAsync(string conversationId, CancellationToken cancellationToken)
+    {
+        if (activePlaceholderTs.TryRemove(conversationId, out string? placeholderTs)
+            && !string.IsNullOrWhiteSpace(placeholderTs))
+        {
+            await DeletePlaceholderAsync(conversationId, placeholderTs, cancellationToken);
+        }
+    }
+
+    private async Task DeletePlaceholderAsync(string conversationId, string placeholderTs, CancellationToken cancellationToken)
+    {
+        try
+        {
+            logger.LogDebug("Deleting Slack working indicator for {ConversationId}.", conversationId);
+            await slackClient.DeleteMessageAsync(conversationId, placeholderTs, cancellationToken);
+        }
+        catch
+        {
         }
     }
 

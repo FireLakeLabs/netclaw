@@ -237,12 +237,70 @@ public sealed class SlackChannelTests
         await channel.SetTypingAsync(chatJid, true);
         await channel.SendMessageAsync(chatJid, "assistant reply");
 
-        Assert.Single(client.PostedMessages);
+        Assert.Equal(2, client.PostedMessages.Count);
         Assert.Equal("Evaluating...", client.PostedMessages[0].Text);
         Assert.Equal("1710115200.000100", client.PostedMessages[0].ThreadTs);
-        Assert.Single(client.UpdatedMessages);
-        Assert.Equal("assistant reply", client.UpdatedMessages[0].Text);
+        Assert.Equal("assistant reply", client.PostedMessages[1].Text);
+        Assert.Equal("1710115200.000100", client.PostedMessages[1].ThreadTs);
+        Assert.Single(client.DeletedMessages);
+        Assert.Equal(client.PostedMessages[0].Ts, client.DeletedMessages[0].Ts);
+        Assert.Empty(client.UpdatedMessages);
         Assert.NotEmpty(client.AssistantStatusUpdates);
+
+        await channel.DisconnectAsync();
+    }
+
+    [Fact]
+    public async Task DirectMessageThread_ClearsFallbackPlaceholderWhenAssistantStatusLaterSucceeds()
+    {
+        FakeSlackSocketModeClient client = new("U-BOT", new SlackConversationInfo("D12345", "Direct Message", false));
+        SlackChannel channel = new(
+            new SlackChannelOptions
+            {
+                Enabled = true,
+                BotToken = "xoxb-test",
+                AppToken = "xapp-test",
+                WorkingIndicatorText = "Evaluating..."
+            },
+            client);
+
+        await channel.ConnectAsync();
+
+        ChatJid chatJid = new("D12345");
+        await channel.SetTypingAsync(chatJid, true);
+
+        client.Connection.Enqueue(new SlackSocketEnvelope(
+            "envelope-1",
+            "events_api",
+            new SlackSocketPayload(
+                "events_api",
+                new SlackEventPayload(
+                    "message",
+                    "D12345",
+                    "im",
+                    "U-USER",
+                    "hello",
+                    "1710115200.000100",
+                    "1710115200.000100",
+                    "client-message-1",
+                    null,
+                    null))));
+
+        await Task.Delay(50);
+        await channel.PollInboundAsync((_, _) => Task.CompletedTask, (_, _) => Task.CompletedTask);
+        await channel.SetTypingAsync(chatJid, true);
+        await channel.SendMessageAsync(chatJid, "assistant reply");
+
+        Assert.Equal(2, client.PostedMessages.Count);
+        Assert.Equal("Evaluating...", client.PostedMessages[0].Text);
+        Assert.Null(client.PostedMessages[0].ThreadTs);
+        Assert.Equal("assistant reply", client.PostedMessages[1].Text);
+        Assert.Equal("1710115200.000100", client.PostedMessages[1].ThreadTs);
+        Assert.Single(client.DeletedMessages);
+        Assert.Equal(client.PostedMessages[0].Ts, client.DeletedMessages[0].Ts);
+        Assert.Empty(client.UpdatedMessages);
+        Assert.Single(client.AssistantStatusUpdates);
+        Assert.Equal("Evaluating...", client.AssistantStatusUpdates[0].Status);
 
         await channel.DisconnectAsync();
     }
