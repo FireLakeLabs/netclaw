@@ -12,12 +12,18 @@ public sealed class SlackSocketModeClient : ISlackSocketModeClient
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
-    private readonly HttpClient httpClient = new();
+    private readonly HttpClient httpClient;
     private readonly SlackChannelOptions options;
 
     public SlackSocketModeClient(SlackChannelOptions options)
+        : this(options, new HttpClient())
+    {
+    }
+
+    public SlackSocketModeClient(SlackChannelOptions options, HttpClient httpClient)
     {
         this.options = options;
+        this.httpClient = httpClient;
     }
 
     public async Task<SlackAuthInfo> AuthTestAsync(CancellationToken cancellationToken = default)
@@ -224,11 +230,17 @@ public sealed class SlackSocketModeClient : ISlackSocketModeClient
         private sealed record SlackSocketAcknowledgement([property: JsonPropertyName("envelope_id")] string EnvelopeId);
     }
 
-    private sealed record SlackApiEnvelope<T>(
-        [property: JsonPropertyName("ok")] bool Ok,
-        [property: JsonPropertyName("error")] string? Error,
-        [property: JsonExtensionData] IDictionary<string, JsonElement>? ExtensionData)
+    private sealed class SlackApiEnvelope<T>
     {
+        [JsonPropertyName("ok")]
+        public bool Ok { get; init; }
+
+        [JsonPropertyName("error")]
+        public string? Error { get; init; }
+
+        [JsonExtensionData]
+        public IDictionary<string, JsonElement>? ExtensionData { get; init; }
+
         public T Data => JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(ExtensionData ?? new Dictionary<string, JsonElement>(), JsonOptions), JsonOptions)
             ?? throw new InvalidOperationException("Slack API response payload could not be parsed.");
     }
