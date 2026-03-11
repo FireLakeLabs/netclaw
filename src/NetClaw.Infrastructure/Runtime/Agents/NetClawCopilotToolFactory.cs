@@ -75,6 +75,26 @@ public sealed class NetClawCopilotToolFactory : ICopilotToolFactory
                     tool.Name,
                     tool.Description,
                     JsonOptions),
+                "list_scheduled_tasks" => AIFunctionFactory.Create(
+                    (Func<string?, bool, CancellationToken, Task<string>>)context.ListScheduledTasksAsync,
+                    tool.Name,
+                    tool.Description,
+                    JsonOptions),
+                "pause_scheduled_task" => AIFunctionFactory.Create(
+                    (Func<string, CancellationToken, Task<string>>)context.PauseScheduledTaskAsync,
+                    tool.Name,
+                    tool.Description,
+                    JsonOptions),
+                "resume_scheduled_task" => AIFunctionFactory.Create(
+                    (Func<string, CancellationToken, Task<string>>)context.ResumeScheduledTaskAsync,
+                    tool.Name,
+                    tool.Description,
+                    JsonOptions),
+                "cancel_scheduled_task" => AIFunctionFactory.Create(
+                    (Func<string, CancellationToken, Task<string>>)context.CancelScheduledTaskAsync,
+                    tool.Name,
+                    tool.Description,
+                    JsonOptions),
                 "lookup_session_state" => AIFunctionFactory.Create(
                     (Func<string?, CancellationToken, Task<string>>)context.LookupSessionStateAsync,
                     tool.Name,
@@ -221,6 +241,65 @@ public sealed class NetClawCopilotToolFactory : ICopilotToolFactory
             });
         }
 
+        public async Task<string> ListScheduledTasksAsync(
+            string? targetJid = null,
+            bool includeInactive = false,
+            CancellationToken cancellationToken = default)
+        {
+            IReadOnlyList<ScheduledTask> tasks = await taskRepository.GetAllAsync(cancellationToken);
+            IReadOnlyDictionary<ChatJid, RegisteredGroup> groups = await groupRepository.GetAllAsync(cancellationToken);
+
+            if (!string.IsNullOrWhiteSpace(targetJid))
+            {
+                (_, RegisteredGroup targetGroup) = await ResolveTargetGroupAsync(targetJid, cancellationToken);
+                tasks = tasks.Where(task => task.GroupFolder == targetGroup.Folder).ToList();
+            }
+            else if (!request.Group.IsMain)
+            {
+                tasks = tasks.Where(task => task.GroupFolder == request.Group.Folder).ToList();
+            }
+
+            if (!includeInactive)
+            {
+                tasks = tasks.Where(task => task.Status is TaskStatusEnum.Active or TaskStatusEnum.Paused).ToList();
+            }
+
+            return Serialize(tasks
+                .OrderBy(task => task.GroupFolder.Value, StringComparer.OrdinalIgnoreCase)
+                .ThenByDescending(task => task.CreatedAt)
+                .Select(task => new
+                {
+                    taskId = task.Id.Value,
+                    prompt = task.Prompt,
+                    chatJid = task.ChatJid.Value,
+                    groupFolder = task.GroupFolder.Value,
+                    groupName = groups.TryGetValue(task.ChatJid, out RegisteredGroup? matchingGroup) ? matchingGroup.Name : null,
+                    scheduleType = task.ScheduleType.ToString().ToLowerInvariant(),
+                    scheduleValue = task.ScheduleValue,
+                    contextMode = task.ContextMode.ToString().ToLowerInvariant(),
+                    nextRun = task.NextRun,
+                    lastRun = task.LastRun,
+                    lastResult = task.LastResult,
+                    status = task.Status.ToString().ToLowerInvariant(),
+                    createdAt = task.CreatedAt
+                }));
+        }
+
+        public Task<string> PauseScheduledTaskAsync(string taskId, CancellationToken cancellationToken = default)
+        {
+            return UpdateScheduledTaskStatusAsync(taskId, TaskStatusEnum.Paused, "Paused via agent tool", cancellationToken);
+        }
+
+        public Task<string> ResumeScheduledTaskAsync(string taskId, CancellationToken cancellationToken = default)
+        {
+            return UpdateScheduledTaskStatusAsync(taskId, TaskStatusEnum.Active, "Resumed via agent tool", cancellationToken);
+        }
+
+        public Task<string> CancelScheduledTaskAsync(string taskId, CancellationToken cancellationToken = default)
+        {
+            return UpdateScheduledTaskStatusAsync(taskId, TaskStatusEnum.Cancelled, "Cancelled via agent tool", cancellationToken);
+        }
+
         public async Task<string> LookupSessionStateAsync(string? targetJid = null, CancellationToken cancellationToken = default)
         {
             (_, RegisteredGroup group) = await ResolveTargetGroupAsync(targetJid, cancellationToken);
@@ -292,6 +371,94 @@ public sealed class NetClawCopilotToolFactory : ICopilotToolFactory
             }
 
             return (chatJid, group);
+        }
+
+        private async Task<string> UpdateScheduledTaskStatusAsync(
+            string taskId,
+            TaskStatusEnum targetStatus,
+            string actionResult,
+            CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(taskId))
+            {
+                throw new ArgumentException("Task ID is required.", nameof(taskId));
+            }
+
+            ScheduledTask? task = await taskRepository.GetByIdAsync(new TaskId(taskId), cancellationToken);
+            if (task is null)
+            {
+                throw new InvalidOperationException($"No scheduled task exists with ID '{taskId}'.");
+            }
+
+            EnsureTaskAccessible(task);
+
+            if (targetStatus == TaskStatusEnum.Paused && task.Status is TaskStatusEnum.Completed or TaskStatusEnum.Cancelled)
+            {
+                return SerializeTaskMutation(task, changed: false, reason: $"Task is already terminal with status '{task.Status.ToString().ToLowerInvariant()}'.");
+            }
+
+            if (targetStatus == TaskStatusEnum.Active && task.Status is TaskStatusEnum.Completed or TaskStatusEnum.Cancelled)
+            {
+                return SerializeTaskMutation(task, changed: false, reason: $"Task with status '{task.Status.ToString().ToLowerInvariant()}' cannot be resumed.");
+            }
+
+            if (targetStatus == TaskStatusEnum.Cancelled && task.Status == TaskStatusEnum.Cancelled)
+            {
+                return SerializeTaskMutation(task, changed: false, reason: "Task is already cancelled.");
+            }
+
+            if (task.Status == targetStatus)
+            {
+                return SerializeTaskMutation(task, changed: false, reason: $"Task is already '{task.Status.ToString().ToLowerInvariant()}'.");
+            }
+
+            DateTimeOffset? nextRun = targetStatus switch
+            {
+                TaskStatusEnum.Cancelled => null,
+                TaskStatusEnum.Active when task.NextRun is null => ComputeInitialNextRun(task.ScheduleType, task.ScheduleValue, DateTimeOffset.UtcNow),
+                _ => task.NextRun
+            };
+
+            ScheduledTask updatedTask = new(
+                task.Id,
+                task.GroupFolder,
+                task.ChatJid,
+                task.Prompt,
+                task.ScheduleType,
+                task.ScheduleValue,
+                task.ContextMode,
+                nextRun,
+                task.LastRun,
+                actionResult,
+                targetStatus,
+                task.CreatedAt);
+
+            await taskRepository.UpdateAsync(updatedTask, cancellationToken);
+            return SerializeTaskMutation(updatedTask, changed: true, reason: null);
+        }
+
+        private void EnsureTaskAccessible(ScheduledTask task)
+        {
+            if (!request.Group.IsMain && task.GroupFolder != request.Group.Folder)
+            {
+                throw new InvalidOperationException("Only the main group can manage scheduled tasks for a different group.");
+            }
+        }
+
+        private static string SerializeTaskMutation(ScheduledTask task, bool changed, string? reason)
+        {
+            return Serialize(new
+            {
+                changed,
+                reason,
+                taskId = task.Id.Value,
+                chatJid = task.ChatJid.Value,
+                groupFolder = task.GroupFolder.Value,
+                status = task.Status.ToString().ToLowerInvariant(),
+                nextRun = task.NextRun,
+                lastRun = task.LastRun,
+                lastResult = task.LastResult
+            });
         }
 
         private async Task<ChatJid> ResolveTargetChatJidAsync(string? targetJid, bool requireRegisteredGroup, CancellationToken cancellationToken)

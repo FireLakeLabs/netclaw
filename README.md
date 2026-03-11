@@ -162,6 +162,10 @@ Currently wired tools:
 - `send_group_message`: send an immediate outbound message to the active group and, from the main group, optionally to another registered group
 - `list_registered_groups`: inspect the registered group list, including JIDs, folders, triggers, and main-group status
 - `schedule_group_task`: create one-shot, interval, or cron-backed reminders/tasks using the persisted scheduler
+- `list_scheduled_tasks`: inspect scheduled tasks for the current group or, from the main group, across groups
+- `pause_scheduled_task`: pause a scheduled task by `taskId`
+- `resume_scheduled_task`: resume a paused scheduled task by `taskId`
+- `cancel_scheduled_task`: cancel a scheduled task by `taskId` while preserving its record for history
 - `lookup_session_state`: inspect whether a registered group currently has a persisted interactive session
 - `close_group_input`: force-close the active interactive input stream for a registered group
 - `register_group`: register a new group from the main-group control plane
@@ -173,4 +177,13 @@ For reminders, the current scheduling tool contract expects:
 - `contextMode`: optional `isolated` or `group`
 - `targetJid`: optional alternate registered group JID when the request is made from the main group
 
+For scheduler management, the current task-control contracts expect:
+
+- `list_scheduled_tasks`: optional `targetJid` plus optional `includeInactive=true` to include completed and cancelled tasks
+- `pause_scheduled_task`: required `taskId`
+- `resume_scheduled_task`: required `taskId`
+- `cancel_scheduled_task`: required `taskId`
+
 With this bridge in place, prompts such as `remind me in 5 minutes to check the pot` can be fulfilled by the agent through the scheduler instead of being treated as plain unsupported text.
+
+The main-group control plane can also handle prompts such as `list all scheduled tasks across groups`, `pause the Monday briefing task`, `resume task task-123`, or `cancel task task-456`.

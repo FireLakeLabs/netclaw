@@ -257,6 +257,133 @@ public sealed class AgentRuntimeServicesTests
         Assert.Equal(chatJid.Value, document.RootElement.GetProperty("chatJid").GetString());
     }
 
+    [Fact]
+    public async Task CopilotToolFactory_ListScheduledTasks_MainGroupCanSeeAllGroups()
+    {
+        InMemoryGroupRepository groupRepository = new();
+        InMemorySessionRepository sessionRepository = new();
+        InMemoryTaskRepository taskRepository = new();
+        FakeGroupExecutionQueue groupExecutionQueue = new();
+        ChatJid mainChatJid = new("main@jid");
+        ChatJid otherChatJid = new("team@jid");
+        RegisteredGroup mainGroup = new("Main", new GroupFolder("main"), "@Andy", DateTimeOffset.UtcNow, null, true, true);
+        RegisteredGroup otherGroup = new("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow);
+        await groupRepository.UpsertAsync(mainChatJid, mainGroup);
+        await groupRepository.UpsertAsync(otherChatJid, otherGroup);
+
+        taskRepository.Stored.Add(new ScheduledTask(new TaskId("task-main"), mainGroup.Folder, mainChatJid, "Main task", ScheduleType.Once, "2026-03-11T00:00:00Z", TaskContextMode.Isolated, DateTimeOffset.Parse("2026-03-11T00:00:00Z"), null, null, NetClaw.Domain.Enums.TaskStatus.Active, DateTimeOffset.UtcNow));
+        taskRepository.Stored.Add(new ScheduledTask(new TaskId("task-team"), otherGroup.Folder, otherChatJid, "Team task", ScheduleType.Interval, "300000", TaskContextMode.Group, DateTimeOffset.UtcNow.AddMinutes(5), null, null, NetClaw.Domain.Enums.TaskStatus.Paused, DateTimeOffset.UtcNow));
+        taskRepository.Stored.Add(new ScheduledTask(new TaskId("task-done"), otherGroup.Folder, otherChatJid, "Done task", ScheduleType.Once, "2026-03-09T00:00:00Z", TaskContextMode.Isolated, null, DateTimeOffset.UtcNow.AddDays(-1), "Completed", NetClaw.Domain.Enums.TaskStatus.Completed, DateTimeOffset.UtcNow.AddDays(-2)));
+
+        NetClawCopilotToolFactory toolFactory = new(
+            groupRepository,
+            sessionRepository,
+            taskRepository,
+            groupExecutionQueue,
+            (_, _, _) => Task.CompletedTask);
+
+        AgentExecutionRequest request = new(
+            AgentProviderKind.Copilot,
+            mainGroup,
+            new ContainerInput("Prompt", null, mainGroup.Folder, mainChatJid, true, false, "Andy"),
+            new AgentWorkspaceContext(mainGroup.Folder, "/workspace/group", "/workspace/sessions/main", "/workspace/runtime/main", false, [], new AgentInstructionSet([])),
+            null,
+            [new AgentToolDefinition("list_scheduled_tasks", "List tasks.")]);
+
+        AIFunction tool = Assert.Single(toolFactory.CreateTools(request));
+        object? result = await tool.InvokeAsync(new AIFunctionArguments
+        {
+            ["includeInactive"] = true
+        });
+
+        using JsonDocument document = JsonDocument.Parse(result?.ToString() ?? string.Empty);
+        JsonElement[] tasks = document.RootElement.EnumerateArray().ToArray();
+        Assert.Equal(3, tasks.Length);
+        Assert.Contains(tasks, task => task.GetProperty("taskId").GetString() == "task-main");
+        Assert.Contains(tasks, task => task.GetProperty("taskId").GetString() == "task-team");
+        Assert.Contains(tasks, task => task.GetProperty("taskId").GetString() == "task-done");
+    }
+
+    [Fact]
+    public async Task CopilotToolFactory_TaskManagementTools_UpdatePersistedTaskStatus()
+    {
+        InMemoryGroupRepository groupRepository = new();
+        InMemorySessionRepository sessionRepository = new();
+        InMemoryTaskRepository taskRepository = new();
+        FakeGroupExecutionQueue groupExecutionQueue = new();
+        RegisteredGroup group = new("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow);
+        ChatJid chatJid = new("team@jid");
+        await groupRepository.UpsertAsync(chatJid, group);
+
+        taskRepository.Stored.Add(new ScheduledTask(new TaskId("task-active"), group.Folder, chatJid, "Active task", ScheduleType.Interval, "300000", TaskContextMode.Group, DateTimeOffset.UtcNow.AddMinutes(5), null, null, NetClaw.Domain.Enums.TaskStatus.Active, DateTimeOffset.UtcNow));
+        taskRepository.Stored.Add(new ScheduledTask(new TaskId("task-paused"), group.Folder, chatJid, "Paused task", ScheduleType.Interval, "300000", TaskContextMode.Group, DateTimeOffset.UtcNow.AddMinutes(5), null, null, NetClaw.Domain.Enums.TaskStatus.Paused, DateTimeOffset.UtcNow));
+
+        NetClawCopilotToolFactory toolFactory = new(
+            groupRepository,
+            sessionRepository,
+            taskRepository,
+            groupExecutionQueue,
+            (_, _, _) => Task.CompletedTask);
+
+        AgentExecutionRequest request = new(
+            AgentProviderKind.Copilot,
+            group,
+            new ContainerInput("Prompt", null, group.Folder, chatJid, false, false, "Andy"),
+            new AgentWorkspaceContext(group.Folder, "/workspace/group", "/workspace/sessions/team", "/workspace/runtime/team", false, [], new AgentInstructionSet([])),
+            null,
+            [
+                new AgentToolDefinition("pause_scheduled_task", "Pause a task."),
+                new AgentToolDefinition("resume_scheduled_task", "Resume a task."),
+                new AgentToolDefinition("cancel_scheduled_task", "Cancel a task.")
+            ]);
+
+        IReadOnlyList<AIFunction> tools = toolFactory.CreateTools(request);
+        await tools.Single(tool => tool.Name == "pause_scheduled_task").InvokeAsync(new AIFunctionArguments { ["taskId"] = "task-active" });
+        await tools.Single(tool => tool.Name == "resume_scheduled_task").InvokeAsync(new AIFunctionArguments { ["taskId"] = "task-paused" });
+        await tools.Single(tool => tool.Name == "cancel_scheduled_task").InvokeAsync(new AIFunctionArguments { ["taskId"] = "task-paused" });
+
+        Assert.Equal(NetClaw.Domain.Enums.TaskStatus.Paused, taskRepository.Stored.Single(task => task.Id.Value == "task-active").Status);
+        Assert.Equal(NetClaw.Domain.Enums.TaskStatus.Cancelled, taskRepository.Stored.Single(task => task.Id.Value == "task-paused").Status);
+        Assert.Null(taskRepository.Stored.Single(task => task.Id.Value == "task-paused").NextRun);
+    }
+
+    [Fact]
+    public async Task CopilotToolFactory_TaskManagementTools_RejectCrossGroupMutationForNonMainRequest()
+    {
+        InMemoryGroupRepository groupRepository = new();
+        InMemorySessionRepository sessionRepository = new();
+        InMemoryTaskRepository taskRepository = new();
+        FakeGroupExecutionQueue groupExecutionQueue = new();
+        RegisteredGroup currentGroup = new("Current", new GroupFolder("current"), "@Andy", DateTimeOffset.UtcNow);
+        RegisteredGroup otherGroup = new("Other", new GroupFolder("other"), "@Andy", DateTimeOffset.UtcNow);
+        ChatJid currentChatJid = new("current@jid");
+        ChatJid otherChatJid = new("other@jid");
+        await groupRepository.UpsertAsync(currentChatJid, currentGroup);
+        await groupRepository.UpsertAsync(otherChatJid, otherGroup);
+
+        taskRepository.Stored.Add(new ScheduledTask(new TaskId("task-other"), otherGroup.Folder, otherChatJid, "Other task", ScheduleType.Interval, "300000", TaskContextMode.Group, DateTimeOffset.UtcNow.AddMinutes(5), null, null, NetClaw.Domain.Enums.TaskStatus.Active, DateTimeOffset.UtcNow));
+
+        NetClawCopilotToolFactory toolFactory = new(
+            groupRepository,
+            sessionRepository,
+            taskRepository,
+            groupExecutionQueue,
+            (_, _, _) => Task.CompletedTask);
+
+        AgentExecutionRequest request = new(
+            AgentProviderKind.Copilot,
+            currentGroup,
+            new ContainerInput("Prompt", null, currentGroup.Folder, currentChatJid, false, false, "Andy"),
+            new AgentWorkspaceContext(currentGroup.Folder, "/workspace/group", "/workspace/sessions/current", "/workspace/runtime/current", false, [], new AgentInstructionSet([])),
+            null,
+            [new AgentToolDefinition("pause_scheduled_task", "Pause a task.")]);
+
+        AIFunction tool = Assert.Single(toolFactory.CreateTools(request));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => tool.InvokeAsync(new AIFunctionArguments { ["taskId"] = "task-other" }).AsTask());
+        Assert.Equal(NetClaw.Domain.Enums.TaskStatus.Active, taskRepository.Stored.Single().Status);
+    }
+
     private sealed class TestCodingAgentEngine : IInteractiveCodingAgentEngine
     {
         public AgentProviderKind Provider => AgentProviderKind.Copilot;
