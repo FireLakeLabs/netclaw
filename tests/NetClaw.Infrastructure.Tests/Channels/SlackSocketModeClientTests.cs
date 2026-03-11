@@ -67,6 +67,31 @@ public sealed class SlackSocketModeClientTests
         Assert.Equal("https://slack.com/api/conversations.info?channel=C12345", handler.RequestUri);
     }
 
+    [Fact]
+    public async Task SetAssistantStatusAsync_PostsAssistantThreadStatusPayload()
+    {
+        StubHttpMessageHandler handler = new(
+            """
+            {
+              "ok": true
+            }
+            """);
+        HttpClient httpClient = new(handler);
+        SlackSocketModeClient client = new(
+            new SlackChannelOptions
+            {
+                Enabled = true,
+                BotToken = "xoxb-test",
+                AppToken = "xapp-test"
+            },
+            httpClient);
+
+        await client.SetAssistantStatusAsync("D12345", "1710115200.000100", "Evaluating...");
+
+        Assert.Equal("https://slack.com/api/assistant.threads.setStatus", handler.RequestUri);
+        Assert.Equal("{\"channel_id\":\"D12345\",\"thread_ts\":\"1710115200.000100\",\"status\":\"Evaluating...\"}", handler.RequestBody);
+    }
+
     private sealed class StubHttpMessageHandler : HttpMessageHandler
     {
         private readonly string responseJson;
@@ -78,15 +103,18 @@ public sealed class SlackSocketModeClientTests
 
         public string? RequestUri { get; private set; }
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        public string? RequestBody { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             RequestUri = request.RequestUri?.ToString();
+            RequestBody = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
             HttpResponseMessage response = new(HttpStatusCode.OK)
             {
                 Content = new StringContent(responseJson, Encoding.UTF8, "application/json")
             };
 
-            return Task.FromResult(response);
+            return response;
         }
     }
 }

@@ -15,6 +15,8 @@ public interface ISlackSocketModeClient
     Task UpdateMessageAsync(string conversationId, string ts, string text, CancellationToken cancellationToken = default);
 
     Task DeleteMessageAsync(string conversationId, string ts, CancellationToken cancellationToken = default);
+
+    Task SetAssistantStatusAsync(string conversationId, string threadTs, string status, CancellationToken cancellationToken = default);
 }
 
 public interface ISlackSocketModeConnection : IAsyncDisposable

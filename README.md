@@ -106,7 +106,7 @@ Type a prompt such as `What is the capital of Missouri?` or, in trigger-required
 
 ## Slack Channel
 
-NetClaw now includes an optional `slack` channel for real workspace messaging through Slack Socket Mode. The current implementation supports inbound message ingestion, outbound replies, a visible working indicator, and mention normalization so Slack bot mentions can map onto the existing trigger flow.
+NetClaw now includes an optional `slack` channel for real workspace messaging through Slack Socket Mode. The current implementation supports inbound message ingestion, outbound replies, a visible working indicator, mention normalization so Slack bot mentions can map onto the existing trigger flow, and native assistant-thread behavior when the Slack app has Agents & AI Apps enabled.
 
 Enable it with configuration like:
 
@@ -124,8 +124,11 @@ Current behavior:
 - Register Slack conversations using their Slack conversation IDs as the group JID, for example `C...`, `G...`, or `D...`.
 - Channel and group messages can remain trigger-gated using the existing group registration settings.
 - Slack bot mentions such as `<@BOT_USER_ID>` are normalized to the configured mention replacement, so a registered trigger like `@Andy` still works with Slack mentions.
-- While the agent is working, the Slack channel posts a placeholder message such as `Evaluating...`; when the final reply is ready, that placeholder is updated in place.
-- Channel and group replies default to thread replies based on the triggering message; direct messages reply directly.
+- Channel and group replies default to thread replies based on the triggering message.
+- Direct messages continue in the Slack-provided `thread_ts` when Slack sends one, which keeps AI-app conversations in a single back-and-forth thread instead of spawning separate top-level replies.
+- While the agent is working, the Slack channel prefers Slack's native assistant status indicator for DM assistant threads and falls back to a placeholder message such as `Evaluating...` when the app is not using the AI surfaces.
+
+For the native DM assistant experience, enable Slack's Agents & AI Apps feature and subscribe to `assistant_thread_started`, `assistant_thread_context_changed`, and `message.im` in the Slack app configuration. Without those AI features, NetClaw still falls back to the plain bot-message flow.
 
 The code is ready for live validation, but the actual Slack app tokens and scopes still need to be created before a real Slack smoke test can run.
 

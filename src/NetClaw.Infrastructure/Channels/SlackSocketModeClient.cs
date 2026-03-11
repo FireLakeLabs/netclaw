@@ -118,6 +118,16 @@ public sealed class SlackSocketModeClient : ISlackSocketModeClient
             cancellationToken);
     }
 
+    public Task SetAssistantStatusAsync(string conversationId, string threadTs, string status, CancellationToken cancellationToken = default)
+    {
+        return SendAsync<SlackAssistantStatusResponse>(
+            HttpMethod.Post,
+            "assistant.threads.setStatus",
+            options.BotToken,
+            new SlackAssistantStatusRequest(conversationId, threadTs, status),
+            cancellationToken);
+    }
+
     private async Task<TResponse> SendAsync<TResponse>(HttpMethod method, string path, string token, object? body, CancellationToken cancellationToken)
     {
         using HttpRequestMessage request = new(method, BuildApiUri(path));
@@ -262,6 +272,8 @@ public sealed class SlackSocketModeClient : ISlackSocketModeClient
 
     private sealed record SlackDeleteMessageResponse([property: JsonPropertyName("ts")] string? Ts);
 
+    private sealed record SlackAssistantStatusResponse();
+
     private sealed record SlackPostMessageRequest(
         [property: JsonPropertyName("channel")] string Channel,
         [property: JsonPropertyName("text")] string Text,
@@ -275,4 +287,9 @@ public sealed class SlackSocketModeClient : ISlackSocketModeClient
     private sealed record SlackDeleteMessageRequest(
         [property: JsonPropertyName("channel")] string Channel,
         [property: JsonPropertyName("ts")] string Ts);
+
+    private sealed record SlackAssistantStatusRequest(
+        [property: JsonPropertyName("channel_id")] string ChannelId,
+        [property: JsonPropertyName("thread_ts")] string ThreadTs,
+        [property: JsonPropertyName("status")] string Status);
 }

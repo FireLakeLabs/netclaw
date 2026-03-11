@@ -144,6 +144,109 @@ public sealed class SlackChannelTests
         await channel.DisconnectAsync();
     }
 
+    [Fact]
+    public async Task DirectMessageThread_UsesAssistantStatusAndRepliesInSameThread()
+    {
+        FakeSlackSocketModeClient client = new("U-BOT", new SlackConversationInfo("D12345", "Direct Message", false));
+        client.Connection.Enqueue(new SlackSocketEnvelope(
+            "envelope-1",
+            "events_api",
+            new SlackSocketPayload(
+                "events_api",
+                new SlackEventPayload(
+                    "message",
+                    "D12345",
+                    "im",
+                    "U-USER",
+                    "hello",
+                    "1710115200.000100",
+                    "1710115200.000100",
+                    "client-message-1",
+                    null,
+                    null))));
+
+        SlackChannel channel = new(
+            new SlackChannelOptions
+            {
+                Enabled = true,
+                BotToken = "xoxb-test",
+                AppToken = "xapp-test",
+                WorkingIndicatorText = "Evaluating..."
+            },
+            client);
+
+        await channel.ConnectAsync();
+        await Task.Delay(50);
+        await channel.PollInboundAsync((_, _) => Task.CompletedTask, (_, _) => Task.CompletedTask);
+
+        ChatJid chatJid = new("D12345");
+        await channel.SetTypingAsync(chatJid, true);
+        await channel.SendMessageAsync(chatJid, "assistant reply");
+        await channel.SetTypingAsync(chatJid, false);
+
+        Assert.DoesNotContain(client.PostedMessages, message => message.Text == "Evaluating...");
+        Assert.Equal(
+            [("D12345", "1710115200.000100", "Evaluating..."), ("D12345", "1710115200.000100", string.Empty)],
+            client.AssistantStatusUpdates);
+        Assert.Single(client.PostedMessages);
+        Assert.Equal("assistant reply", client.PostedMessages[0].Text);
+        Assert.Equal("1710115200.000100", client.PostedMessages[0].ThreadTs);
+
+        await channel.DisconnectAsync();
+    }
+
+    [Fact]
+    public async Task DirectMessageThread_FallsBackToPlaceholderWhenAssistantStatusFails()
+    {
+        FakeSlackSocketModeClient client = new("U-BOT", new SlackConversationInfo("D12345", "Direct Message", false))
+        {
+            FailAssistantStatus = true
+        };
+        client.Connection.Enqueue(new SlackSocketEnvelope(
+            "envelope-1",
+            "events_api",
+            new SlackSocketPayload(
+                "events_api",
+                new SlackEventPayload(
+                    "message",
+                    "D12345",
+                    "im",
+                    "U-USER",
+                    "hello",
+                    "1710115200.000100",
+                    "1710115200.000100",
+                    "client-message-1",
+                    null,
+                    null))));
+
+        SlackChannel channel = new(
+            new SlackChannelOptions
+            {
+                Enabled = true,
+                BotToken = "xoxb-test",
+                AppToken = "xapp-test",
+                WorkingIndicatorText = "Evaluating..."
+            },
+            client);
+
+        await channel.ConnectAsync();
+        await Task.Delay(50);
+        await channel.PollInboundAsync((_, _) => Task.CompletedTask, (_, _) => Task.CompletedTask);
+
+        ChatJid chatJid = new("D12345");
+        await channel.SetTypingAsync(chatJid, true);
+        await channel.SendMessageAsync(chatJid, "assistant reply");
+
+        Assert.Single(client.PostedMessages);
+        Assert.Equal("Evaluating...", client.PostedMessages[0].Text);
+        Assert.Equal("1710115200.000100", client.PostedMessages[0].ThreadTs);
+        Assert.Single(client.UpdatedMessages);
+        Assert.Equal("assistant reply", client.UpdatedMessages[0].Text);
+        Assert.NotEmpty(client.AssistantStatusUpdates);
+
+        await channel.DisconnectAsync();
+    }
+
     private sealed class FakeSlackSocketModeClient : ISlackSocketModeClient
     {
         private int messageSequence;
@@ -166,6 +269,10 @@ public sealed class SlackChannelTests
         public List<(string ConversationId, string Ts, string Text)> UpdatedMessages { get; } = [];
 
         public List<(string ConversationId, string Ts)> DeletedMessages { get; } = [];
+
+    public List<(string ConversationId, string ThreadTs, string Status)> AssistantStatusUpdates { get; } = [];
+
+    public bool FailAssistantStatus { get; set; }
 
         public Task<SlackAuthInfo> AuthTestAsync(CancellationToken cancellationToken = default)
             => Task.FromResult(new SlackAuthInfo(BotUserId));
@@ -192,6 +299,17 @@ public sealed class SlackChannelTests
         public Task DeleteMessageAsync(string conversationId, string ts, CancellationToken cancellationToken = default)
         {
             DeletedMessages.Add((conversationId, ts));
+            return Task.CompletedTask;
+        }
+
+        public Task SetAssistantStatusAsync(string conversationId, string threadTs, string status, CancellationToken cancellationToken = default)
+        {
+            AssistantStatusUpdates.Add((conversationId, threadTs, status));
+            if (FailAssistantStatus)
+            {
+                throw new InvalidOperationException("assistant status failed");
+            }
+
             return Task.CompletedTask;
         }
     }

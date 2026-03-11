@@ -160,6 +160,13 @@ public sealed class SlackChannel : IInboundChannel
             return;
         }
 
+        if (TryGetAssistantThreadTs(chatJid.Value, out string? assistantThreadTs)
+            && await TrySetAssistantStatusAsync(chatJid.Value, assistantThreadTs, isTyping ? options.WorkingIndicatorText : string.Empty, cancellationToken))
+        {
+            ownedChats.TryAdd(chatJid.Value, 0);
+            return;
+        }
+
         if (isTyping)
         {
             if (activePlaceholderTs.ContainsKey(chatJid.Value))
@@ -376,6 +383,25 @@ public sealed class SlackChannel : IInboundChannel
         }
     }
 
+    private async Task<bool> TrySetAssistantStatusAsync(string conversationId, string threadTs, string status, CancellationToken cancellationToken)
+    {
+        try
+        {
+            logger.LogDebug(
+                "Setting Slack assistant thread status for {ConversationId}. ThreadTs={ThreadTs}, HasStatus={HasStatus}",
+                conversationId,
+                threadTs,
+                !string.IsNullOrWhiteSpace(status));
+            await slackClient.SetAssistantStatusAsync(conversationId, threadTs, status, cancellationToken);
+            return true;
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Slack assistant thread status failed for {ConversationId}; falling back to placeholder messaging.", conversationId);
+            return false;
+        }
+    }
+
     private string NormalizeContent(string text)
     {
         if (string.IsNullOrWhiteSpace(botUserId))
@@ -388,7 +414,14 @@ public sealed class SlackChannel : IInboundChannel
 
     private string? GetReplyThreadTs(bool isGroup, SlackEventPayload slackEvent)
     {
-        if (!isGroup || !options.ReplyInThreadByDefault)
+        if (!isGroup)
+        {
+            return string.IsNullOrWhiteSpace(slackEvent.ThreadTs)
+                ? null
+                : slackEvent.ThreadTs;
+        }
+
+        if (!options.ReplyInThreadByDefault)
         {
             return null;
         }
@@ -396,9 +429,32 @@ public sealed class SlackChannel : IInboundChannel
         return slackEvent.ThreadTs ?? slackEvent.Ts;
     }
 
+    private bool TryGetAssistantThreadTs(string conversationId, out string threadTs)
+    {
+        threadTs = string.Empty;
+        if (!LooksLikeDirectMessageConversationId(conversationId))
+        {
+            return false;
+        }
+
+        if (!replyThreads.TryGetValue(conversationId, out string? candidate)
+            || string.IsNullOrWhiteSpace(candidate))
+        {
+            return false;
+        }
+
+        threadTs = candidate;
+        return true;
+    }
+
     private static bool LooksLikeSlackConversationId(string value)
     {
         return value.Length > 1 && (value[0] is 'C' or 'D' or 'G');
+    }
+
+    private static bool LooksLikeDirectMessageConversationId(string value)
+    {
+        return value.Length > 1 && value[0] == 'D';
     }
 
     private static DateTimeOffset ParseSlackTimestamp(string timestamp)

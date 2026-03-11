@@ -690,6 +690,11 @@ public sealed class EndToEndIntegrationTests
             DeletedMessages.Add((conversationId, ts));
             return Task.CompletedTask;
         }
+
+        public Task SetAssistantStatusAsync(string conversationId, string threadTs, string status, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FakeSlackSocketModeConnection : ISlackSocketModeConnection
