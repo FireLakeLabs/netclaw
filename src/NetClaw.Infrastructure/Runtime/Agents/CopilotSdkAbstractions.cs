@@ -1,4 +1,5 @@
 using GitHub.Copilot.SDK;
+using Microsoft.Extensions.AI;
 using NetClaw.Domain.Contracts.Agents;
 using NetClaw.Domain.Enums;
 using NetClaw.Infrastructure.Configuration;
@@ -18,7 +19,8 @@ public sealed record CopilotSessionConfiguration(
     double? BackgroundCompactionThreshold,
     double? BufferExhaustionThreshold,
     IReadOnlyList<string> SkillDirectories,
-    IReadOnlyList<string> DisabledSkills);
+    IReadOnlyList<string> DisabledSkills,
+    IReadOnlyList<AIFunction> Tools);
 
 public interface ICopilotSessionAdapter : IAsyncDisposable
 {
@@ -188,6 +190,7 @@ public sealed class SdkCopilotClientAdapter : ICopilotClientAdapter, IAsyncDispo
             ReasoningEffort = configuration.ReasoningEffort,
             SessionId = configuration.SessionId,
             SkillDirectories = configuration.SkillDirectories.Count == 0 ? null : [.. configuration.SkillDirectories],
+            Tools = configuration.Tools.Count == 0 ? null : [.. configuration.Tools],
             Streaming = configuration.Streaming,
             SystemMessage = BuildSystemMessage(configuration.SystemMessage),
             WorkingDirectory = configuration.WorkingDirectory
@@ -208,6 +211,7 @@ public sealed class SdkCopilotClientAdapter : ICopilotClientAdapter, IAsyncDispo
             OnPermissionRequest = PermissionHandler.ApproveAll,
             ReasoningEffort = configuration.ReasoningEffort,
             SkillDirectories = configuration.SkillDirectories.Count == 0 ? null : [.. configuration.SkillDirectories],
+            Tools = configuration.Tools.Count == 0 ? null : [.. configuration.Tools],
             Streaming = configuration.Streaming,
             SystemMessage = BuildSystemMessage(configuration.SystemMessage),
             WorkingDirectory = configuration.WorkingDirectory

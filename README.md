@@ -152,3 +152,25 @@ Useful optional overrides:
 - `NETCLAW_GROUP_FOLDER` for the persisted group folder name
 - `NETCLAW_REQUIRE_TRIGGER=true|false` to control mention/trigger gating for the registered Slack conversation
 - `NETCLAW_SLACK_WORKING_INDICATOR_TEXT` to change the placeholder shown while the agent is working
+
+## Agent Tools
+
+NetClaw now forwards its built-in control-plane tools into live Copilot sessions. That means the assistant can execute runtime actions directly from terminal, reference-file, and Slack conversations instead of only replying in text.
+
+Currently wired tools:
+
+- `send_group_message`: send an immediate outbound message to the active group and, from the main group, optionally to another registered group
+- `list_registered_groups`: inspect the registered group list, including JIDs, folders, triggers, and main-group status
+- `schedule_group_task`: create one-shot, interval, or cron-backed reminders/tasks using the persisted scheduler
+- `lookup_session_state`: inspect whether a registered group currently has a persisted interactive session
+- `close_group_input`: force-close the active interactive input stream for a registered group
+- `register_group`: register a new group from the main-group control plane
+
+For reminders, the current scheduling tool contract expects:
+
+- `scheduleType`: `once`, `interval`, or `cron`
+- `scheduleValue`: ISO-8601 timestamp for `once`, milliseconds for `interval`, or cron expression for `cron`
+- `contextMode`: optional `isolated` or `group`
+- `targetJid`: optional alternate registered group JID when the request is made from the main group
+
+With this bridge in place, prompts such as `remind me in 5 minutes to check the pot` can be fulfilled by the agent through the scheduler instead of being treated as plain unsupported text.

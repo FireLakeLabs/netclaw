@@ -9,6 +9,8 @@ using NetClaw.Infrastructure.Configuration;
 using NetClaw.Infrastructure.FileSystem;
 using NetClaw.Infrastructure.Paths;
 using NetClaw.Infrastructure.Runtime.Agents;
+using Microsoft.Extensions.AI;
+using System.Text.Json;
 
 namespace NetClaw.Infrastructure.Tests.Runtime;
 
@@ -20,6 +22,7 @@ public sealed class AgentRuntimeServicesTests
         FakeCopilotClientAdapter client = new(new FakeCopilotSessionAdapter("copilot-session-1", "/runtime/workspace", "done"));
         CopilotCodingAgentEngine engine = new(
             new FakeCopilotClientPool(client),
+            new FakeCopilotToolFactory(),
             new AgentRuntimeOptions
             {
                 CopilotClientName = "NetClaw",
@@ -55,6 +58,7 @@ public sealed class AgentRuntimeServicesTests
         FakeCopilotClientAdapter client = new(new FakeCopilotSessionAdapter("persisted-session", "/runtime/workspace", "done"));
         CopilotCodingAgentEngine engine = new(
             new FakeCopilotClientPool(client),
+            new FakeCopilotToolFactory(),
             new AgentRuntimeOptions
             {
                 CopilotConfigDirectory = "/runtime/config"
@@ -81,6 +85,7 @@ public sealed class AgentRuntimeServicesTests
         FakeCopilotClientAdapter client = new(session);
         CopilotCodingAgentEngine engine = new(
             new FakeCopilotClientPool(client),
+            new FakeCopilotToolFactory(),
             new AgentRuntimeOptions
             {
                 CopilotConfigDirectory = "/runtime/config",
@@ -168,6 +173,88 @@ public sealed class AgentRuntimeServicesTests
         Assert.Equal("done", result.Result);
         Assert.Equal("copilot-session-1", result.NewSessionId?.Value);
         Assert.Equal("copilot-session-1", sessionRepository.Stored[new GroupFolder("team")].Value);
+    }
+
+    [Fact]
+    public async Task CopilotEngine_AttachesCustomToolsToSessionConfiguration()
+    {
+        FakeCopilotClientAdapter client = new(new FakeCopilotSessionAdapter("copilot-session-1", "/runtime/workspace", "done"));
+        FakeCopilotToolFactory toolFactory = new();
+        CopilotCodingAgentEngine engine = new(
+            new FakeCopilotClientPool(client),
+            toolFactory,
+            new AgentRuntimeOptions
+            {
+                CopilotConfigDirectory = "/runtime/config"
+            });
+
+        AgentExecutionRequest request = new(
+            AgentProviderKind.Copilot,
+            new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow),
+            new ContainerInput("Prompt", null, new GroupFolder("team"), new ChatJid("team@jid"), false, false, "Andy"),
+            new AgentWorkspaceContext(new GroupFolder("team"), "/workspace/group", "/workspace/sessions/team", "/workspace/runtime/team", false, [], new AgentInstructionSet([new AgentInstructionDocument("AGENTS.md", "# A", true)])),
+            null,
+            [new AgentToolDefinition("schedule_group_task", "Schedule a task.")]);
+
+        await engine.ExecuteAsync(request);
+
+        Assert.NotNull(client.CreatedConfiguration);
+        Assert.Single(client.CreatedConfiguration!.Tools);
+        Assert.Equal("schedule_group_task", client.CreatedConfiguration.Tools[0].Name);
+        Assert.Single(toolFactory.SeenRequests);
+    }
+
+    [Fact]
+    public async Task CopilotToolFactory_ScheduleGroupTask_CreatesPersistedTask()
+    {
+        InMemoryGroupRepository groupRepository = new();
+        InMemorySessionRepository sessionRepository = new();
+        InMemoryTaskRepository taskRepository = new();
+        FakeGroupExecutionQueue groupExecutionQueue = new();
+        List<(ChatJid ChatJid, string Text)> sentMessages = [];
+        RegisteredGroup group = new("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow);
+        ChatJid chatJid = new("team@jid");
+        await groupRepository.UpsertAsync(chatJid, group);
+
+        NetClawCopilotToolFactory toolFactory = new(
+            groupRepository,
+            sessionRepository,
+            taskRepository,
+            groupExecutionQueue,
+            (targetJid, text, _) =>
+            {
+                sentMessages.Add((targetJid, text));
+                return Task.CompletedTask;
+            });
+
+        AgentExecutionRequest request = new(
+            AgentProviderKind.Copilot,
+            group,
+            new ContainerInput("Prompt", null, group.Folder, chatJid, false, false, "Andy"),
+            new AgentWorkspaceContext(group.Folder, "/workspace/group", "/workspace/sessions/team", "/workspace/runtime/team", false, [], new AgentInstructionSet([])),
+            null,
+            [new AgentToolDefinition("schedule_group_task", "Schedule a task.")]);
+
+        AIFunction tool = Assert.Single(toolFactory.CreateTools(request));
+        object? result = await tool.InvokeAsync(new AIFunctionArguments
+        {
+            ["prompt"] = "Check the pot",
+            ["scheduleType"] = "interval",
+            ["scheduleValue"] = "300000"
+        });
+
+        Assert.Single(taskRepository.Stored);
+        ScheduledTask stored = taskRepository.Stored[0];
+        Assert.Equal("Check the pot", stored.Prompt);
+        Assert.Equal(ScheduleType.Interval, stored.ScheduleType);
+        Assert.Equal("300000", stored.ScheduleValue);
+        Assert.Equal(chatJid, stored.ChatJid);
+        Assert.Equal(NetClaw.Domain.Enums.TaskStatus.Active, stored.Status);
+        Assert.NotNull(result);
+
+        using JsonDocument document = JsonDocument.Parse(result?.ToString() ?? string.Empty);
+        Assert.Equal(stored.Id.Value, document.RootElement.GetProperty("taskId").GetString());
+        Assert.Equal(chatJid.Value, document.RootElement.GetProperty("chatJid").GetString());
     }
 
     private sealed class TestCodingAgentEngine : IInteractiveCodingAgentEngine
@@ -272,6 +359,21 @@ public sealed class AgentRuntimeServicesTests
         }
     }
 
+    private sealed class FakeCopilotToolFactory : ICopilotToolFactory
+    {
+        public List<AgentExecutionRequest> SeenRequests { get; } = [];
+
+        public IReadOnlyList<AIFunction> CreateTools(AgentExecutionRequest request)
+        {
+            SeenRequests.Add(request);
+            return request.Tools.Select(tool => AIFunctionFactory.Create(
+                (Func<string>)(() => "ok"),
+                tool.Name,
+                tool.Description,
+                serializerOptions: null)).ToArray();
+        }
+    }
+
     private sealed class FakeCopilotSessionAdapter : ICopilotSessionAdapter
     {
         private readonly string result;
@@ -364,6 +466,64 @@ public sealed class AgentRuntimeServicesTests
         {
             Stored[sessionState.GroupFolder] = sessionState.SessionId;
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class InMemoryTaskRepository : ITaskRepository
+    {
+        public List<ScheduledTask> Stored { get; } = [];
+
+        public Task CreateAsync(ScheduledTask task, CancellationToken cancellationToken = default)
+        {
+            Stored.Add(task);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<ScheduledTask>> GetDueTasksAsync(DateTimeOffset now, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<ScheduledTask>>([]);
+
+        public Task<ScheduledTask?> GetByIdAsync(TaskId taskId, CancellationToken cancellationToken = default)
+            => Task.FromResult<ScheduledTask?>(Stored.FirstOrDefault(task => task.Id == taskId));
+
+        public Task<IReadOnlyList<ScheduledTask>> GetAllAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<ScheduledTask>>(Stored);
+
+        public Task UpdateAsync(ScheduledTask task, CancellationToken cancellationToken = default)
+        {
+            int index = Stored.FindIndex(existing => existing.Id == task.Id);
+            if (index >= 0)
+            {
+                Stored[index] = task;
+            }
+
+            return Task.CompletedTask;
+        }
+
+        public Task AppendRunLogAsync(TaskRunLog log, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+    }
+
+    private sealed class FakeGroupExecutionQueue : IGroupExecutionQueue
+    {
+        public List<ChatJid> ClosedInputs { get; } = [];
+
+        public void EnqueueMessageCheck(ChatJid groupJid)
+        {
+        }
+
+        public void EnqueueTask(ChatJid groupJid, TaskId taskId, Func<CancellationToken, Task> workItem)
+        {
+        }
+
+        public bool SendMessage(ChatJid groupJid, string text) => false;
+
+        public void CloseInput(ChatJid groupJid)
+        {
+            ClosedInputs.Add(groupJid);
+        }
+
+        public void NotifyIdle(ChatJid groupJid)
+        {
         }
     }
 }

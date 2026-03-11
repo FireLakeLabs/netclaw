@@ -9,11 +9,13 @@ namespace NetClaw.Infrastructure.Runtime.Agents;
 public sealed class CopilotCodingAgentEngine : IInteractiveCodingAgentEngine
 {
     private readonly ICopilotClientPool clientPool;
+    private readonly ICopilotToolFactory toolFactory;
     private readonly AgentRuntimeOptions options;
 
-    public CopilotCodingAgentEngine(ICopilotClientPool clientPool, AgentRuntimeOptions options)
+    public CopilotCodingAgentEngine(ICopilotClientPool clientPool, ICopilotToolFactory toolFactory, AgentRuntimeOptions options)
     {
         this.clientPool = clientPool;
+        this.toolFactory = toolFactory;
         this.options = options;
     }
 
@@ -100,6 +102,7 @@ public sealed class CopilotCodingAgentEngine : IInteractiveCodingAgentEngine
     {
         string sessionId = request.Session?.SessionId ?? Guid.NewGuid().ToString("D");
         string systemMessage = BuildSystemMessage(request.Workspace.Instructions);
+        IReadOnlyList<Microsoft.Extensions.AI.AIFunction> tools = toolFactory.CreateTools(request);
 
         return new CopilotSessionConfiguration(
             sessionId,
@@ -114,7 +117,8 @@ public sealed class CopilotCodingAgentEngine : IInteractiveCodingAgentEngine
             options.CopilotBackgroundCompactionThreshold,
             options.CopilotBufferExhaustionThreshold,
             [],
-            []);
+                [],
+                tools);
     }
 
     private static string BuildSystemMessage(AgentInstructionSet instructionSet)

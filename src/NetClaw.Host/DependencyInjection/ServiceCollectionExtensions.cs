@@ -104,6 +104,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IContainerRuntime, DockerContainerRuntime>();
         services.AddSingleton<IAgentWorkspaceBuilder, NetClawAgentWorkspaceBuilder>();
         services.AddSingleton<IAgentToolRegistry, NetClawAgentToolRegistry>();
+        services.AddSingleton<ICopilotToolFactory, NetClawCopilotToolFactory>();
         services.AddSingleton<ICopilotClientAdapterFactory, SdkCopilotClientAdapterFactory>();
         services.AddSingleton<ICopilotClientPool, CopilotClientPool>();
         services.AddSingleton<ICodingAgentEngine, CopilotCodingAgentEngine>();
