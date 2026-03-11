@@ -23,10 +23,13 @@
 Run these from the repo root.
 
 ```bash
+dotnet --version
 dotnet format NetClaw.slnx --verify-no-changes
 dotnet build NetClaw.slnx
 dotnet test
 ```
+
+The expected SDK is pinned in `global.json`. If your local SDK does not match, fix that before chasing strange build failures.
 
 ## Focused Test Passes
 

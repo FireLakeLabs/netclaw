@@ -92,9 +92,20 @@ dotnet test tests/NetClaw.Application.Tests/NetClaw.Application.Tests.csproj --f
 
 - [AGENTS.md](AGENTS.md)
 - [CONTRIBUTING.md](CONTRIBUTING.md)
+- [ROADMAP.md](ROADMAP.md)
 - [docs/architecture.md](docs/architecture.md)
 - [docs/user-guide.md](docs/user-guide.md)
 - [docs/coding-standards.md](docs/coding-standards.md)
+
+## Configuration Samples
+
+Sample configuration files live under `config-examples/`:
+
+- `appsettings.example.json`
+- `mount-allowlist.json`
+- `sender-allowlist.json`
+
+The repo also includes `global.json` to pin the .NET SDK used by local development and CI.
 
 ## Current Reality
 

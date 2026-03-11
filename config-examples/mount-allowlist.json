@@ -1,0 +1,20 @@
+{
+  "allowedRoots": [
+    {
+      "path": "/home/aaron/projects",
+      "allowReadWrite": true,
+      "description": "Local projects"
+    },
+    {
+      "path": "/home/aaron/Documents",
+      "allowReadWrite": false,
+      "description": "Read-only documents"
+    }
+  ],
+  "blockedPatterns": [
+    "**/.git/**",
+    "**/node_modules/**",
+    "**/.env"
+  ],
+  "nonMainReadOnly": true
+}
