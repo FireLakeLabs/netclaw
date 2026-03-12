@@ -25,6 +25,11 @@ jobs:
             const path = require('path');
 
             const featuresDir = 'future-features';
+            if (!fs.existsSync(featuresDir)) {
+              core.setFailed(`Directory "${featuresDir}" not found in repository`);
+              return;
+            }
+
             const files = fs.readdirSync(featuresDir)
               .filter(f => f.endsWith('.md') && f !== 'README.md')
               .sort();
@@ -40,7 +45,7 @@ jobs:
 
             for (const file of files) {
               const content = fs.readFileSync(path.join(featuresDir, file), 'utf8');
-              const titleMatch = content.match(/^#\s+(.+)/m);
+              const titleMatch = content.match(/^#\s+(.+?)\s*$/m);
               if (!titleMatch) {
                 console.log(`Skipping ${file}: no title found`);
                 continue;
