@@ -3,7 +3,7 @@ name: Create Future Feature Issues
 on:
   push:
     branches:
-      - 'copilot/convert-future-features-to-issues'
+      - main
     paths:
       - '.github/workflows/create-future-feature-issues.yml'
   workflow_dispatch:
