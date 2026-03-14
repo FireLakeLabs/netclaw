@@ -4,6 +4,13 @@ import { ArrowLeft, Bot, User } from "lucide-react";
 import { Spinner, EmptyState, PageHeader } from "@/components/ui/shared";
 import { useChatMessages, useChats } from "@/api/client";
 
+const SLACK_USER_ID_RE = /^U[A-Z0-9]{8,}$/;
+
+function resolveSenderName(senderName: string, chatName: string | undefined): string {
+  if (!SLACK_USER_ID_RE.test(senderName)) return senderName;
+  return chatName || "User";
+}
+
 export function ChatDetailPage() {
   const { jid } = useParams<{ jid: string }>();
   const { data: messages, isLoading } = useChatMessages(jid ?? "");
@@ -28,36 +35,40 @@ export function ChatDetailPage() {
         <EmptyState message="No messages" />
       ) : (
         <div className="space-y-3">
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`p-3 rounded-lg max-w-2xl ${
-                msg.isFromMe
-                  ? "bg-blue-900/30 border border-blue-800/50 ml-auto"
-                  : "bg-gray-900 border border-gray-800"
-              }`}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                {msg.isFromMe ? (
-                  <Bot size={14} className="text-blue-400" />
-                ) : (
-                  <User size={14} className="text-gray-400" />
-                )}
-                <span className={`text-xs font-medium ${msg.isFromMe ? "text-blue-300" : "text-gray-300"}`}>
-                  {msg.isFromMe ? "Agent" : msg.senderName}
-                </span>
-                {!msg.isFromMe && msg.senderName !== msg.sender && (
-                  <span className="text-xs text-gray-600">{msg.sender}</span>
-                )}
-                <span className="text-xs text-gray-500">
-                  {format(new Date(msg.timestamp), "MMM d, HH:mm:ss")}
-                </span>
+          {messages.map((msg) => {
+            const displayName = msg.isFromMe ? "Agent" : resolveSenderName(msg.senderName, chat?.name);
+            const showRawId = !msg.isFromMe && displayName !== msg.sender && !SLACK_USER_ID_RE.test(msg.sender);
+            return (
+              <div
+                key={msg.id}
+                className={`p-3 rounded-lg max-w-2xl ${
+                  msg.isFromMe
+                    ? "bg-blue-900/30 border border-blue-800/50 ml-auto"
+                    : "bg-gray-900 border border-gray-800"
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  {msg.isFromMe ? (
+                    <Bot size={14} className="text-blue-400" />
+                  ) : (
+                    <User size={14} className="text-gray-400" />
+                  )}
+                  <span className={`text-xs font-medium ${msg.isFromMe ? "text-blue-300" : "text-gray-300"}`}>
+                    {displayName}
+                  </span>
+                  {showRawId && (
+                    <span className="text-xs text-gray-600">{msg.sender}</span>
+                  )}
+                  <span className="text-xs text-gray-500">
+                    {format(new Date(msg.timestamp), "MMM d, HH:mm:ss")}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-200 whitespace-pre-wrap break-words">
+                  {msg.content}
+                </p>
               </div>
-              <p className="text-sm text-gray-200 whitespace-pre-wrap break-words">
-                {msg.content}
-              </p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

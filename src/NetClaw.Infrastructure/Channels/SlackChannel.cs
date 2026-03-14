@@ -425,8 +425,9 @@ public sealed class SlackChannel : IInboundChannel
             userDisplayNameCache[userId] = info.DisplayName;
             return info.DisplayName;
         }
-        catch
+        catch (Exception ex)
         {
+            logger.LogWarning(ex, "Failed to resolve Slack user display name for {UserId}. Ensure the bot token has the 'users:read' scope.", userId);
             userDisplayNameCache[userId] = userId;
             return userId;
         }
