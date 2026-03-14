@@ -1,16 +1,19 @@
 import { useParams, Link } from "react-router-dom";
 import { format } from "date-fns";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Bot, User } from "lucide-react";
 import { Spinner, EmptyState, PageHeader } from "@/components/ui/shared";
-import { useChatMessages } from "@/api/client";
+import { useChatMessages, useChats } from "@/api/client";
 
 export function ChatDetailPage() {
   const { jid } = useParams<{ jid: string }>();
   const { data: messages, isLoading } = useChatMessages(jid ?? "");
+  const { data: chats } = useChats();
+  const chat = chats?.find((c) => c.jid === jid);
+  const title = chat?.name || "Chat";
 
   return (
     <div>
-      <PageHeader title="Chat">
+      <PageHeader title={title}>
         <Link to="/messages" className="flex items-center gap-1 text-sm text-gray-400 hover:text-white">
           <ArrowLeft size={16} />
           Back
@@ -35,9 +38,17 @@ export function ChatDetailPage() {
               }`}
             >
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs font-medium text-gray-300">
+                {msg.isFromMe ? (
+                  <Bot size={14} className="text-blue-400" />
+                ) : (
+                  <User size={14} className="text-gray-400" />
+                )}
+                <span className={`text-xs font-medium ${msg.isFromMe ? "text-blue-300" : "text-gray-300"}`}>
                   {msg.isFromMe ? "Agent" : msg.senderName}
                 </span>
+                {!msg.isFromMe && msg.senderName !== msg.sender && (
+                  <span className="text-xs text-gray-600">{msg.sender}</span>
+                )}
                 <span className="text-xs text-gray-500">
                   {format(new Date(msg.timestamp), "MMM d, HH:mm:ss")}
                 </span>

@@ -33,6 +33,12 @@ export function DashboardPage({ recentEvents, queueState, heartbeat }: Dashboard
   const activeCount = liveQueue?.activeExecutions ?? 0;
   const overallStatus = activeCount > 0 ? "active" : "idle";
 
+  const groupNameByJid: Record<string, string> = {};
+  for (const g of groups.data ?? []) {
+    groupNameByJid[g.jid] = g.name;
+  }
+  const resolveJid = (jid: string) => groupNameByJid[jid] ?? jid;
+
   return (
     <div>
       <PageHeader title="Dashboard" />
@@ -86,7 +92,12 @@ export function DashboardPage({ recentEvents, queueState, heartbeat }: Dashboard
                 .filter((g) => g.active)
                 .map((g) => (
                   <div key={g.chatJid} className="flex items-center justify-between p-2 bg-gray-800 rounded">
-                    <span className="text-sm">{g.chatJid}</span>
+                    <div className="flex flex-col">
+                      <span className="text-sm">{resolveJid(g.chatJid)}</span>
+                      {groupNameByJid[g.chatJid] && (
+                        <span className="text-xs text-gray-600">{g.chatJid}</span>
+                      )}
+                    </div>
                     <div className="flex gap-2">
                       {g.isTaskExecution && <Badge variant="info">Task</Badge>}
                       <Badge variant="success">Active</Badge>

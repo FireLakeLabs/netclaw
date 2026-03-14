@@ -27,7 +27,7 @@ export function MessagesPage() {
                 <div className="flex items-center gap-3">
                   <div className="flex flex-col">
                     <span className="text-sm font-medium">{chat.name}</span>
-                    <span className="text-xs text-gray-500">{chat.jid}</span>
+                    <span className="text-xs text-gray-600">{chat.jid}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
