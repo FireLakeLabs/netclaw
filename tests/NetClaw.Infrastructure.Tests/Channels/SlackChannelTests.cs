@@ -41,7 +41,7 @@ public sealed class SlackChannelTests
             client);
 
         await channel.ConnectAsync();
-        await Task.Delay(50);
+        await WaitForEnvelopeProcessingAsync(client.Connection, 1);
 
         List<ChannelMetadataEvent> metadata = [];
         List<ChannelMessage> messages = [];
@@ -100,7 +100,7 @@ public sealed class SlackChannelTests
             client);
 
         await channel.ConnectAsync();
-        await Task.Delay(50);
+        await WaitForEnvelopeProcessingAsync(client.Connection, 1);
         await channel.PollInboundAsync((_, _) => Task.CompletedTask, (_, _) => Task.CompletedTask);
 
         ChatJid chatJid = new("C12345");
@@ -204,7 +204,7 @@ public sealed class SlackChannelTests
             client);
 
         await channel.ConnectAsync();
-        await Task.Delay(50);
+        await WaitForEnvelopeProcessingAsync(client.Connection, 1);
         await channel.PollInboundAsync((_, _) => Task.CompletedTask, (_, _) => Task.CompletedTask);
 
         ChatJid chatJid = new("D12345");
@@ -258,7 +258,7 @@ public sealed class SlackChannelTests
             client);
 
         await channel.ConnectAsync();
-        await Task.Delay(50);
+        await WaitForEnvelopeProcessingAsync(client.Connection, 1);
         await channel.PollInboundAsync((_, _) => Task.CompletedTask, (_, _) => Task.CompletedTask);
 
         ChatJid chatJid = new("D12345");
@@ -311,7 +311,7 @@ public sealed class SlackChannelTests
                     null,
                     null))));
 
-        await Task.Delay(50);
+        await WaitForEnvelopeProcessingAsync(client.Connection, 1);
         await channel.PollInboundAsync((_, _) => Task.CompletedTask, (_, _) => Task.CompletedTask);
         await channel.SetTypingAsync(chatJid, true);
         await channel.SendMessageAsync(chatJid, "assistant reply");
@@ -325,6 +325,18 @@ public sealed class SlackChannelTests
         Assert.Equal("Evaluating...", client.AssistantStatusUpdates[0].Status);
 
         await channel.DisconnectAsync();
+    }
+
+    private static async Task WaitForEnvelopeProcessingAsync(FakeSlackSocketModeConnection connection, int expectedCount)
+    {
+        DateTime deadline = DateTime.UtcNow.AddSeconds(5);
+        while (connection.AcknowledgedEnvelopeIds.Count < expectedCount && DateTime.UtcNow < deadline)
+        {
+            await Task.Delay(10);
+        }
+
+        // Yield to allow HandleEnvelopeAsync to complete after the ack.
+        await Task.Delay(20);
     }
 
     private sealed class FakeSlackSocketModeClient : ISlackSocketModeClient
