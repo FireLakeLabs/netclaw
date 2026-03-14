@@ -136,6 +136,28 @@ public sealed class GroupExecutionQueue : IGroupExecutionQueue
         }
     }
 
+    public QueueSnapshot GetSnapshot()
+    {
+        lock (gate)
+        {
+            List<GroupStateSnapshot> groupSnapshots = [];
+            foreach (KeyValuePair<string, GroupExecutionState> pair in groups)
+            {
+                groupSnapshots.Add(new GroupStateSnapshot(
+                    pair.Key,
+                    pair.Value.Active,
+                    pair.Value.IsTaskExecution,
+                    pair.Value.PendingMessages,
+                    pair.Value.PendingTasks.Count,
+                    pair.Value.IdleWaiting,
+                    pair.Value.RetryCount,
+                    pair.Value.RunningTaskIds.ToArray()));
+            }
+
+            return new QueueSnapshot(activeExecutions, maxConcurrentExecutions, waitingGroups.Count, groupSnapshots);
+        }
+    }
+
     private GroupExecutionState GetState(ChatJid groupJid)
     {
         if (!groups.TryGetValue(groupJid.Value, out GroupExecutionState? state))
@@ -305,3 +327,19 @@ public sealed class GroupExecutionQueue : IGroupExecutionQueue
 
     private sealed record QueuedTask(string Id, Func<CancellationToken, Task> WorkItem);
 }
+
+public sealed record QueueSnapshot(
+    int ActiveExecutions,
+    int MaxConcurrentExecutions,
+    int WaitingGroupCount,
+    IReadOnlyList<GroupStateSnapshot> Groups);
+
+public sealed record GroupStateSnapshot(
+    string ChatJid,
+    bool Active,
+    bool IsTaskExecution,
+    bool PendingMessages,
+    int PendingTaskCount,
+    bool IdleWaiting,
+    int RetryCount,
+    IReadOnlyList<string> RunningTaskIds);

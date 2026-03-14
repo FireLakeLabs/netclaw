@@ -65,6 +65,43 @@ public sealed class SqliteMessageRepository : IMessageRepository
         return messages;
     }
 
+    public async Task<IReadOnlyList<StoredMessage>> GetChatHistoryAsync(ChatJid chatJid, int limit, DateTimeOffset? since = null, CancellationToken cancellationToken = default)
+    {
+        if (limit <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(limit), limit, "Limit must be greater than zero.");
+        }
+
+        List<StoredMessage> messages = [];
+
+        await using SqliteConnection connection = connectionFactory.OpenConnection();
+        await using SqliteCommand command = connection.CreateCommand();
+        command.CommandText =
+            """
+            SELECT id, chat_jid, sender, sender_name, content, timestamp, is_from_me, is_bot_message
+            FROM (
+                SELECT id, chat_jid, sender, sender_name, content, timestamp, is_from_me, is_bot_message
+                FROM messages
+                WHERE chat_jid = $chatJid
+                  AND ($since IS NULL OR timestamp > $since)
+                ORDER BY timestamp DESC
+                LIMIT $limit
+            )
+            ORDER BY timestamp ASC;
+            """;
+        command.Parameters.AddWithValue("$chatJid", chatJid.Value);
+        command.Parameters.AddWithValue("$since", since?.ToString("O") ?? (object)DBNull.Value);
+        command.Parameters.AddWithValue("$limit", limit);
+
+        await using SqliteDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            messages.Add(ReadStoredMessage(reader));
+        }
+
+        return messages;
+    }
+
     public async Task<IReadOnlyList<StoredMessage>> GetNewMessagesAsync(DateTimeOffset since, CancellationToken cancellationToken = default)
     {
         List<StoredMessage> messages = [];

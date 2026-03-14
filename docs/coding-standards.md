@@ -65,6 +65,7 @@ Prefer code that is easy to read in six months over code that is clever for five
 - Keep test names descriptive.
 - Use focused in-memory fakes where that is simpler than mocking everything.
 - Run focused tests for the area you changed and then run the full suite.
+- Do not use `Task.Delay` for synchronization. Use `TaskCompletionSource`, `SemaphoreSlim`, or `ManualResetEventSlim` to coordinate with background work deterministically. CI will reject `Task.Delay` in test files.
 
 ## Formatting
 

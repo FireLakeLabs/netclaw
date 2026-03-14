@@ -37,8 +37,8 @@ public sealed class GroupExecutionQueueTests
         queue.EnqueueTask(new ChatJid("group@jid"), new TaskId("task-1"), _ => Task.CompletedTask);
 
         await completionSource.Task.WaitAsync(TimeSpan.FromSeconds(1));
-        await Task.Delay(50);
 
+        // Second enqueue was rejected synchronously by deduplication, so runCount is final.
         Assert.Equal(1, runCount);
     }
 

@@ -1,4 +1,5 @@
 using NetClaw.Application.Execution;
+using NetClaw.Application.Observability;
 using NetClaw.Domain.Contracts.Channels;
 using NetClaw.Domain.Contracts.Containers;
 using NetClaw.Domain.Contracts.Persistence;
@@ -37,6 +38,7 @@ public sealed class GroupMessageProcessorServiceTests
             new RecordingGroupExecutionQueue(),
             new ActiveGroupSessionRegistry(),
             [channel],
+            new NullAgentEventSink(),
             "Andy",
             "UTC");
 
@@ -72,6 +74,7 @@ public sealed class GroupMessageProcessorServiceTests
             new RecordingGroupExecutionQueue(),
             new ActiveGroupSessionRegistry(),
             [],
+            new NullAgentEventSink(),
             "Andy",
             "UTC");
 
@@ -105,6 +108,7 @@ public sealed class GroupMessageProcessorServiceTests
             new RecordingGroupExecutionQueue(),
             new ActiveGroupSessionRegistry(),
             [channel],
+            new NullAgentEventSink(),
             "Andy",
             "UTC");
 
@@ -138,6 +142,7 @@ public sealed class GroupMessageProcessorServiceTests
             new RecordingGroupExecutionQueue(),
             new ActiveGroupSessionRegistry(),
             [channel],
+            new NullAgentEventSink(),
             "Andy",
             "UTC");
 
@@ -181,6 +186,7 @@ public sealed class GroupMessageProcessorServiceTests
             queue,
                     new ActiveGroupSessionRegistry(),
             [],
+            new NullAgentEventSink(),
             "Andy",
             "UTC");
 
@@ -219,6 +225,7 @@ public sealed class GroupMessageProcessorServiceTests
             new RecordingGroupExecutionQueue(),
             new ActiveGroupSessionRegistry(),
             [channel],
+            new NullAgentEventSink(),
             "Andy",
             "UTC");
 
@@ -250,6 +257,7 @@ public sealed class GroupMessageProcessorServiceTests
             new RecordingGroupExecutionQueue(),
             new ActiveGroupSessionRegistry(),
             [new ThrowingChannel(groupJid)],
+            new NullAgentEventSink(),
             "Andy",
             "UTC");
 
@@ -456,6 +464,9 @@ public sealed class GroupMessageProcessorServiceTests
                 ? (IReadOnlyList<StoredMessage>)groupMessages.Where(message => since is null || message.Timestamp > since).ToList()
                 : []);
 
+        public Task<IReadOnlyList<StoredMessage>> GetChatHistoryAsync(ChatJid chatJid, int limit, DateTimeOffset? since = null, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<StoredMessage>>([]);
+
         public Task<IReadOnlyList<StoredMessage>> GetNewMessagesAsync(DateTimeOffset since, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<StoredMessage>>([]);
 
@@ -489,11 +500,21 @@ public sealed class GroupMessageProcessorServiceTests
         public Task<RouterStateEntry?> GetAsync(string key, CancellationToken cancellationToken = default)
             => Task.FromResult(Entries.TryGetValue(key, out RouterStateEntry? entry) ? entry : null);
 
+        public Task<IReadOnlyList<RouterStateEntry>> GetAllAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<RouterStateEntry>>(Entries.Values.ToList());
+
         public Task SetAsync(RouterStateEntry entry, CancellationToken cancellationToken = default)
         {
             Entries[entry.Key] = entry;
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class NullAgentEventSink : IAgentEventSink
+    {
+        public void Record(ContainerStreamEvent streamEvent, GroupFolder groupFolder, ChatJid chatJid, bool isScheduledTask, string? taskId) { }
+
+        public void SetBroadcastCallback(Action<AgentActivityEvent> callback) { }
     }
 
     private sealed class PassThroughSenderAuthorizationService : ISenderAuthorizationService

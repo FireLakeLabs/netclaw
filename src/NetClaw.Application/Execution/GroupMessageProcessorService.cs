@@ -1,3 +1,4 @@
+using NetClaw.Application.Observability;
 using NetClaw.Domain.Contracts.Channels;
 using NetClaw.Domain.Contracts.Containers;
 using NetClaw.Domain.Contracts.Persistence;
@@ -11,6 +12,7 @@ namespace NetClaw.Application.Execution;
 public sealed class GroupMessageProcessorService
 {
     private readonly IAgentRuntime agentRuntime;
+    private readonly IAgentEventSink agentEventSink;
     private readonly ActiveGroupSessionRegistry activeSessionRegistry;
     private readonly string assistantName;
     private readonly IReadOnlyList<IChannel> channels;
@@ -34,6 +36,7 @@ public sealed class GroupMessageProcessorService
         IGroupExecutionQueue groupExecutionQueue,
         ActiveGroupSessionRegistry activeSessionRegistry,
         IReadOnlyList<IChannel> channels,
+        IAgentEventSink agentEventSink,
         string assistantName,
         string timezone)
     {
@@ -47,6 +50,7 @@ public sealed class GroupMessageProcessorService
         this.groupExecutionQueue = groupExecutionQueue;
         this.activeSessionRegistry = activeSessionRegistry;
         this.channels = channels;
+        this.agentEventSink = agentEventSink;
         this.assistantName = assistantName;
         this.timezone = timezone;
     }
@@ -87,6 +91,8 @@ public sealed class GroupMessageProcessorService
                     new ContainerInput(prompt, null, group.Folder, groupJid, group.IsMain, false, assistantName),
                     async (streamEvent, ct) =>
                     {
+                        agentEventSink.Record(streamEvent, group.Folder, groupJid, isScheduledTask: false, taskId: null);
+
                         switch (streamEvent.Kind)
                         {
                             case ContainerEventKind.MessageCompleted:

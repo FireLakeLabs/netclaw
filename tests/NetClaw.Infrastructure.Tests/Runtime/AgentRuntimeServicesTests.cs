@@ -628,6 +628,9 @@ public sealed class AgentRuntimeServicesTests
 
         public Task AppendRunLogAsync(TaskRunLog log, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
+
+        public Task<IReadOnlyList<TaskRunLog>> GetRunLogsAsync(TaskId taskId, int limit = 50, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<TaskRunLog>>([]);
     }
 
     private sealed class FakeGroupExecutionQueue : IGroupExecutionQueue

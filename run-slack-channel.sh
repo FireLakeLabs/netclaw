@@ -19,7 +19,10 @@ MESSAGE_LOOP_POLL_INTERVAL="${NETCLAW_MESSAGE_LOOP_POLL_INTERVAL:-00:00:01}"
 MESSAGE_LOOP_TIMEZONE="${NETCLAW_MESSAGE_LOOP_TIMEZONE:-UTC}"
 COPILOT_USE_LOGGED_IN_USER="${NETCLAW_COPILOT_USE_LOGGED_IN_USER:-true}"
 INTERACTIVE_IDLE_TIMEOUT="${NETCLAW_INTERACTIVE_IDLE_TIMEOUT:-00:00:30}"
-REQUIRE_TRIGGER="${NETCLAW_REQUIRE_TRIGGER:-true}"
+DASHBOARD_ENABLED="${NETCLAW_DASHBOARD_ENABLED:-true}"
+DASHBOARD_PORT="${NETCLAW_DASHBOARD_PORT:-5080}"
+DASHBOARD_BIND_ADDRESS="${NETCLAW_DASHBOARD_BIND_ADDRESS:-0.0.0.0}"
+REQUIRE_TRIGGER="${NETCLAW_REQUIRE_TRIGGER:-false}"
 
 if [[ -z "$CHAT_JID" ]]; then
 	echo "NETCLAW_CHAT_JID is required and should be the Slack conversation ID (for example C..., G..., or D...)." >&2
@@ -46,11 +49,11 @@ register_args=(
 	--folder "$GROUP_FOLDER"
 )
 
-if [[ "${REQUIRE_TRIGGER,,}" != "true" ]]; then
+if [[ "${REQUIRE_TRIGGER,,}" == "true" ]]; then
+	trigger_mode="required ($AGENT_TRIGGER)"
+else
 	register_args+=(--no-trigger-required)
 	trigger_mode="disabled"
-else
-	trigger_mode="required ($AGENT_TRIGGER)"
 fi
 
 "${register_args[@]}"
@@ -62,6 +65,7 @@ printf 'CHAT_NAME: %s\n' "$CHAT_NAME"
 printf 'GROUP_FOLDER: %s\n' "$GROUP_FOLDER"
 printf 'TRIGGER_MODE: %s\n' "$trigger_mode"
 printf 'WORKING_INDICATOR: %s\n' "$SLACK_WORKING_INDICATOR_TEXT"
+printf 'DASHBOARD: %s (port %s, bind %s)\n' "$DASHBOARD_ENABLED" "$DASHBOARD_PORT" "$DASHBOARD_BIND_ADDRESS"
 printf 'Press Ctrl+C to stop.\n'
 printf '=== END ===\n'
 
@@ -78,4 +82,7 @@ exec env \
 	NetClaw__MessageLoop__Timezone="$MESSAGE_LOOP_TIMEZONE" \
 	NetClaw__AgentRuntime__CopilotUseLoggedInUser="$COPILOT_USE_LOGGED_IN_USER" \
 	NetClaw__AgentRuntime__InteractiveIdleTimeout="$INTERACTIVE_IDLE_TIMEOUT" \
+	NetClaw__Dashboard__Enabled="$DASHBOARD_ENABLED" \
+	NetClaw__Dashboard__Port="$DASHBOARD_PORT" \
+	NetClaw__Dashboard__BindAddress="$DASHBOARD_BIND_ADDRESS" \
 	dotnet run --project "$SCRIPT_DIR/src/NetClaw.Host" "$@"

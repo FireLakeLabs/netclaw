@@ -58,6 +58,18 @@ If you changed runtime wiring, channel behavior, scheduling, host setup, or pers
 - Call out risk areas and what you tested.
 - Be honest about what you did not test.
 
+## Test Timing Rules
+
+Do not use `Task.Delay` for synchronization in tests. It creates timing-dependent failures that pass locally but break in CI.
+
+Instead, use deterministic synchronization primitives:
+
+- `TaskCompletionSource` — signal when a background operation is ready.
+- `SemaphoreSlim` — gate access to a shared resource.
+- `ManualResetEventSlim` — block until a condition is met.
+
+CI enforces this with a grep check that fails the build if `Task.Delay` appears in any test file.
+
 ## Style Expectations
 
 Follow the repo coding standards in [docs/coding-standards.md](docs/coding-standards.md). The short version is idiomatic C#, nullable enabled, warnings as errors, small cohesive services, and tests that explain behavior rather than implementation trivia.
