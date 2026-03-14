@@ -11,15 +11,15 @@ export function eventKindVariant(kind: string): Variant {
   switch (kind) {
     case "MessageCompleted":
       return "success";
-    case "ToolCallStarted":
-    case "ToolCallCompleted":
+    case "ToolStarted":
+    case "ToolCompleted":
       return "info";
     case "Error":
       return "error";
     case "Idle":
       return "default";
-    case "Thinking":
-    case "MessageDelta":
+    case "ReasoningDelta":
+    case "TextDelta":
       return "warning";
     default:
       return "default";
@@ -45,11 +45,11 @@ function collapseDeltas(events: AgentActivityEventDto[]): DisplayItem[] {
   let i = 0;
   while (i < events.length) {
     const event = events[i]!;
-    if (event.eventKind === "MessageDelta") {
+    if (event.eventKind === "TextDelta") {
       const group: AgentActivityEventDto[] = [event];
       while (
         i + 1 < events.length &&
-        events[i + 1]!.eventKind === "MessageDelta" &&
+        events[i + 1]!.eventKind === "TextDelta" &&
         events[i + 1]!.sessionId === event.sessionId &&
         events[i + 1]!.groupFolder === event.groupFolder
       ) {

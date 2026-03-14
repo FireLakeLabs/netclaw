@@ -86,6 +86,40 @@ public sealed class SlackSocketModeClient : ISlackSocketModeClient
         return new SlackConversationInfo(conversationId, name, isGroup);
     }
 
+    public async Task<SlackUserInfo> GetUserInfoAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        string escapedUserId = Uri.EscapeDataString(userId);
+        SlackUserInfoResponse response = await SendAsync<SlackUserInfoResponse>(
+            HttpMethod.Get,
+            $"users.info?user={escapedUserId}",
+            options.BotToken,
+            body: null,
+            cancellationToken);
+
+        if (response.User is null)
+        {
+            throw new InvalidOperationException("Slack users.info did not return user details.");
+        }
+
+        string? displayName = response.User.Profile?.DisplayName;
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            displayName = response.User.Profile?.RealName;
+        }
+
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            displayName = response.User.RealName;
+        }
+
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            displayName = response.User.Name ?? userId;
+        }
+
+        return new SlackUserInfo(userId, displayName);
+    }
+
     public async Task<SlackPostedMessage> PostMessageAsync(string conversationId, string text, string? threadTs, CancellationToken cancellationToken = default)
     {
         SlackChatWriteResponse response = await SendAsync<SlackChatWriteResponse>(
@@ -292,4 +326,16 @@ public sealed class SlackSocketModeClient : ISlackSocketModeClient
         [property: JsonPropertyName("channel_id")] string ChannelId,
         [property: JsonPropertyName("thread_ts")] string ThreadTs,
         [property: JsonPropertyName("status")] string Status);
+
+    private sealed record SlackUserInfoResponse([property: JsonPropertyName("user")] SlackUserResponseUser? User);
+
+    private sealed record SlackUserResponseUser(
+        [property: JsonPropertyName("id")] string? Id,
+        [property: JsonPropertyName("name")] string? Name,
+        [property: JsonPropertyName("real_name")] string? RealName,
+        [property: JsonPropertyName("profile")] SlackUserResponseProfile? Profile);
+
+    private sealed record SlackUserResponseProfile(
+        [property: JsonPropertyName("display_name")] string? DisplayName,
+        [property: JsonPropertyName("real_name")] string? RealName);
 }

@@ -17,6 +17,8 @@ public interface ISlackSocketModeClient
     Task DeleteMessageAsync(string conversationId, string ts, CancellationToken cancellationToken = default);
 
     Task SetAssistantStatusAsync(string conversationId, string threadTs, string status, CancellationToken cancellationToken = default);
+
+    Task<SlackUserInfo> GetUserInfoAsync(string userId, CancellationToken cancellationToken = default);
 }
 
 public interface ISlackSocketModeConnection : IAsyncDisposable
@@ -31,6 +33,8 @@ public sealed record SlackAuthInfo(string UserId);
 public sealed record SlackConversationInfo(string ConversationId, string Name, bool IsGroup);
 
 public sealed record SlackPostedMessage(string ConversationId, string Ts);
+
+public sealed record SlackUserInfo(string UserId, string DisplayName);
 
 public sealed record SlackSocketEnvelope(
     [property: JsonPropertyName("envelope_id")] string EnvelopeId,

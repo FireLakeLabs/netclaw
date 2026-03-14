@@ -695,6 +695,9 @@ public sealed class EndToEndIntegrationTests
         {
             return Task.CompletedTask;
         }
+
+        public Task<SlackUserInfo> GetUserInfoAsync(string userId, CancellationToken cancellationToken = default)
+            => Task.FromResult(new SlackUserInfo(userId, $"User {userId}"));
     }
 
     private sealed class FakeSlackSocketModeConnection : ISlackSocketModeConnection
