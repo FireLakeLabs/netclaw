@@ -68,13 +68,30 @@ public sealed class WorkspaceFileService
         }
 
         FileInfo fileInfo = new(fullPath);
+
+        if (fileInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
+        {
+            throw new WorkspacePathTraversalException("Symbolic links and reparse points are not allowed.");
+        }
+
         if (fileInfo.Length > MaxFileSizeBytes)
         {
             throw new InvalidOperationException($"File exceeds maximum size of {MaxFileSizeBytes} bytes.");
         }
 
-        string content = File.ReadAllText(fullPath);
-        return new WorkspaceFileDto(relativePath, content, fileInfo.Length, new DateTimeOffset(fileInfo.LastWriteTimeUtc, TimeSpan.Zero));
+        try
+        {
+            string content = File.ReadAllText(fullPath);
+            return new WorkspaceFileDto(relativePath, content, fileInfo.Length, new DateTimeOffset(fileInfo.LastWriteTimeUtc, TimeSpan.Zero));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            throw new InvalidOperationException("Access to the file was denied.", ex);
+        }
+        catch (IOException ex)
+        {
+            throw new InvalidOperationException("Could not read the file.", ex);
+        }
     }
 
     private string ResolveGroupDirectory(GroupFolder groupFolder)
@@ -156,6 +173,11 @@ public sealed class WorkspaceFileService
         {
             foreach (DirectoryInfo subDir in directory.EnumerateDirectories().OrderBy(d => d.Name))
             {
+                if (subDir.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                {
+                    continue;
+                }
+
                 string childRelative = Path.GetRelativePath(rootPath, subDir.FullName);
                 items.Add(new WorkspaceTreeEntryDto(
                     subDir.Name,
@@ -168,6 +190,11 @@ public sealed class WorkspaceFileService
 
             foreach (FileInfo file in directory.EnumerateFiles().OrderBy(f => f.Name))
             {
+                if (file.Attributes.HasFlag(FileAttributes.ReparsePoint))
+                {
+                    continue;
+                }
+
                 string childRelative = Path.GetRelativePath(rootPath, file.FullName);
                 items.Add(new WorkspaceTreeEntryDto(
                     file.Name,

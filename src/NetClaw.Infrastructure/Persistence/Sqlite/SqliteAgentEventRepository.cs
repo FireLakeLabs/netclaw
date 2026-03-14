@@ -79,6 +79,7 @@ public sealed class SqliteAgentEventRepository : IAgentEventRepository
 
     public async Task<IReadOnlyList<AgentActivityEvent>> GetRecentAsync(int limit = 100, DateTimeOffset? since = null, string? groupFolder = null, CancellationToken cancellationToken = default)
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
         List<AgentActivityEvent> results = [];
 
         await using SqliteConnection connection = connectionFactory.OpenConnection();
