@@ -55,8 +55,8 @@ public static class Program
         return new DashboardOptions
         {
             Port = int.TryParse(configuration["NetClaw:Dashboard:Port"], out int port) ? port : 5080,
-            Enabled = !bool.TryParse(configuration["NetClaw:Dashboard:Enabled"], out bool enabled) || enabled,
-            BindAddress = configuration["NetClaw:Dashboard:BindAddress"] ?? "0.0.0.0"
+            Enabled = bool.TryParse(configuration["NetClaw:Dashboard:Enabled"], out bool enabled) && enabled,
+            BindAddress = configuration["NetClaw:Dashboard:BindAddress"] ?? "127.0.0.1"
         };
     }
 }

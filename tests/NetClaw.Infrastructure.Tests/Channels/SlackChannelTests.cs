@@ -335,6 +335,10 @@ public sealed class SlackChannelTests
             await Task.Delay(10);
         }
 
+        Assert.True(
+            connection.AcknowledgedEnvelopeIds.Count >= expectedCount,
+            $"Expected {expectedCount} acknowledged envelopes but got {connection.AcknowledgedEnvelopeIds.Count} within timeout.");
+
         // Yield to allow HandleEnvelopeAsync to complete after the ack.
         await Task.Delay(20);
     }

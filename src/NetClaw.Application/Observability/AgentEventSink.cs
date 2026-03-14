@@ -51,7 +51,15 @@ public sealed class AgentEventSink : IAgentEventSink, IAsyncDisposable
             observedAt: streamEvent.ObservedAt,
             capturedAt: DateTimeOffset.UtcNow);
 
-        broadcastCallback?.Invoke(activityEvent);
+        try
+        {
+            broadcastCallback?.Invoke(activityEvent);
+        }
+        catch
+        {
+            // Broadcast failures must not disrupt container stream event handling.
+        }
+
         buffer.Writer.TryWrite(activityEvent);
     }
 

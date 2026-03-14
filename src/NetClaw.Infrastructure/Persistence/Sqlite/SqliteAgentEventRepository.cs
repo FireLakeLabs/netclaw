@@ -37,16 +37,40 @@ public sealed class SqliteAgentEventRepository : IAgentEventRepository
         await using SqliteConnection connection = connectionFactory.OpenConnection();
         await using SqliteTransaction transaction = connection.BeginTransaction();
 
+        await using SqliteCommand command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText =
+            """
+            INSERT INTO agent_events (group_folder, chat_jid, session_id, event_kind, content, tool_name, error, is_scheduled_task, task_id, observed_at, captured_at)
+            VALUES ($groupFolder, $chatJid, $sessionId, $eventKind, $content, $toolName, $error, $isScheduledTask, $taskId, $observedAt, $capturedAt);
+            """;
+
+        SqliteParameter pGroupFolder = command.Parameters.Add("$groupFolder", SqliteType.Text);
+        SqliteParameter pChatJid = command.Parameters.Add("$chatJid", SqliteType.Text);
+        SqliteParameter pSessionId = command.Parameters.Add("$sessionId", SqliteType.Text);
+        SqliteParameter pEventKind = command.Parameters.Add("$eventKind", SqliteType.Text);
+        SqliteParameter pContent = command.Parameters.Add("$content", SqliteType.Text);
+        SqliteParameter pToolName = command.Parameters.Add("$toolName", SqliteType.Text);
+        SqliteParameter pError = command.Parameters.Add("$error", SqliteType.Text);
+        SqliteParameter pIsScheduledTask = command.Parameters.Add("$isScheduledTask", SqliteType.Integer);
+        SqliteParameter pTaskId = command.Parameters.Add("$taskId", SqliteType.Text);
+        SqliteParameter pObservedAt = command.Parameters.Add("$observedAt", SqliteType.Text);
+        SqliteParameter pCapturedAt = command.Parameters.Add("$capturedAt", SqliteType.Text);
+        command.Prepare();
+
         foreach (AgentActivityEvent activityEvent in events)
         {
-            await using SqliteCommand command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText =
-                """
-                INSERT INTO agent_events (group_folder, chat_jid, session_id, event_kind, content, tool_name, error, is_scheduled_task, task_id, observed_at, captured_at)
-                VALUES ($groupFolder, $chatJid, $sessionId, $eventKind, $content, $toolName, $error, $isScheduledTask, $taskId, $observedAt, $capturedAt);
-                """;
-            BindEvent(command, activityEvent);
+            pGroupFolder.Value = (object?)activityEvent.GroupFolder ?? DBNull.Value;
+            pChatJid.Value = (object?)activityEvent.ChatJid ?? DBNull.Value;
+            pSessionId.Value = (object?)activityEvent.SessionId ?? DBNull.Value;
+            pEventKind.Value = activityEvent.EventKind.ToString();
+            pContent.Value = (object?)activityEvent.Content ?? DBNull.Value;
+            pToolName.Value = (object?)activityEvent.ToolName ?? DBNull.Value;
+            pError.Value = (object?)activityEvent.Error ?? DBNull.Value;
+            pIsScheduledTask.Value = activityEvent.IsScheduledTask ? 1 : 0;
+            pTaskId.Value = (object?)activityEvent.TaskId ?? DBNull.Value;
+            pObservedAt.Value = activityEvent.ObservedAt.ToString("O");
+            pCapturedAt.Value = activityEvent.CapturedAt.ToString("O");
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
 

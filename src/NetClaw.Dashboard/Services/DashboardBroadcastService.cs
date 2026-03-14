@@ -56,9 +56,9 @@ public sealed class DashboardBroadcastService : BackgroundService
             {
                 break;
             }
-            catch
+            catch (Exception ex)
             {
-                logger.LogWarning("Failed to send periodic heartbeat to dashboard clients.");
+                logger.LogWarning(ex, "Failed to send periodic heartbeat to dashboard clients.");
             }
         }
     }

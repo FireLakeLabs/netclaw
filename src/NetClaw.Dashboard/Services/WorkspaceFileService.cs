@@ -32,7 +32,7 @@ public sealed class WorkspaceFileService
         string groupDir = ResolveGroupDirectory(groupFolder);
         if (Directory.Exists(groupDir))
         {
-            roots.Add(BuildTreeEntry(new DirectoryInfo(groupDir), "groups", groupDir));
+            roots.Add(BuildTreeEntry(new DirectoryInfo(groupDir), "groups", "groups", groupDir));
         }
 
         string workspaceDir = Path.Combine(dataDirectory, "agent-workspaces", groupFolder.Value);
@@ -40,7 +40,7 @@ public sealed class WorkspaceFileService
         ValidateWithinBase(dataDirectory, fullWorkspaceDir);
         if (Directory.Exists(fullWorkspaceDir))
         {
-            roots.Add(BuildTreeEntry(new DirectoryInfo(fullWorkspaceDir), "workspace", fullWorkspaceDir));
+            roots.Add(BuildTreeEntry(new DirectoryInfo(fullWorkspaceDir), "workspace", "workspace", fullWorkspaceDir));
         }
 
         string sessionDir = Path.Combine(dataDirectory, "sessions", groupFolder.Value);
@@ -48,7 +48,7 @@ public sealed class WorkspaceFileService
         ValidateWithinBase(dataDirectory, fullSessionDir);
         if (Directory.Exists(fullSessionDir))
         {
-            roots.Add(BuildTreeEntry(new DirectoryInfo(fullSessionDir), "sessions", fullSessionDir));
+            roots.Add(BuildTreeEntry(new DirectoryInfo(fullSessionDir), "sessions", "sessions", fullSessionDir));
         }
 
         return roots;
@@ -90,26 +90,37 @@ public sealed class WorkspaceFileService
         string workspaceDir = Path.GetFullPath(Path.Combine(dataDirectory, "agent-workspaces", groupFolder.Value));
         string sessionDir = Path.GetFullPath(Path.Combine(dataDirectory, "sessions", groupFolder.Value));
 
-        string fullPath = Path.GetFullPath(Path.Combine(groupDir, relativePath));
+        // Strip root prefix (e.g. "groups/...", "workspace/...", "sessions/...") and resolve against the matching base.
+        (string baseDir, string innerPath) = StripRootPrefix(relativePath, groupDir, workspaceDir, sessionDir);
 
-        if (IsWithinBase(groupDir, fullPath) || IsWithinBase(workspaceDir, fullPath) || IsWithinBase(sessionDir, fullPath))
-        {
-            return fullPath;
-        }
-
-        fullPath = Path.GetFullPath(Path.Combine(workspaceDir, relativePath));
-        if (IsWithinBase(workspaceDir, fullPath))
-        {
-            return fullPath;
-        }
-
-        fullPath = Path.GetFullPath(Path.Combine(sessionDir, relativePath));
-        if (IsWithinBase(sessionDir, fullPath))
+        string fullPath = Path.GetFullPath(Path.Combine(baseDir, innerPath));
+        if (IsWithinBase(baseDir, fullPath))
         {
             return fullPath;
         }
 
         throw new InvalidOperationException("Path escapes allowed workspace directories.");
+    }
+
+    private static (string BaseDir, string InnerPath) StripRootPrefix(string relativePath, string groupDir, string workspaceDir, string sessionDir)
+    {
+        if (relativePath.StartsWith("groups/", StringComparison.Ordinal))
+        {
+            return (groupDir, relativePath["groups/".Length..]);
+        }
+
+        if (relativePath.StartsWith("workspace/", StringComparison.Ordinal))
+        {
+            return (workspaceDir, relativePath["workspace/".Length..]);
+        }
+
+        if (relativePath.StartsWith("sessions/", StringComparison.Ordinal))
+        {
+            return (sessionDir, relativePath["sessions/".Length..]);
+        }
+
+        // Legacy/fallback: try each base directory in order.
+        return (groupDir, relativePath);
     }
 
     private static void ValidateWithinBase(string baseDirectory, string fullPath)
@@ -126,18 +137,18 @@ public sealed class WorkspaceFileService
         return !relativePath.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathFullyQualified(relativePath);
     }
 
-    private static WorkspaceTreeEntryDto BuildTreeEntry(DirectoryInfo directory, string rootLabel, string rootPath)
+    private static WorkspaceTreeEntryDto BuildTreeEntry(DirectoryInfo directory, string rootLabel, string rootPrefix, string rootPath)
     {
         return new WorkspaceTreeEntryDto(
             rootLabel,
-            string.Empty,
+            rootPrefix,
             IsDirectory: true,
             SizeBytes: null,
             LastModified: new DateTimeOffset(directory.LastWriteTimeUtc, TimeSpan.Zero),
-            Children: BuildChildren(directory, rootPath));
+            Children: BuildChildren(directory, rootPrefix, rootPath));
     }
 
-    private static IReadOnlyList<WorkspaceTreeEntryDto> BuildChildren(DirectoryInfo directory, string rootPath)
+    private static IReadOnlyList<WorkspaceTreeEntryDto> BuildChildren(DirectoryInfo directory, string rootPrefix, string rootPath)
     {
         List<WorkspaceTreeEntryDto> items = [];
 
@@ -145,20 +156,22 @@ public sealed class WorkspaceFileService
         {
             foreach (DirectoryInfo subDir in directory.EnumerateDirectories().OrderBy(d => d.Name))
             {
+                string childRelative = Path.GetRelativePath(rootPath, subDir.FullName);
                 items.Add(new WorkspaceTreeEntryDto(
                     subDir.Name,
-                    Path.GetRelativePath(rootPath, subDir.FullName),
+                    $"{rootPrefix}/{childRelative}",
                     IsDirectory: true,
                     SizeBytes: null,
                     LastModified: new DateTimeOffset(subDir.LastWriteTimeUtc, TimeSpan.Zero),
-                    Children: BuildChildren(subDir, rootPath)));
+                    Children: BuildChildren(subDir, rootPrefix, rootPath)));
             }
 
             foreach (FileInfo file in directory.EnumerateFiles().OrderBy(f => f.Name))
             {
+                string childRelative = Path.GetRelativePath(rootPath, file.FullName);
                 items.Add(new WorkspaceTreeEntryDto(
                     file.Name,
-                    Path.GetRelativePath(rootPath, file.FullName),
+                    $"{rootPrefix}/{childRelative}",
                     IsDirectory: false,
                     SizeBytes: file.Length,
                     LastModified: new DateTimeOffset(file.LastWriteTimeUtc, TimeSpan.Zero),

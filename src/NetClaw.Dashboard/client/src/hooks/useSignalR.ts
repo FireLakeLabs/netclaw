@@ -62,11 +62,11 @@ export function useSignalR(callbacks: SignalRCallbacks) {
   }, []);
 
   const subscribeToGroup = useCallback((groupFolder: string) => {
-    connectionRef.current?.invoke("SubscribeToGroup", groupFolder);
+    connectionRef.current?.invoke("SubscribeToGroup", groupFolder).catch(() => {});
   }, []);
 
   const unsubscribeFromGroup = useCallback((groupFolder: string) => {
-    connectionRef.current?.invoke("UnsubscribeFromGroup", groupFolder);
+    connectionRef.current?.invoke("UnsubscribeFromGroup", groupFolder).catch(() => {});
   }, []);
 
   return {

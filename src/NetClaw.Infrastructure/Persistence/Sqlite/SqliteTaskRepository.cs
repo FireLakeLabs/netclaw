@@ -36,6 +36,7 @@ public sealed class SqliteTaskRepository : ITaskRepository
 
     public async Task<IReadOnlyList<TaskRunLog>> GetRunLogsAsync(TaskId taskId, int limit = 50, CancellationToken cancellationToken = default)
     {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
         List<TaskRunLog> results = [];
 
         await using SqliteConnection connection = connectionFactory.OpenConnection();

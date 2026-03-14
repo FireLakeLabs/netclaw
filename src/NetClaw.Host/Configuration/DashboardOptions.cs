@@ -4,9 +4,9 @@ public sealed record DashboardOptions
 {
     public int Port { get; init; } = 5080;
 
-    public bool Enabled { get; init; } = true;
+    public bool Enabled { get; init; }
 
-    public string BindAddress { get; init; } = "0.0.0.0";
+    public string BindAddress { get; init; } = "127.0.0.1";
 
     public void Validate()
     {

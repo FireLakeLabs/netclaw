@@ -37,8 +37,9 @@ public static class DashboardEndpoints
             string? group,
             CancellationToken ct) =>
         {
+            int clampedLimit = Math.Clamp(limit ?? 100, 1, 500);
             IReadOnlyList<AgentActivityEvent> events = await repo.GetRecentAsync(
-                limit ?? 100, since, group, ct);
+                clampedLimit, since, group, ct);
 
             return Results.Ok(events.Select(MapEvent).ToArray());
         });
@@ -78,10 +79,11 @@ public static class DashboardEndpoints
             string? assistantName,
             CancellationToken ct) =>
         {
+            int clampedLimit = Math.Clamp(limit ?? 200, 1, 500);
             IReadOnlyList<StoredMessage> msgs = await repo.GetMessagesSinceAsync(
                 new ChatJid(jid), since, assistantName ?? "__none__", ct);
 
-            IEnumerable<StoredMessage> result = limit.HasValue ? msgs.TakeLast(limit.Value) : msgs;
+            IEnumerable<StoredMessage> result = msgs.TakeLast(clampedLimit);
             return Results.Ok(result.Select(m => new MessageDto(
                 m.Id, m.ChatJid.Value, m.Sender, m.SenderName, m.Content,
                 m.Timestamp, m.IsFromMe, m.IsBotMessage)).ToArray());
@@ -110,7 +112,8 @@ public static class DashboardEndpoints
             int? limit,
             CancellationToken ct) =>
         {
-            IReadOnlyList<TaskRunLog> logs = await repo.GetRunLogsAsync(new TaskId(id), limit ?? 50, ct);
+            int clampedLimit = Math.Clamp(limit ?? 50, 1, 500);
+            IReadOnlyList<TaskRunLog> logs = await repo.GetRunLogsAsync(new TaskId(id), clampedLimit, ct);
             return Results.Ok(logs.Select(l => new TaskRunDto(
                 l.TaskId.Value, l.RunAt, (long)l.Duration.TotalMilliseconds,
                 l.Status.ToString(), l.Result, l.Error)).ToArray());
@@ -196,6 +199,10 @@ public static class DashboardEndpoints
             {
                 return Results.NotFound();
             }
+            catch (ArgumentException)
+            {
+                return Results.BadRequest("Invalid group folder.");
+            }
         });
 
         workspace.MapGet("/{groupFolder}/file", (WorkspaceFileService svc, string groupFolder, string path) =>
@@ -216,6 +223,10 @@ public static class DashboardEndpoints
             catch (InvalidOperationException)
             {
                 return Results.BadRequest("Invalid request.");
+            }
+            catch (ArgumentException)
+            {
+                return Results.BadRequest("Invalid group folder.");
             }
         });
     }
