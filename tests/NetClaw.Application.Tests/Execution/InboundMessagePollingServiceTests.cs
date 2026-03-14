@@ -179,6 +179,9 @@ public sealed class InboundMessagePollingServiceTests
         public Task<IReadOnlyList<StoredMessage>> GetMessagesSinceAsync(ChatJid chatJid, DateTimeOffset? since, string assistantName, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<StoredMessage>>(messages.Where(message => message.ChatJid == chatJid).ToList());
 
+        public Task<IReadOnlyList<StoredMessage>> GetChatHistoryAsync(ChatJid chatJid, int limit, DateTimeOffset? since = null, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<StoredMessage>>([]);
+
         public Task<IReadOnlyList<StoredMessage>> GetNewMessagesAsync(DateTimeOffset since, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<StoredMessage>>(messages.Where(message => message.Timestamp > since).ToList());
 

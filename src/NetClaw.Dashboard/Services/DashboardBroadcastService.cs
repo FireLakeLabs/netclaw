@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -17,6 +18,13 @@ public sealed class DashboardBroadcastService : BackgroundService
     private readonly IAgentEventSink eventSink;
     private readonly IReadOnlyList<IChannel> channels;
     private readonly ILogger<DashboardBroadcastService> logger;
+    private readonly Channel<(AgentActivityEventDto Dto, string? GroupFolder)> eventQueue =
+        Channel.CreateBounded<(AgentActivityEventDto, string?)>(new BoundedChannelOptions(1024)
+        {
+            FullMode = BoundedChannelFullMode.DropOldest,
+            SingleReader = true,
+            SingleWriter = false
+        });
 
     public DashboardBroadcastService(
         IHubContext<DashboardHub> hubContext,
@@ -32,10 +40,14 @@ public sealed class DashboardBroadcastService : BackgroundService
         this.logger = logger;
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
         eventSink.SetBroadcastCallback(BroadcastAgentEvent);
+        return Task.WhenAll(RunHeartbeatAsync(stoppingToken), RunEventQueueAsync(stoppingToken));
+    }
 
+    private async Task RunHeartbeatAsync(CancellationToken stoppingToken)
+    {
         using PeriodicTimer timer = new(TimeSpan.FromSeconds(2));
         while (await timer.WaitForNextTickAsync(stoppingToken))
         {
@@ -63,6 +75,35 @@ public sealed class DashboardBroadcastService : BackgroundService
         }
     }
 
+    private async Task RunEventQueueAsync(CancellationToken stoppingToken)
+    {
+        try
+        {
+            await foreach ((AgentActivityEventDto dto, string? groupFolder) in eventQueue.Reader.ReadAllAsync(stoppingToken))
+            {
+                try
+                {
+                    await hubContext.Clients.All.SendAsync("OnAgentEvent", dto, stoppingToken);
+                    if (!string.IsNullOrWhiteSpace(groupFolder))
+                    {
+                        await hubContext.Clients.Group($"group:{groupFolder}").SendAsync("OnAgentEvent", dto, stoppingToken);
+                    }
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to broadcast agent event to dashboard clients.");
+                }
+            }
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+        }
+    }
+
     private void BroadcastAgentEvent(AgentActivityEvent activityEvent)
     {
         AgentActivityEventDto dto = new(
@@ -79,22 +120,9 @@ public sealed class DashboardBroadcastService : BackgroundService
             activityEvent.ObservedAt,
             activityEvent.CapturedAt);
 
-        _ = BroadcastAgentEventCoreAsync(dto, activityEvent.GroupFolder);
-    }
-
-    private async Task BroadcastAgentEventCoreAsync(AgentActivityEventDto dto, string? groupFolder)
-    {
-        try
+        if (!eventQueue.Writer.TryWrite((dto, activityEvent.GroupFolder)))
         {
-            await hubContext.Clients.All.SendAsync("OnAgentEvent", dto);
-            if (!string.IsNullOrWhiteSpace(groupFolder))
-            {
-                await hubContext.Clients.Group($"group:{groupFolder}").SendAsync("OnAgentEvent", dto);
-            }
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Failed to broadcast agent event to dashboard clients.");
+            logger.LogDebug("Agent event broadcast queue is closed; event dropped.");
         }
     }
 
