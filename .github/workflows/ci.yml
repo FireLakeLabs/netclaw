@@ -30,5 +30,22 @@ jobs:
       - name: Build
         run: dotnet build NetClaw.slnx --no-restore
 
+      - name: Check for flaky test patterns
+        run: |
+          # Fail if Task.Delay is used for synchronization in unit tests.
+          # Legitimate uses: polling loops with deadlines, infinite-delay-until-cancelled fakes,
+          # and integration tests (which may need settling time) are excluded.
+          hits=$(grep -rn 'Task\.Delay' tests/ --include='*.cs' \
+            --exclude-dir='NetClaw.IntegrationTests' \
+            | grep -v 'Timeout\.InfiniteTimeSpan' \
+            | grep -v 'while.*deadline' \
+            | grep -v '// polling' \
+            || true)
+          if [ -n "$hits" ]; then
+            echo "$hits"
+            echo '::error::Task.Delay found in unit tests. Use deterministic synchronization (TaskCompletionSource, SemaphoreSlim, ManualResetEventSlim) instead of arbitrary delays.'
+            exit 1
+          fi
+
       - name: Test
-        run: dotnet test NetClaw.slnx --no-build
+        run: dotnet test NetClaw.slnx --no-build --blame-hang-timeout 30s

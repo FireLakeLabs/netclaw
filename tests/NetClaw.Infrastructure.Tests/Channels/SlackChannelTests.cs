@@ -330,9 +330,9 @@ public sealed class SlackChannelTests
     private static async Task WaitForEnvelopeProcessingAsync(FakeSlackSocketModeConnection connection, int expectedCount)
     {
         DateTime deadline = DateTime.UtcNow.AddSeconds(5);
-        while (connection.AcknowledgedEnvelopeIds.Count < expectedCount && DateTime.UtcNow < deadline)
+        while (connection.AcknowledgedEnvelopeIds.Count < expectedCount && DateTime.UtcNow < deadline) // polling
         {
-            await Task.Delay(10);
+            await Task.Delay(10); // polling interval
         }
 
         Assert.True(
@@ -340,7 +340,7 @@ public sealed class SlackChannelTests
             $"Expected {expectedCount} acknowledged envelopes but got {connection.AcknowledgedEnvelopeIds.Count} within timeout.");
 
         // Yield to allow HandleEnvelopeAsync to complete after the ack.
-        await Task.Delay(20);
+        await Task.Delay(20); // polling settle
     }
 
     private sealed class FakeSlackSocketModeClient : ISlackSocketModeClient

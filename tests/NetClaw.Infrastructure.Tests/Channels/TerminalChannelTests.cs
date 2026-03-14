@@ -26,7 +26,7 @@ public sealed class TerminalChannelTests
             output);
 
         await channel.ConnectAsync();
-        await Task.Delay(50);
+        await channel.ReadLoopCompletion!;
 
         List<ChannelMetadataEvent> metadata = [];
         List<ChannelMessage> messages = [];
@@ -68,7 +68,7 @@ public sealed class TerminalChannelTests
             output);
 
         await channel.ConnectAsync();
-        await Task.Delay(50);
+        await channel.ReadyTask;
         await channel.SendMessageAsync(new ChatJid("team@jid"), "assistant reply");
 
         string expected = $"you> \rbot> assistant reply{Environment.NewLine}you> ";
@@ -97,7 +97,7 @@ public sealed class TerminalChannelTests
             output);
 
         await channel.ConnectAsync();
-        await Task.Delay(50);
+        await channel.ReadLoopCompletion!;
         await channel.PollInboundAsync((_, _) => Task.CompletedTask, (_, _) => Task.CompletedTask);
 
         Assert.DoesNotContain("you> ", output.ToString(), StringComparison.Ordinal);

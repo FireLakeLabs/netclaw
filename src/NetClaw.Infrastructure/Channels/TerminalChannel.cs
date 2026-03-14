@@ -14,6 +14,7 @@ public sealed class TerminalChannel : IInboundChannel
     private readonly TextWriter output;
     private readonly SemaphoreSlim outputLock = new(1, 1);
     private readonly ConcurrentQueue<StoredMessage> pendingMessages = new();
+    private readonly TaskCompletionSource readySignal = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private CancellationTokenSource? readLoopCancellation;
     private Task? readLoopTask;
     private bool isConnected;
@@ -34,6 +35,10 @@ public sealed class TerminalChannel : IInboundChannel
     }
 
     public ChannelName Name => new("terminal");
+
+    internal Task ReadyTask => readySignal.Task;
+
+    internal Task? ReadLoopCompletion => readLoopTask;
 
     public bool IsConnected
     {
@@ -157,6 +162,7 @@ public sealed class TerminalChannel : IInboundChannel
         while (!cancellationToken.IsCancellationRequested)
         {
             await WritePromptAsync(cancellationToken);
+            readySignal.TrySetResult();
 
             string? line;
             try
