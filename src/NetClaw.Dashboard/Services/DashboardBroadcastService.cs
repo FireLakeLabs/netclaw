@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using NetClaw.Application.Execution;
 using NetClaw.Application.Observability;
 using NetClaw.Dashboard.Hubs;
@@ -15,17 +16,20 @@ public sealed class DashboardBroadcastService : BackgroundService
     private readonly GroupExecutionQueue executionQueue;
     private readonly IAgentEventSink eventSink;
     private readonly IReadOnlyList<IChannel> channels;
+    private readonly ILogger<DashboardBroadcastService> logger;
 
     public DashboardBroadcastService(
         IHubContext<DashboardHub> hubContext,
         GroupExecutionQueue executionQueue,
         IAgentEventSink eventSink,
-        IReadOnlyList<IChannel> channels)
+        IReadOnlyList<IChannel> channels,
+        ILogger<DashboardBroadcastService> logger)
     {
         this.hubContext = hubContext;
         this.executionQueue = executionQueue;
         this.eventSink = eventSink;
         this.channels = channels;
+        this.logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -54,6 +58,7 @@ public sealed class DashboardBroadcastService : BackgroundService
             }
             catch
             {
+                logger.LogWarning("Failed to send periodic heartbeat to dashboard clients.");
             }
         }
     }
@@ -74,10 +79,22 @@ public sealed class DashboardBroadcastService : BackgroundService
             activityEvent.ObservedAt,
             activityEvent.CapturedAt);
 
-        _ = hubContext.Clients.All.SendAsync("OnAgentEvent", dto);
-        if (!string.IsNullOrWhiteSpace(activityEvent.GroupFolder))
+        _ = BroadcastAgentEventCoreAsync(dto, activityEvent.GroupFolder);
+    }
+
+    private async Task BroadcastAgentEventCoreAsync(AgentActivityEventDto dto, string? groupFolder)
+    {
+        try
         {
-            _ = hubContext.Clients.Group($"group:{activityEvent.GroupFolder}").SendAsync("OnAgentEvent", dto);
+            await hubContext.Clients.All.SendAsync("OnAgentEvent", dto);
+            if (!string.IsNullOrWhiteSpace(groupFolder))
+            {
+                await hubContext.Clients.Group($"group:{groupFolder}").SendAsync("OnAgentEvent", dto);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to broadcast agent event to dashboard clients.");
         }
     }
 

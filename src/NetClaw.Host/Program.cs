@@ -37,17 +37,17 @@ public static class Program
             {
                 kestrel.Listen(System.Net.IPAddress.Parse(dashboardOptions.BindAddress), dashboardOptions.Port);
             });
-        }
 
-        WebApplication app = builder.Build();
-
-        if (dashboardOptions.Enabled)
-        {
+            WebApplication app = builder.Build();
             app.UseNetClawDashboardSpa();
             app.MapNetClawDashboard();
+            await app.RunAsync();
         }
-
-        await app.RunAsync();
+        else
+        {
+            IHost host = CreateHostBuilder(args).Build();
+            await host.RunAsync();
+        }
     }
 
     private static DashboardOptions CreateDashboardOptions(Microsoft.Extensions.Configuration.IConfiguration configuration)

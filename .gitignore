@@ -55,6 +55,7 @@ TestResult.xml
 # Node / Frontend
 node_modules/
 src/NetClaw.Dashboard/client/dist/
+*.tsbuildinfo
 
 # Generated SPA static files (rebuilt from client/)
 src/NetClaw.Dashboard/wwwroot/

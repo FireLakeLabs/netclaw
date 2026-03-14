@@ -19,5 +19,10 @@ public sealed record DashboardOptions
         {
             throw new InvalidOperationException("Dashboard bind address is required.");
         }
+
+        if (!System.Net.IPAddress.TryParse(BindAddress, out _))
+        {
+            throw new InvalidOperationException($"Dashboard bind address '{BindAddress}' is not a valid IP address. Use an IPv4 (e.g. 0.0.0.0) or IPv6 (e.g. ::) address.");
+        }
     }
 }

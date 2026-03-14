@@ -30,9 +30,9 @@ export function WorkspaceDetailPage() {
             <div className="text-sm max-h-[70vh] overflow-y-auto">
               {tree.map((entry) => (
                 <TreeNode
-                  key={entry.name}
+                  key={entry.relativePath || entry.name}
                   entry={entry}
-                  path={entry.name}
+                  path={entry.relativePath || entry.name}
                   selectedFile={selectedFile}
                   onSelect={setSelectedFile}
                 />
@@ -94,9 +94,9 @@ function TreeNode({
         </button>
         {expanded && entry.children?.map((child) => (
           <TreeNode
-            key={child.name}
+            key={child.relativePath}
             entry={child}
-            path={`${path}/${child.name}`}
+            path={child.relativePath}
             selectedFile={selectedFile}
             onSelect={onSelect}
             depth={depth + 1}

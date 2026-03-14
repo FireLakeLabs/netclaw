@@ -13,13 +13,14 @@ public interface IAgentEventSink
     void SetBroadcastCallback(Action<AgentActivityEvent> callback);
 }
 
-public sealed class AgentEventSink : IAgentEventSink, IDisposable
+public sealed class AgentEventSink : IAgentEventSink, IAsyncDisposable
 {
     private readonly Channel<AgentActivityEvent> buffer;
     private readonly IAgentEventRepository repository;
     private readonly CancellationTokenSource disposalTokenSource;
     private readonly Task consumerTask;
     private Action<AgentActivityEvent>? broadcastCallback;
+    private long nextBroadcastId;
 
     public AgentEventSink(IAgentEventRepository repository)
     {
@@ -37,7 +38,7 @@ public sealed class AgentEventSink : IAgentEventSink, IDisposable
     public void Record(ContainerStreamEvent streamEvent, GroupFolder groupFolder, ChatJid chatJid, bool isScheduledTask, string? taskId)
     {
         AgentActivityEvent activityEvent = new(
-            id: 0,
+            id: Interlocked.Increment(ref nextBroadcastId),
             groupFolder: groupFolder.Value,
             chatJid: chatJid.Value,
             sessionId: streamEvent.Output.NewSessionId?.Value,
@@ -59,10 +60,18 @@ public sealed class AgentEventSink : IAgentEventSink, IDisposable
         broadcastCallback = callback;
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         buffer.Writer.TryComplete();
-        disposalTokenSource.Cancel();
+        await disposalTokenSource.CancelAsync();
+        try
+        {
+            await consumerTask;
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
         disposalTokenSource.Dispose();
     }
 

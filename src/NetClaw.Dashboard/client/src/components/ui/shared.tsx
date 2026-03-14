@@ -1,5 +1,7 @@
+import type { ReactNode } from "react";
+
 interface BadgeProps {
-  children: React.ReactNode;
+  children: ReactNode;
   variant?: "default" | "success" | "warning" | "error" | "info";
   className?: string;
 }
@@ -23,10 +25,10 @@ export function Badge({ children, variant = "default", className = "" }: BadgePr
 }
 
 interface CardProps {
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
   title?: string;
-  action?: React.ReactNode;
+  action?: ReactNode;
 }
 
 export function Card({ children, className = "", title, action }: CardProps) {

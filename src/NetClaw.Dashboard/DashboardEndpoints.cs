@@ -205,9 +205,17 @@ public static class DashboardEndpoints
                 WorkspaceFileDto? file = svc.ReadFile(new GroupFolder(groupFolder), path);
                 return file is null ? Results.NotFound() : Results.Ok(file);
             }
-            catch (InvalidOperationException)
+            catch (InvalidOperationException ex) when (ex.Message.Contains("not allowed", StringComparison.OrdinalIgnoreCase))
             {
                 return Results.BadRequest("Path is not allowed.");
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("size", StringComparison.OrdinalIgnoreCase))
+            {
+                return Results.Json(new { error = ex.Message }, statusCode: 413);
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.BadRequest("Invalid request.");
             }
         });
     }
