@@ -212,6 +212,9 @@ public sealed class InboundMessagePollingServiceTests
         public Task<RouterStateEntry?> GetAsync(string key, CancellationToken cancellationToken = default)
             => Task.FromResult(Entries.TryGetValue(key, out RouterStateEntry? entry) ? entry : null);
 
+        public Task<IReadOnlyList<RouterStateEntry>> GetAllAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<RouterStateEntry>>(Entries.Values.ToList());
+
         public Task SetAsync(RouterStateEntry entry, CancellationToken cancellationToken = default)
         {
             Entries[entry.Key] = entry;

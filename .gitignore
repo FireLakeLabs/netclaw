@@ -51,4 +51,16 @@ CodeCoverage/
 # NUnit
 *.VisualState.xml
 TestResult.xml
+
+# Node / Frontend
+node_modules/
+src/NetClaw.Dashboard/client/dist/
+
+# Generated SPA static files (rebuilt from client/)
+src/NetClaw.Dashboard/wwwroot/
+
+# SQLite databases
+*.db
+*.db-shm
+*.db-wal
 nunit-*.xml

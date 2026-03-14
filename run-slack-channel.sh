@@ -19,7 +19,7 @@ MESSAGE_LOOP_POLL_INTERVAL="${NETCLAW_MESSAGE_LOOP_POLL_INTERVAL:-00:00:01}"
 MESSAGE_LOOP_TIMEZONE="${NETCLAW_MESSAGE_LOOP_TIMEZONE:-UTC}"
 COPILOT_USE_LOGGED_IN_USER="${NETCLAW_COPILOT_USE_LOGGED_IN_USER:-true}"
 INTERACTIVE_IDLE_TIMEOUT="${NETCLAW_INTERACTIVE_IDLE_TIMEOUT:-00:00:30}"
-REQUIRE_TRIGGER="${NETCLAW_REQUIRE_TRIGGER:-true}"
+REQUIRE_TRIGGER="${NETCLAW_REQUIRE_TRIGGER:-false}"
 
 if [[ -z "$CHAT_JID" ]]; then
 	echo "NETCLAW_CHAT_JID is required and should be the Slack conversation ID (for example C..., G..., or D...)." >&2
@@ -46,11 +46,11 @@ register_args=(
 	--folder "$GROUP_FOLDER"
 )
 
-if [[ "${REQUIRE_TRIGGER,,}" != "true" ]]; then
+if [[ "${REQUIRE_TRIGGER,,}" == "true" ]]; then
+	trigger_mode="required ($AGENT_TRIGGER)"
+else
 	register_args+=(--no-trigger-required)
 	trigger_mode="disabled"
-else
-	trigger_mode="required ($AGENT_TRIGGER)"
 fi
 
 "${register_args[@]}"

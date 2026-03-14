@@ -85,7 +85,26 @@ public sealed class SqliteSchemaInitializer
                 requires_trigger INTEGER DEFAULT 1,
                 is_main INTEGER DEFAULT 0
             );
+            """,
             """
+            CREATE TABLE IF NOT EXISTS agent_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                group_folder TEXT NOT NULL,
+                chat_jid TEXT NOT NULL,
+                session_id TEXT,
+                event_kind TEXT NOT NULL,
+                content TEXT,
+                tool_name TEXT,
+                error TEXT,
+                is_scheduled_task INTEGER NOT NULL DEFAULT 0,
+                task_id TEXT,
+                observed_at TEXT NOT NULL,
+                captured_at TEXT NOT NULL
+            );
+            """,
+            "CREATE INDEX IF NOT EXISTS idx_agent_events_observed_at ON agent_events(observed_at);",
+            "CREATE INDEX IF NOT EXISTS idx_agent_events_group_folder ON agent_events(group_folder);",
+            "CREATE INDEX IF NOT EXISTS idx_agent_events_session_id ON agent_events(session_id);"
         ];
 
         foreach (string statement in statements)

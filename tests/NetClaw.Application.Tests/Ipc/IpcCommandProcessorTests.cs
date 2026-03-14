@@ -122,5 +122,8 @@ public sealed class IpcCommandProcessorTests
             => Task.FromResult<IReadOnlyList<ScheduledTask>>(Tasks);
 
         public Task UpdateAsync(ScheduledTask task, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<IReadOnlyList<TaskRunLog>> GetRunLogsAsync(TaskId taskId, int limit = 50, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<TaskRunLog>>([]);
     }
 }

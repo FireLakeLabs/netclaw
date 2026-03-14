@@ -172,6 +172,9 @@ public sealed class TaskSchedulerServiceTests
             Tasks[index] = task;
             return Task.CompletedTask;
         }
+
+        public Task<IReadOnlyList<TaskRunLog>> GetRunLogsAsync(TaskId taskId, int limit = 50, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<TaskRunLog>>(RunLogs.Where(l => l.TaskId == taskId).Take(limit).ToList());
     }
 
     private sealed class InMemoryGroupRepository : IGroupRepository

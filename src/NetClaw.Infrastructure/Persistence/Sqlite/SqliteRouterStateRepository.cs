@@ -29,6 +29,23 @@ public sealed class SqliteRouterStateRepository : IRouterStateRepository
         return new RouterStateEntry(reader.GetString(0), reader.GetString(1));
     }
 
+    public async Task<IReadOnlyList<RouterStateEntry>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        List<RouterStateEntry> results = [];
+
+        await using SqliteConnection connection = connectionFactory.OpenConnection();
+        await using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = "SELECT key, value FROM router_state ORDER BY key;";
+
+        await using SqliteDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            results.Add(new RouterStateEntry(reader.GetString(0), reader.GetString(1)));
+        }
+
+        return results;
+    }
+
     public async Task SetAsync(RouterStateEntry entry, CancellationToken cancellationToken = default)
     {
         await using SqliteConnection connection = connectionFactory.OpenConnection();

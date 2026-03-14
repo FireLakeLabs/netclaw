@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using NetClaw.Application.Observability;
 using NetClaw.Application.Channels;
 using NetClaw.Application.Execution;
 using NetClaw.Application.Formatting;
@@ -101,6 +102,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ISessionRepository, SqliteSessionRepository>();
         services.AddSingleton<ITaskRepository, SqliteTaskRepository>();
         services.AddSingleton<IRouterStateRepository, SqliteRouterStateRepository>();
+        services.AddSingleton<IAgentEventRepository, SqliteAgentEventRepository>();
+        services.AddSingleton<IAgentEventSink, AgentEventSink>();
         services.AddSingleton<IContainerRuntime, DockerContainerRuntime>();
         services.AddSingleton<IAgentWorkspaceBuilder, NetClawAgentWorkspaceBuilder>();
         services.AddSingleton<IAgentToolRegistry, NetClawAgentToolRegistry>();
@@ -156,6 +159,7 @@ public static class ServiceCollectionExtensions
             serviceProvider.GetRequiredService<IGroupExecutionQueue>(),
             serviceProvider.GetRequiredService<ActiveGroupSessionRegistry>(),
             serviceProvider.GetRequiredService<IReadOnlyList<IChannel>>(),
+            serviceProvider.GetRequiredService<IAgentEventSink>(),
             serviceProvider.GetRequiredService<AssistantIdentityOptions>().Name,
             serviceProvider.GetRequiredService<MessageLoopOptions>().Timezone));
         services.AddSingleton(serviceProvider =>

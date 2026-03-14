@@ -47,11 +47,15 @@ public interface ITaskRepository
     Task UpdateAsync(ScheduledTask task, CancellationToken cancellationToken = default);
 
     Task AppendRunLogAsync(TaskRunLog log, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<TaskRunLog>> GetRunLogsAsync(TaskId taskId, int limit = 50, CancellationToken cancellationToken = default);
 }
 
 public interface IRouterStateRepository
 {
     Task<RouterStateEntry?> GetAsync(string key, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<RouterStateEntry>> GetAllAsync(CancellationToken cancellationToken = default);
 
     Task SetAsync(RouterStateEntry entry, CancellationToken cancellationToken = default);
 }

@@ -34,6 +34,31 @@ public sealed class SqliteTaskRepository : ITaskRepository
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<TaskRunLog>> GetRunLogsAsync(TaskId taskId, int limit = 50, CancellationToken cancellationToken = default)
+    {
+        List<TaskRunLog> results = [];
+
+        await using SqliteConnection connection = connectionFactory.OpenConnection();
+        await using SqliteCommand command = connection.CreateCommand();
+        command.CommandText = "SELECT task_id, run_at, duration_ms, status, result, error FROM task_run_logs WHERE task_id = $taskId ORDER BY run_at DESC LIMIT $limit;";
+        command.Parameters.AddWithValue("$taskId", taskId.Value);
+        command.Parameters.AddWithValue("$limit", limit);
+
+        await using SqliteDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            results.Add(new TaskRunLog(
+                new TaskId(reader.GetString(0)),
+                DateTimeOffset.Parse(reader.GetString(1), null, System.Globalization.DateTimeStyles.RoundtripKind),
+                TimeSpan.FromMilliseconds(reader.GetInt64(2)),
+                Enum.Parse<ContainerRunStatus>(reader.GetString(3), ignoreCase: true),
+                reader.IsDBNull(4) ? null : reader.GetString(4),
+                reader.IsDBNull(5) ? null : reader.GetString(5)));
+        }
+
+        return results;
+    }
+
     public async Task CreateAsync(ScheduledTask task, CancellationToken cancellationToken = default)
     {
         await using SqliteConnection connection = connectionFactory.OpenConnection();
