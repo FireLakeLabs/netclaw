@@ -99,7 +99,7 @@ public sealed class WorkspaceFileService
             return fullPath;
         }
 
-        throw new InvalidOperationException("Path escapes allowed workspace directories.");
+        throw new WorkspacePathTraversalException("Path escapes allowed workspace directories.");
     }
 
     private static (string BaseDir, string InnerPath) StripRootPrefix(string relativePath, string groupDir, string workspaceDir, string sessionDir)
@@ -127,7 +127,7 @@ public sealed class WorkspaceFileService
     {
         if (!IsWithinBase(baseDirectory, fullPath))
         {
-            throw new InvalidOperationException($"Path escapes base directory: {fullPath}");
+            throw new WorkspacePathTraversalException($"Path escapes base directory: {fullPath}");
         }
     }
 

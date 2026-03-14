@@ -11,6 +11,8 @@ public interface IMessageRepository
 
     Task<IReadOnlyList<StoredMessage>> GetMessagesSinceAsync(ChatJid chatJid, DateTimeOffset? since, string assistantName, CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<StoredMessage>> GetChatHistoryAsync(ChatJid chatJid, int limit, DateTimeOffset? since = null, CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<ChatInfo>> GetAllChatsAsync(CancellationToken cancellationToken = default);
 
     Task StoreChatMetadataAsync(ChatInfo chatInfo, CancellationToken cancellationToken = default);

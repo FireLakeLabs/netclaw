@@ -76,14 +76,12 @@ public static class DashboardEndpoints
             string jid,
             DateTimeOffset? since,
             int? limit,
-            string? assistantName,
             CancellationToken ct) =>
         {
             int clampedLimit = Math.Clamp(limit ?? 200, 1, 500);
-            IReadOnlyList<StoredMessage> msgs = await repo.GetMessagesSinceAsync(
-                new ChatJid(jid), since, assistantName ?? "__none__", ct);
+            IReadOnlyList<StoredMessage> result = await repo.GetChatHistoryAsync(
+                new ChatJid(jid), clampedLimit, since, ct);
 
-            IEnumerable<StoredMessage> result = msgs.TakeLast(clampedLimit);
             return Results.Ok(result.Select(m => new MessageDto(
                 m.Id, m.ChatJid.Value, m.Sender, m.SenderName, m.Content,
                 m.Timestamp, m.IsFromMe, m.IsBotMessage)).ToArray());
@@ -212,7 +210,7 @@ public static class DashboardEndpoints
                 WorkspaceFileDto? file = svc.ReadFile(new GroupFolder(groupFolder), path);
                 return file is null ? Results.NotFound() : Results.Ok(file);
             }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("not allowed", StringComparison.OrdinalIgnoreCase))
+            catch (WorkspacePathTraversalException)
             {
                 return Results.BadRequest("Path is not allowed.");
             }

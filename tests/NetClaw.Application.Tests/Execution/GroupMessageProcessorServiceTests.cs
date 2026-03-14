@@ -464,6 +464,9 @@ public sealed class GroupMessageProcessorServiceTests
                 ? (IReadOnlyList<StoredMessage>)groupMessages.Where(message => since is null || message.Timestamp > since).ToList()
                 : []);
 
+        public Task<IReadOnlyList<StoredMessage>> GetChatHistoryAsync(ChatJid chatJid, int limit, DateTimeOffset? since = null, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<StoredMessage>>([]);
+
         public Task<IReadOnlyList<StoredMessage>> GetNewMessagesAsync(DateTimeOffset since, CancellationToken cancellationToken = default)
             => Task.FromResult<IReadOnlyList<StoredMessage>>([]);
 
