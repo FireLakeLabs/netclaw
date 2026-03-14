@@ -84,10 +84,6 @@ public sealed class DashboardBroadcastService : BackgroundService
                 try
                 {
                     await hubContext.Clients.All.SendAsync("OnAgentEvent", dto, stoppingToken);
-                    if (!string.IsNullOrWhiteSpace(groupFolder))
-                    {
-                        await hubContext.Clients.Group($"group:{groupFolder}").SendAsync("OnAgentEvent", dto, stoppingToken);
-                    }
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {

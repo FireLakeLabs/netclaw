@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using Microsoft.Extensions.Logging;
 using NetClaw.Domain.Contracts.Containers;
 using NetClaw.Domain.Contracts.Persistence;
 using NetClaw.Domain.Entities;
@@ -17,14 +18,16 @@ public sealed class AgentEventSink : IAgentEventSink, IAsyncDisposable
 {
     private readonly Channel<AgentActivityEvent> buffer;
     private readonly IAgentEventRepository repository;
+    private readonly ILogger<AgentEventSink> logger;
     private readonly CancellationTokenSource disposalTokenSource;
     private readonly Task consumerTask;
     private Action<AgentActivityEvent>? broadcastCallback;
     private long nextBroadcastId;
 
-    public AgentEventSink(IAgentEventRepository repository)
+    public AgentEventSink(IAgentEventRepository repository, ILogger<AgentEventSink> logger)
     {
         this.repository = repository;
+        this.logger = logger;
         disposalTokenSource = new CancellationTokenSource();
         buffer = Channel.CreateBounded<AgentActivityEvent>(new BoundedChannelOptions(4096)
         {
@@ -103,9 +106,9 @@ public sealed class AgentEventSink : IAgentEventSink, IAsyncDisposable
                     {
                         await repository.StoreBatchAsync(batch, cancellationToken);
                     }
-                    catch
+                    catch (Exception ex) when (ex is not OperationCanceledException)
                     {
-                        // Persist failures must not crash the consumer loop.
+                        logger.LogWarning(ex, "Failed to persist {Count} agent event(s); events dropped.", batch.Count);
                     }
                 }
             }
