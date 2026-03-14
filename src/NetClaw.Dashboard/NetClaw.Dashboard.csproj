@@ -20,15 +20,15 @@
     <Content Include="wwwroot\**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <!-- Build frontend before .NET build (opt-in via BuildFrontend property) -->
-  <Target Name="BuildFrontend" BeforeTargets="Build" Condition="'$(BuildFrontend)' == 'true'">
+  <!-- Build frontend before .NET build (opt-in via BuildFrontend property, or auto when wwwroot is missing) -->
+  <Target Name="BuildFrontend" BeforeTargets="Build" Condition="'$(BuildFrontend)' == 'true' Or !Exists('wwwroot/index.html')">
     <Exec Command="npm ci" WorkingDirectory="client" />
     <Exec Command="npm run build" WorkingDirectory="client" />
     <RemoveDir Directories="wwwroot" />
     <ItemGroup>
-      <FrontendFiles Include="client\dist\**\*" />
+      <FrontendFiles Include="client/dist/**/*" />
     </ItemGroup>
-    <Copy SourceFiles="@(FrontendFiles)" DestinationFolder="wwwroot\%(RecursiveDir)" />
+    <Copy SourceFiles="@(FrontendFiles)" DestinationFolder="wwwroot/%(RecursiveDir)" />
   </Target>
 
 </Project>
