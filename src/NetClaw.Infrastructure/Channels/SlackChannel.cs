@@ -69,7 +69,8 @@ public sealed class SlackChannel : IInboundChannel
         {
             botUserId = (await slackClient.AuthTestAsync(cancellationToken)).UserId;
             logger.LogInformation("Slack channel authenticated as bot user {BotUserId}.", botUserId);
-            receiveLoopTask = Task.Run(() => ReceiveLoopAsync(receiveLoopCancellation!.Token), CancellationToken.None);
+            CancellationToken loopToken = receiveLoopCancellation!.Token;
+            receiveLoopTask = Task.Run(() => ReceiveLoopAsync(loopToken), CancellationToken.None);
         }
         catch
         {
