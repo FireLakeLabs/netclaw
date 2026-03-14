@@ -23,6 +23,7 @@ using NetClaw.Infrastructure.Configuration;
 using NetClaw.Infrastructure.FileSystem;
 using NetClaw.Infrastructure.Ipc;
 using NetClaw.Infrastructure.Paths;
+using NetClaw.Infrastructure.Persistence.FileSystem;
 using NetClaw.Infrastructure.Persistence.Sqlite;
 using NetClaw.Infrastructure.Runtime;
 using NetClaw.Infrastructure.Runtime.Agents;
@@ -97,7 +98,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(serviceProvider => new SqliteConnectionFactory($"Data Source={serviceProvider.GetRequiredService<HostPathOptions>().DatabasePath}"));
         services.AddSingleton<SqliteSchemaInitializer>();
 
-        services.AddSingleton<IMessageRepository, SqliteMessageRepository>();
+        services.AddSingleton<IMessageRepository>(serviceProvider =>
+            new FileSystemMessageRepository(serviceProvider.GetRequiredService<StorageOptions>().DataDirectory));
         services.AddSingleton<IGroupRepository, SqliteGroupRepository>();
         services.AddSingleton<ISessionRepository, SqliteSessionRepository>();
         services.AddSingleton<ITaskRepository, SqliteTaskRepository>();
