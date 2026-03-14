@@ -1,11 +1,11 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using NetClaw.Application.Observability;
 using NetClaw.Application.Channels;
 using NetClaw.Application.Execution;
 using NetClaw.Application.Formatting;
 using NetClaw.Application.Ipc;
+using NetClaw.Application.Observability;
 using NetClaw.Application.Routing;
 using NetClaw.Application.Scheduling;
 using NetClaw.Domain.Contracts.Agents;
