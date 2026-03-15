@@ -9,11 +9,10 @@ namespace NetClaw.Application.Tests.Routing;
 
 public sealed class ChannelOutboundRouterTests
 {
-    private readonly FakeMessageRepository messageRepo = new();
-
     [Fact]
     public async Task RouteAsync_SendsViaOwningConnectedChannel()
     {
+        FakeMessageRepository messageRepo = new();
         FakeChannel channel = new(new ChannelName("whatsapp"), owns: true, isConnected: true);
         ChannelOutboundRouter router = new(messageRepo, new NullMessageNotifier());
 
@@ -26,6 +25,7 @@ public sealed class ChannelOutboundRouterTests
     [Fact]
     public async Task RouteAsync_ThrowsWhenNoConnectedChannelOwnsTheChat()
     {
+        FakeMessageRepository messageRepo = new();
         FakeChannel channel = new(new ChannelName("whatsapp"), owns: false, isConnected: true);
         ChannelOutboundRouter router = new(messageRepo, new NullMessageNotifier());
 
@@ -35,6 +35,7 @@ public sealed class ChannelOutboundRouterTests
     [Fact]
     public async Task RouteAsync_StoresOutboundMessageInRepository()
     {
+        FakeMessageRepository messageRepo = new();
         FakeChannel channel = new(new ChannelName("whatsapp"), owns: true, isConnected: true);
         ChannelOutboundRouter router = new(messageRepo, new NullMessageNotifier());
 
