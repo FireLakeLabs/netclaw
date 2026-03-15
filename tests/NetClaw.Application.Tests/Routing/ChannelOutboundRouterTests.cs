@@ -1,3 +1,4 @@
+using NetClaw.Application.Observability;
 using NetClaw.Application.Routing;
 using NetClaw.Domain.Contracts.Channels;
 using NetClaw.Domain.Contracts.Persistence;
@@ -14,7 +15,7 @@ public sealed class ChannelOutboundRouterTests
     public async Task RouteAsync_SendsViaOwningConnectedChannel()
     {
         FakeChannel channel = new(new ChannelName("whatsapp"), owns: true, isConnected: true);
-        ChannelOutboundRouter router = new(messageRepo);
+        ChannelOutboundRouter router = new(messageRepo, new NullMessageNotifier());
 
         await router.RouteAsync([channel], new ChatJid("chat@jid"), "hello");
 
@@ -26,7 +27,7 @@ public sealed class ChannelOutboundRouterTests
     public async Task RouteAsync_ThrowsWhenNoConnectedChannelOwnsTheChat()
     {
         FakeChannel channel = new(new ChannelName("whatsapp"), owns: false, isConnected: true);
-        ChannelOutboundRouter router = new(messageRepo);
+        ChannelOutboundRouter router = new(messageRepo, new NullMessageNotifier());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => router.RouteAsync([channel], new ChatJid("chat@jid"), "hello"));
     }
@@ -35,7 +36,7 @@ public sealed class ChannelOutboundRouterTests
     public async Task RouteAsync_StoresOutboundMessageInRepository()
     {
         FakeChannel channel = new(new ChannelName("whatsapp"), owns: true, isConnected: true);
-        ChannelOutboundRouter router = new(messageRepo);
+        ChannelOutboundRouter router = new(messageRepo, new NullMessageNotifier());
 
         await router.RouteAsync([channel], new ChatJid("chat@jid"), "hello");
 

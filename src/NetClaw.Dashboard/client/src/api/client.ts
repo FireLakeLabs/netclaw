@@ -53,7 +53,6 @@ export function useChats() {
   return useQuery({
     queryKey: ["messages", "chats"],
     queryFn: () => fetchJson<ChatSummaryDto[]>("/api/messages/chats"),
-    refetchInterval: 15_000,
   });
 }
 
@@ -65,7 +64,6 @@ export function useChatMessages(jid: string, limit = 100) {
         `/api/messages/chats/${encodeURIComponent(jid)}?limit=${limit}`
       ),
     enabled: !!jid,
-    refetchInterval: 3_000,
   });
 }
 

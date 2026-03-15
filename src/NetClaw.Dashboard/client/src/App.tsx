@@ -39,10 +39,15 @@ function AppShell() {
     setHeartbeat(hb);
   }, []);
 
+  const onNewMessage = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["messages"] });
+  }, []);
+
   const { status } = useSignalR({
     onAgentEvent,
     onQueueStateChanged,
     onWorkerHeartbeat,
+    onNewMessage,
   });
 
   return (

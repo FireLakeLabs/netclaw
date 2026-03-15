@@ -1,3 +1,4 @@
+using NetClaw.Application.Observability;
 using NetClaw.Domain.Contracts.Channels;
 using NetClaw.Domain.Contracts.Persistence;
 using NetClaw.Domain.Contracts.Services;
@@ -6,7 +7,7 @@ using NetClaw.Domain.ValueObjects;
 
 namespace NetClaw.Application.Routing;
 
-public sealed class ChannelOutboundRouter(IMessageRepository messageRepository) : IOutboundRouter
+public sealed class ChannelOutboundRouter(IMessageRepository messageRepository, IMessageNotifier messageNotifier) : IOutboundRouter
 {
     private int sequence;
 
@@ -32,5 +33,6 @@ public sealed class ChannelOutboundRouter(IMessageRepository messageRepository) 
             isBotMessage: true);
 
         await messageRepository.StoreMessageAsync(outbound, cancellationToken);
+        messageNotifier.NotifyNewMessage(outbound);
     }
 }
