@@ -4,13 +4,13 @@ using Microsoft.Extensions.Logging;
 namespace NetClaw.Infrastructure.FileSystem;
 
 /// <summary>
-/// Sets restrictive Unix file permissions on sensitive directories during host initialization.
-/// On non-Unix platforms this is a no-op.
+/// Sets restrictive Unix-style file permissions on sensitive directories during host initialization on Linux and macOS.
+/// On other platforms this is a no-op.
 /// </summary>
 public static class DirectoryPermissions
 {
     /// <summary>
-    /// Sets owner-only permissions (700) on the given directory if running on a Unix-like OS.
+    /// Sets owner-only permissions (700) on the given directory if running on Linux or macOS.
     /// </summary>
     public static void RestrictToOwner(string directoryPath, ILogger? logger = null)
     {
@@ -39,9 +39,9 @@ public static class DirectoryPermissions
     }
 
     /// <summary>
-    /// Verifies that a directory has no group or other permissions set.
+    /// Verifies that a directory has no group or other permissions set on Linux or macOS.
     /// Returns true if permissions are acceptable, false if they are too open.
-    /// On non-Unix platforms, always returns true.
+    /// On other platforms, always returns true.
     /// </summary>
     public static bool VerifyOwnerOnly(string directoryPath, ILogger? logger = null)
     {
