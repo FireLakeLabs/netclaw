@@ -73,3 +73,4 @@ exec env \
 	NetClaw__Dashboard__Port="$DASHBOARD_PORT" \
 	NetClaw__Dashboard__BindAddress="$DASHBOARD_BIND_ADDRESS" \
 	dotnet run --project "$SCRIPT_DIR/src/NetClaw.Host" "$@"
+	

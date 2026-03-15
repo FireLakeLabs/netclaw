@@ -1,0 +1,40 @@
+# --- Security: sensitive runtime data ---
+# SQLite databases (contain message history, session state, credentials)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Runtime data directories
+data/
+store/
+groups/
+logs/
+
+# Environment files with resolved secrets
+.env
+.env.local
+.env.production
+
+# 1Password template is safe to commit (.env.tpl contains only op:// references)
+# !.env.tpl
+
+# Copilot config directory (may contain session tokens)
+data/copilot/
+
+# IPC command files
+data/ipc/
+
+# Downloaded file attachments
+data/files/
+
+# Agent workspaces (may contain generated secrets or sensitive output)
+data/agent-workspaces/
+data/sessions/
+
+# PID files
+*.pid
+
+# OS-specific
+.DS_Store
+Thumbs.db
