@@ -103,6 +103,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ITaskRepository, SqliteTaskRepository>();
         services.AddSingleton<IRouterStateRepository, SqliteRouterStateRepository>();
         services.AddSingleton<IAgentEventRepository, SqliteAgentEventRepository>();
+        services.AddSingleton<IFileAttachmentRepository, SqliteFileAttachmentRepository>();
         services.AddSingleton<IAgentEventSink, AgentEventSink>();
         services.AddSingleton<IContainerRuntime, DockerContainerRuntime>();
         services.AddSingleton<IAgentWorkspaceBuilder, NetClawAgentWorkspaceBuilder>();
@@ -161,8 +162,10 @@ public static class ServiceCollectionExtensions
             serviceProvider.GetRequiredService<ActiveGroupSessionRegistry>(),
             serviceProvider.GetRequiredService<IReadOnlyList<IChannel>>(),
             serviceProvider.GetRequiredService<IAgentEventSink>(),
+            serviceProvider.GetRequiredService<IFileAttachmentRepository>(),
             serviceProvider.GetRequiredService<AssistantIdentityOptions>().Name,
-            serviceProvider.GetRequiredService<MessageLoopOptions>().Timezone));
+            serviceProvider.GetRequiredService<MessageLoopOptions>().Timezone,
+            serviceProvider.GetRequiredService<StorageOptions>().GroupsDirectory));
         services.AddSingleton(serviceProvider =>
         {
             GroupExecutionQueue queue = new(maxConcurrentExecutions: 1);

@@ -162,6 +162,25 @@ public sealed class SlackSocketModeClient : ISlackSocketModeClient
             cancellationToken);
     }
 
+    public async Task DownloadFileAsync(string urlPrivate, string destinationPath, CancellationToken cancellationToken = default)
+    {
+        using HttpRequestMessage request = new(HttpMethod.Get, urlPrivate);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", options.BotToken);
+
+        using HttpResponseMessage response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        string? directory = Path.GetDirectoryName(destinationPath);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        await using Stream contentStream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        await using FileStream fileStream = new(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None);
+        await contentStream.CopyToAsync(fileStream, cancellationToken);
+    }
+
     private async Task<TResponse> SendAsync<TResponse>(HttpMethod method, string path, string token, object? body, CancellationToken cancellationToken)
     {
         using HttpRequestMessage request = new(method, BuildApiUri(path));

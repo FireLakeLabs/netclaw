@@ -413,7 +413,8 @@ public sealed class EndToEndIntegrationTests
                         MentionReplacement = "@Andy",
                         WorkingIndicatorText = "Evaluating..."
                     },
-                    slackClient);
+                    slackClient,
+                    NetClaw.Infrastructure.Configuration.StorageOptions.Create(projectRoot));
 
                 services.AddSingleton<IChannel>(slackChannel);
                 services.AddSingleton<IReadOnlyList<IChannel>>([slackChannel]);
@@ -698,6 +699,13 @@ public sealed class EndToEndIntegrationTests
 
         public Task<SlackUserInfo> GetUserInfoAsync(string userId, CancellationToken cancellationToken = default)
             => Task.FromResult(new SlackUserInfo(userId, $"User {userId}"));
+
+        public Task DownloadFileAsync(string urlPrivate, string destinationPath, CancellationToken cancellationToken = default)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+            File.WriteAllText(destinationPath, "fake file content");
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FakeSlackSocketModeConnection : ISlackSocketModeConnection

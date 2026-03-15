@@ -48,6 +48,14 @@ export interface MessageDto {
   timestamp: string;
   isFromMe: boolean;
   isBotMessage: boolean;
+  attachments: FileAttachmentDto[] | null;
+}
+
+export interface FileAttachmentDto {
+  fileId: string;
+  fileName: string;
+  fileSizeBytes: number;
+  mimeType: string | null;
 }
 
 export interface TaskDto {

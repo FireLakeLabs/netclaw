@@ -73,18 +73,50 @@ public static class DashboardEndpoints
 
         messages.MapGet("/chats/{jid}", async (
             IMessageRepository repo,
+            IFileAttachmentRepository fileRepo,
             string jid,
             DateTimeOffset? since,
             int? limit,
             CancellationToken ct) =>
         {
             int clampedLimit = Math.Clamp(limit ?? 200, 1, 500);
+            ChatJid chatJid = new(jid);
             IReadOnlyList<StoredMessage> result = await repo.GetChatHistoryAsync(
-                new ChatJid(jid), clampedLimit, since, ct);
+                chatJid, clampedLimit, since, ct);
 
-            return Results.Ok(result.Select(m => new MessageDto(
-                m.Id, m.ChatJid.Value, m.Sender, m.SenderName, m.Content,
-                m.Timestamp, m.IsFromMe, m.IsBotMessage)).ToArray());
+            List<string> messageIds = result.Select(m => m.Id).ToList();
+            IReadOnlyDictionary<string, IReadOnlyList<FileAttachment>> attachmentsByMessage =
+                await fileRepo.GetByMessagesAsync(messageIds, chatJid, ct);
+
+            return Results.Ok(result.Select(m =>
+            {
+                IReadOnlyList<FileAttachmentDto>? attachments = null;
+                if (attachmentsByMessage.TryGetValue(m.Id, out IReadOnlyList<FileAttachment>? files) && files.Count > 0)
+                {
+                    attachments = files.Select(f => new FileAttachmentDto(f.FileId, f.FileName, f.FileSize, f.MimeType)).ToArray();
+                }
+
+                return new MessageDto(
+                    m.Id, m.ChatJid.Value, m.Sender, m.SenderName, m.Content,
+                    m.Timestamp, m.IsFromMe, m.IsBotMessage, attachments);
+            }).ToArray());
+        });
+
+        api.MapGet("/files/{fileId}", async (
+            IFileAttachmentRepository fileRepo,
+            string fileId,
+            bool? download,
+            CancellationToken ct) =>
+        {
+            FileAttachment? attachment = await fileRepo.GetByFileIdAsync(fileId, ct);
+            if (attachment is null || !File.Exists(attachment.LocalPath))
+            {
+                return Results.NotFound();
+            }
+
+            string contentType = attachment.MimeType ?? "application/octet-stream";
+            string? downloadName = download == true ? attachment.FileName : null;
+            return Results.File(attachment.LocalPath, contentType, downloadName, enableRangeProcessing: true);
         });
     }
 
@@ -227,6 +259,49 @@ public static class DashboardEndpoints
                 return Results.BadRequest("Invalid group folder.");
             }
         });
+
+        workspace.MapGet("/{groupFolder}/raw", (WorkspaceFileService svc, string groupFolder, string path) =>
+        {
+            try
+            {
+                string? fullPath = svc.ResolveRawFilePath(new GroupFolder(groupFolder), path);
+                if (fullPath is null)
+                {
+                    return Results.NotFound();
+                }
+
+                string contentType = ResolveContentType(fullPath);
+                return Results.File(fullPath, contentType, enableRangeProcessing: true);
+            }
+            catch (WorkspacePathTraversalException)
+            {
+                return Results.BadRequest("Path is not allowed.");
+            }
+            catch (InvalidOperationException)
+            {
+                return Results.BadRequest("Invalid request.");
+            }
+            catch (ArgumentException)
+            {
+                return Results.BadRequest("Invalid group folder.");
+            }
+        });
+    }
+
+    private static string ResolveContentType(string filePath)
+    {
+        string extension = Path.GetExtension(filePath).ToLowerInvariant();
+        return extension switch
+        {
+            ".png" => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".gif" => "image/gif",
+            ".webp" => "image/webp",
+            ".svg" => "image/svg+xml",
+            ".bmp" => "image/bmp",
+            ".ico" => "image/x-icon",
+            _ => "application/octet-stream"
+        };
     }
 
     private static AgentActivityEventDto MapEvent(AgentActivityEvent e)

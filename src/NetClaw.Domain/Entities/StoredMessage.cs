@@ -4,7 +4,7 @@ namespace NetClaw.Domain.Entities;
 
 public sealed record StoredMessage
 {
-    public StoredMessage(string id, ChatJid chatJid, string sender, string senderName, string content, DateTimeOffset timestamp, bool isFromMe = false, bool isBotMessage = false)
+    public StoredMessage(string id, ChatJid chatJid, string sender, string senderName, string content, DateTimeOffset timestamp, bool isFromMe = false, bool isBotMessage = false, IReadOnlyList<FileAttachment>? attachments = null)
     {
         if (string.IsNullOrWhiteSpace(id))
         {
@@ -21,19 +21,21 @@ public sealed record StoredMessage
             throw new ArgumentException("Sender name is required.", nameof(senderName));
         }
 
-        if (string.IsNullOrWhiteSpace(content))
+        bool hasAttachments = attachments is { Count: > 0 };
+        if (string.IsNullOrWhiteSpace(content) && !hasAttachments)
         {
-            throw new ArgumentException("Message content is required.", nameof(content));
+            throw new ArgumentException("Message content is required when there are no attachments.", nameof(content));
         }
 
         Id = id.Trim();
         ChatJid = chatJid;
         Sender = sender.Trim();
         SenderName = senderName.Trim();
-        Content = content;
+        Content = content ?? string.Empty;
         Timestamp = timestamp;
         IsFromMe = isFromMe;
         IsBotMessage = isBotMessage;
+        Attachments = attachments ?? [];
     }
 
     public string Id { get; }
@@ -51,4 +53,6 @@ public sealed record StoredMessage
     public bool IsFromMe { get; }
 
     public bool IsBotMessage { get; }
+
+    public IReadOnlyList<FileAttachment> Attachments { get; }
 }

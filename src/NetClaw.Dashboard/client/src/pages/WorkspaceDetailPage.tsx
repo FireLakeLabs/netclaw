@@ -1,15 +1,30 @@
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Folder, FileText, ChevronRight, ChevronDown } from "lucide-react";
 import { Card, Spinner, EmptyState, PageHeader } from "@/components/ui/shared";
+import { ImageLightbox } from "@/components/ui/ImageLightbox";
 import { useWorkspaceTree, useWorkspaceFile } from "@/api/client";
 import { usePageState } from "@/hooks/usePageState";
 import type { WorkspaceTreeEntryDto } from "@/api/types";
+
+const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico"]);
+
+function isImageFile(path: string): boolean {
+  const ext = path.substring(path.lastIndexOf(".")).toLowerCase();
+  return IMAGE_EXTENSIONS.has(ext);
+}
+
+function rawFileUrl(folder: string, path: string): string {
+  return `/api/workspace/${encodeURIComponent(folder)}/raw?path=${encodeURIComponent(path)}`;
+}
 
 export function WorkspaceDetailPage() {
   const { folder } = useParams<{ folder: string }>();
   const { data: tree, isLoading } = useWorkspaceTree(folder ?? "");
   const [selectedFile, setSelectedFile] = usePageState<string | null>(`workspace:${folder}:selectedFile`, null);
-  const file = useWorkspaceFile(folder ?? "", selectedFile ?? "");
+  const isImage = selectedFile ? isImageFile(selectedFile) : false;
+  const file = useWorkspaceFile(folder ?? "", selectedFile && !isImage ? selectedFile : "");
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
   return (
     <div>
@@ -45,6 +60,15 @@ export function WorkspaceDetailPage() {
         <Card title={selectedFile ?? "Select a file"} className="col-span-2">
           {!selectedFile ? (
             <EmptyState message="Select a file from the tree to view its contents" />
+          ) : isImage ? (
+            <div>
+              <img
+                src={rawFileUrl(folder ?? "", selectedFile)}
+                alt={selectedFile}
+                className="max-w-full max-h-[60vh] rounded cursor-pointer"
+                onClick={() => setLightboxSrc(rawFileUrl(folder ?? "", selectedFile))}
+              />
+            </div>
           ) : file.isLoading ? (
             <Spinner />
           ) : file.error ? (
@@ -62,6 +86,15 @@ export function WorkspaceDetailPage() {
           ) : null}
         </Card>
       </div>
+
+      {lightboxSrc && (
+        <ImageLightbox
+          src={lightboxSrc}
+          alt={selectedFile ?? "Image"}
+          fileName={selectedFile?.split("/").pop() ?? "image"}
+          onClose={() => setLightboxSrc(null)}
+        />
+      )}
     </div>
   );
 }

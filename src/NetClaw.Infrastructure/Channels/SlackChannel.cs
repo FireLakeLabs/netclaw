@@ -15,6 +15,7 @@ public sealed class SlackChannel : IInboundChannel
     private readonly ILogger<SlackChannel> logger;
     private readonly SlackChannelOptions options;
     private readonly ISlackSocketModeClient slackClient;
+    private readonly StorageOptions storageOptions;
     private readonly ConcurrentDictionary<string, byte> ownedChats = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, SlackConversationInfo> conversationInfoCache = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, string> activePlaceholderTs = new(StringComparer.Ordinal);
@@ -28,15 +29,16 @@ public sealed class SlackChannel : IInboundChannel
     private string? botUserId;
     private bool isConnected;
 
-    public SlackChannel(SlackChannelOptions options, ISlackSocketModeClient slackClient)
-        : this(options, slackClient, NullLogger<SlackChannel>.Instance)
+    public SlackChannel(SlackChannelOptions options, ISlackSocketModeClient slackClient, StorageOptions storageOptions)
+        : this(options, slackClient, storageOptions, NullLogger<SlackChannel>.Instance)
     {
     }
 
-    public SlackChannel(SlackChannelOptions options, ISlackSocketModeClient slackClient, ILogger<SlackChannel> logger)
+    public SlackChannel(SlackChannelOptions options, ISlackSocketModeClient slackClient, StorageOptions storageOptions, ILogger<SlackChannel> logger)
     {
         this.options = options;
         this.slackClient = slackClient;
+        this.storageOptions = storageOptions;
         this.logger = logger;
     }
 
@@ -311,12 +313,14 @@ public sealed class SlackChannel : IInboundChannel
         }
 
         SlackEventPayload slackEvent = envelope.Payload.Event;
+        bool hasFiles = slackEvent.Files is { Count: > 0 };
+        bool isFileShare = string.Equals(slackEvent.Subtype, "file_share", StringComparison.Ordinal);
         if (!string.Equals(slackEvent.Type, "message", StringComparison.Ordinal)
-            || !string.IsNullOrWhiteSpace(slackEvent.Subtype)
+            || (!string.IsNullOrWhiteSpace(slackEvent.Subtype) && !isFileShare)
             || !string.IsNullOrWhiteSpace(slackEvent.BotId)
             || string.IsNullOrWhiteSpace(slackEvent.Channel)
             || string.IsNullOrWhiteSpace(slackEvent.User)
-            || string.IsNullOrWhiteSpace(slackEvent.Text)
+            || (string.IsNullOrWhiteSpace(slackEvent.Text) && !hasFiles)
             || string.IsNullOrWhiteSpace(slackEvent.Ts)
             || string.Equals(slackEvent.User, botUserId, StringComparison.Ordinal))
         {
@@ -343,12 +347,53 @@ public sealed class SlackChannel : IInboundChannel
         ChatJid chatJid = new(conversationId);
         pendingMetadata.Enqueue(new ChannelMetadataEvent(chatJid, timestamp, conversationInfo.Name, Name, conversationInfo.IsGroup));
 
-        string content = NormalizeContent(slackEvent.Text);
+        string content = string.IsNullOrWhiteSpace(slackEvent.Text) ? string.Empty : NormalizeContent(slackEvent.Text);
         string messageId = string.IsNullOrWhiteSpace(slackEvent.ClientMessageId)
             ? $"slack:{conversationId}:{slackEvent.Ts}"
             : slackEvent.ClientMessageId;
 
         string senderDisplayName = await ResolveUserDisplayNameAsync(slackEvent.User, cancellationToken);
+
+        List<FileAttachment> attachments = [];
+        if (hasFiles)
+        {
+            foreach (SlackFileObject file in slackEvent.Files!)
+            {
+                if (string.IsNullOrWhiteSpace(file.UrlPrivate))
+                {
+                    continue;
+                }
+
+                try
+                {
+                    string fileDir = Path.Combine(storageOptions.DataDirectory, "files", chatJid.Value, file.Id);
+                    string fileName = string.IsNullOrWhiteSpace(file.Name) ? file.Id : file.Name;
+                    string localPath = Path.Combine(fileDir, fileName);
+
+                    await slackClient.DownloadFileAsync(file.UrlPrivate, localPath, cancellationToken);
+                    logger.LogInformation("Downloaded Slack file {FileId} ({FileName}) to {LocalPath}.", file.Id, fileName, localPath);
+
+                    attachments.Add(new FileAttachment(
+                        file.Id,
+                        messageId,
+                        chatJid,
+                        fileName,
+                        file.MimeType,
+                        file.Size,
+                        localPath,
+                        DateTimeOffset.UtcNow));
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to download Slack file {FileId}.", file.Id);
+                }
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(content) && attachments.Count > 0)
+        {
+            content = $"[Uploaded: {string.Join(", ", attachments.Select(a => a.FileName))}]";
+        }
 
         pendingMessages.Enqueue(new StoredMessage(
             messageId,
@@ -358,7 +403,8 @@ public sealed class SlackChannel : IInboundChannel
             content,
             timestamp,
             isFromMe: false,
-            isBotMessage: false));
+            isBotMessage: false,
+            attachments: attachments));
     }
 
     private async Task<ISlackSocketModeConnection> EnsureConnectionAsync(CancellationToken cancellationToken)

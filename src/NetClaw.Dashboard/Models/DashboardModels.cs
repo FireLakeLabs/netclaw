@@ -47,7 +47,14 @@ public sealed record MessageDto(
     string Content,
     DateTimeOffset Timestamp,
     bool IsFromMe,
-    bool IsBotMessage);
+    bool IsBotMessage,
+    IReadOnlyList<FileAttachmentDto>? Attachments = null);
+
+public sealed record FileAttachmentDto(
+    string FileId,
+    string FileName,
+    long FileSizeBytes,
+    string? MimeType);
 
 public sealed record TaskDto(
     string Id,

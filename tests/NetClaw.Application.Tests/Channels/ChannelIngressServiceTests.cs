@@ -13,7 +13,7 @@ public sealed class ChannelIngressServiceTests
     public async Task HandleMetadataAsync_PersistsChatMetadata()
     {
         RecordingMessageRepository repository = new();
-        ChannelIngressService service = new(repository, new NullMessageNotifier());
+        ChannelIngressService service = new(repository, new NullFileAttachmentRepository(), new NullMessageNotifier());
         DateTimeOffset timestamp = DateTimeOffset.UtcNow;
 
         await service.HandleMetadataAsync(new ChannelMetadataEvent(
@@ -33,7 +33,7 @@ public sealed class ChannelIngressServiceTests
     public async Task HandleMessageAsync_PersistsInboundMessage()
     {
         RecordingMessageRepository repository = new();
-        ChannelIngressService service = new(repository, new NullMessageNotifier());
+        ChannelIngressService service = new(repository, new NullFileAttachmentRepository(), new NullMessageNotifier());
         StoredMessage message = new("message-1", new ChatJid("team@jid"), "sender-1", "User", "hello", DateTimeOffset.UtcNow);
 
         await service.HandleMessageAsync(new ChannelName("reference-file"), new ChannelMessage(message.ChatJid, message));
@@ -72,5 +72,16 @@ public sealed class ChannelIngressServiceTests
             Messages.Add(message);
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class NullFileAttachmentRepository : IFileAttachmentRepository
+    {
+        public Task StoreAsync(FileAttachment attachment, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<FileAttachment?> GetByFileIdAsync(string fileId, CancellationToken cancellationToken = default) => Task.FromResult<FileAttachment?>(null);
+
+        public Task<IReadOnlyList<FileAttachment>> GetByMessageAsync(string messageId, ChatJid chatJid, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<FileAttachment>>([]);
+
+        public Task<IReadOnlyDictionary<string, IReadOnlyList<FileAttachment>>> GetByMessagesAsync(IEnumerable<string> messageIds, ChatJid chatJid, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyDictionary<string, IReadOnlyList<FileAttachment>>>(new Dictionary<string, IReadOnlyList<FileAttachment>>());
     }
 }

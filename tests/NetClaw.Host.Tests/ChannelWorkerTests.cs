@@ -19,7 +19,7 @@ public sealed class ChannelWorkerTests
         FakeInboundChannel channel = new();
         ChannelWorker worker = new(
             [channel],
-            new ChannelIngressService(repository, new NullMessageNotifier()),
+            new ChannelIngressService(repository, new NullFileAttachmentRepository(), new NullMessageNotifier()),
             new ChannelWorkerOptions
             {
                 PollInterval = TimeSpan.FromMilliseconds(20),
@@ -121,5 +121,16 @@ public sealed class ChannelWorkerTests
             MessageStored.TrySetResult(true);
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class NullFileAttachmentRepository : IFileAttachmentRepository
+    {
+        public Task StoreAsync(FileAttachment attachment, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<FileAttachment?> GetByFileIdAsync(string fileId, CancellationToken cancellationToken = default) => Task.FromResult<FileAttachment?>(null);
+
+        public Task<IReadOnlyList<FileAttachment>> GetByMessageAsync(string messageId, ChatJid chatJid, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<FileAttachment>>([]);
+
+        public Task<IReadOnlyDictionary<string, IReadOnlyList<FileAttachment>>> GetByMessagesAsync(IEnumerable<string> messageIds, ChatJid chatJid, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyDictionary<string, IReadOnlyList<FileAttachment>>>(new Dictionary<string, IReadOnlyList<FileAttachment>>());
     }
 }

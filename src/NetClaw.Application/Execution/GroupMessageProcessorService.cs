@@ -20,10 +20,12 @@ public sealed class GroupMessageProcessorService
     private readonly IMessageFormatter messageFormatter;
     private readonly IMessageRepository messageRepository;
     private readonly IGroupRepository groupRepository;
+    private readonly IFileAttachmentRepository fileAttachmentRepository;
     private readonly IOutboundRouter outboundRouter;
     private readonly IRouterStateRepository routerStateRepository;
     private readonly ISenderAuthorizationService senderAuthorizationService;
     private readonly string timezone;
+    private readonly string groupsDirectory;
 
     public GroupMessageProcessorService(
         IMessageRepository messageRepository,
@@ -37,8 +39,10 @@ public sealed class GroupMessageProcessorService
         ActiveGroupSessionRegistry activeSessionRegistry,
         IReadOnlyList<IChannel> channels,
         IAgentEventSink agentEventSink,
+        IFileAttachmentRepository fileAttachmentRepository,
         string assistantName,
-        string timezone)
+        string timezone,
+        string groupsDirectory)
     {
         this.messageRepository = messageRepository;
         this.groupRepository = groupRepository;
@@ -51,8 +55,10 @@ public sealed class GroupMessageProcessorService
         this.activeSessionRegistry = activeSessionRegistry;
         this.channels = channels;
         this.agentEventSink = agentEventSink;
+        this.fileAttachmentRepository = fileAttachmentRepository;
         this.assistantName = assistantName;
         this.timezone = timezone;
+        this.groupsDirectory = groupsDirectory;
     }
 
     public async Task<bool> ProcessAsync(ChatJid groupJid, CancellationToken cancellationToken = default)
@@ -80,6 +86,9 @@ public sealed class GroupMessageProcessorService
             {
                 return true;
             }
+
+            pendingMessages = await EnrichWithAttachmentsAsync(pendingMessages, groupJid, cancellationToken);
+            StageAttachmentFiles(pendingMessages, group.Folder);
 
             string prompt = messageFormatter.FormatInbound(pendingMessages, timezone);
             bool streamedCompletedMessage = false;
@@ -187,6 +196,68 @@ public sealed class GroupMessageProcessorService
         }
         catch
         {
+        }
+    }
+
+    private async Task<IReadOnlyList<StoredMessage>> EnrichWithAttachmentsAsync(IReadOnlyList<StoredMessage> messages, ChatJid chatJid, CancellationToken cancellationToken)
+    {
+        List<string> messageIds = messages.Select(m => m.Id).ToList();
+        IReadOnlyDictionary<string, IReadOnlyList<FileAttachment>> attachmentsByMessage =
+            await fileAttachmentRepository.GetByMessagesAsync(messageIds, chatJid, cancellationToken);
+
+        if (attachmentsByMessage.Count == 0)
+        {
+            return messages;
+        }
+
+        List<StoredMessage> enriched = [];
+        foreach (StoredMessage message in messages)
+        {
+            if (attachmentsByMessage.TryGetValue(message.Id, out IReadOnlyList<FileAttachment>? attachments) && attachments.Count > 0)
+            {
+                enriched.Add(new StoredMessage(
+                    message.Id,
+                    message.ChatJid,
+                    message.Sender,
+                    message.SenderName,
+                    message.Content,
+                    message.Timestamp,
+                    message.IsFromMe,
+                    message.IsBotMessage,
+                    attachments));
+            }
+            else
+            {
+                enriched.Add(message);
+            }
+        }
+
+        return enriched;
+    }
+
+    private void StageAttachmentFiles(IReadOnlyList<StoredMessage> messages, GroupFolder groupFolder)
+    {
+        string uploadsDir = Path.Combine(groupsDirectory, groupFolder.Value, ".uploads");
+        bool directoryCreated = false;
+
+        foreach (StoredMessage message in messages)
+        {
+            foreach (FileAttachment attachment in message.Attachments)
+            {
+                if (!File.Exists(attachment.LocalPath))
+                {
+                    continue;
+                }
+
+                if (!directoryCreated)
+                {
+                    Directory.CreateDirectory(uploadsDir);
+                    directoryCreated = true;
+                }
+
+                string destination = Path.Combine(uploadsDir, attachment.FileName);
+                File.Copy(attachment.LocalPath, destination, overwrite: true);
+            }
         }
     }
 }
