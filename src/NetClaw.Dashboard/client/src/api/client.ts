@@ -65,6 +65,7 @@ export function useChatMessages(jid: string, limit = 100) {
         `/api/messages/chats/${encodeURIComponent(jid)}?limit=${limit}`
       ),
     enabled: !!jid,
+    refetchInterval: 3_000,
   });
 }
 

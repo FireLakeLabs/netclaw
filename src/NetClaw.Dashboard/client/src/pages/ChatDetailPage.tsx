@@ -1,3 +1,4 @@
+import { useRef, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { format } from "date-fns";
 import { ArrowLeft, Bot, User } from "lucide-react";
@@ -17,6 +18,11 @@ export function ChatDetailPage() {
   const { data: chats } = useChats();
   const chat = chats?.find((c) => c.jid === jid);
   const title = chat?.name || "Chat";
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   return (
     <div>
@@ -69,6 +75,7 @@ export function ChatDetailPage() {
               </div>
             );
           })}
+          <div ref={bottomRef} />
         </div>
       )}
     </div>
