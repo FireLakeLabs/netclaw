@@ -7,9 +7,9 @@ import { useChatMessages, useChats } from "@/api/client";
 
 const SLACK_USER_ID_RE = /^U[A-Z0-9]{8,}$/;
 
-function resolveSenderName(senderName: string, chatName: string | undefined): string {
+function resolveSenderName(senderName: string): string {
   if (!SLACK_USER_ID_RE.test(senderName)) return senderName;
-  return chatName || "User";
+  return "User";
 }
 
 export function ChatDetailPage() {
@@ -42,7 +42,7 @@ export function ChatDetailPage() {
       ) : (
         <div className="space-y-3">
           {messages.map((msg) => {
-            const displayName = msg.isFromMe ? "Agent" : resolveSenderName(msg.senderName, chat?.name);
+            const displayName = msg.isFromMe ? "Agent" : resolveSenderName(msg.senderName);
             const showRawId = !msg.isFromMe && displayName !== msg.sender && !SLACK_USER_ID_RE.test(msg.sender);
             return (
               <div
