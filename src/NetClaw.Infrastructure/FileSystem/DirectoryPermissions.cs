@@ -1,3 +1,4 @@
+using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 
@@ -24,6 +25,14 @@ public static class DirectoryPermissions
             return;
         }
 
+        if (IsSymlink(directoryPath))
+        {
+            logger?.LogWarning(
+                "Refusing to change permissions on symbolic link {DirectoryPath}.",
+                directoryPath);
+            return;
+        }
+
         try
         {
             File.SetUnixFileMode(
@@ -35,6 +44,20 @@ public static class DirectoryPermissions
         catch (Exception exception)
         {
             logger?.LogWarning(exception, "Failed to set restrictive permissions on {DirectoryPath}.", directoryPath);
+        }
+    }
+
+    private static bool IsSymlink(string path)
+    {
+        try
+        {
+            var attributes = File.GetAttributes(path);
+            return attributes.HasFlag(FileAttributes.ReparsePoint);
+        }
+        catch
+        {
+            // If attributes cannot be read, treat as not a symlink and let callers handle errors.
+            return false;
         }
     }
 
@@ -52,6 +75,14 @@ public static class DirectoryPermissions
 
         if (!Directory.Exists(directoryPath))
         {
+            return true;
+        }
+
+        if (IsSymlink(directoryPath))
+        {
+            logger?.LogWarning(
+                "Directory {DirectoryPath} is a symbolic link; skipping permission verification.",
+                directoryPath);
             return true;
         }
 
