@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 
 const store = new Map<string, unknown>();
 
@@ -6,6 +6,10 @@ export function usePageState<T>(key: string, initial: T): [T, (value: T | ((prev
   const [state, setStateRaw] = useState<T>(() =>
     store.has(key) ? (store.get(key) as T) : initial,
   );
+
+  useEffect(() => {
+    setStateRaw(store.has(key) ? (store.get(key) as T) : initial);
+  }, [key, initial]);
 
   const setState = useCallback(
     (value: T | ((prev: T) => T)) => {
