@@ -19,6 +19,8 @@ public interface ISlackSocketModeClient
     Task SetAssistantStatusAsync(string conversationId, string threadTs, string status, CancellationToken cancellationToken = default);
 
     Task<SlackUserInfo> GetUserInfoAsync(string userId, CancellationToken cancellationToken = default);
+
+    Task DownloadFileAsync(string urlPrivate, string destinationPath, CancellationToken cancellationToken = default);
 }
 
 public interface ISlackSocketModeConnection : IAsyncDisposable
@@ -55,4 +57,13 @@ public sealed record SlackEventPayload(
     [property: JsonPropertyName("thread_ts")] string? ThreadTs,
     [property: JsonPropertyName("client_msg_id")] string? ClientMessageId,
     [property: JsonPropertyName("subtype")] string? Subtype,
-    [property: JsonPropertyName("bot_id")] string? BotId);
+    [property: JsonPropertyName("bot_id")] string? BotId,
+    [property: JsonPropertyName("files")] IReadOnlyList<SlackFileObject>? Files = null);
+
+public sealed record SlackFileObject(
+    [property: JsonPropertyName("id")] string Id,
+    [property: JsonPropertyName("name")] string? Name,
+    [property: JsonPropertyName("size")] long Size,
+    [property: JsonPropertyName("mimetype")] string? MimeType,
+    [property: JsonPropertyName("url_private")] string? UrlPrivate,
+    [property: JsonPropertyName("filetype")] string? FileType);

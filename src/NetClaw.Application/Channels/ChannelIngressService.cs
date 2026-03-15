@@ -9,17 +9,25 @@ namespace NetClaw.Application.Channels;
 public sealed class ChannelIngressService
 {
     private readonly IMessageRepository messageRepository;
+    private readonly IFileAttachmentRepository fileAttachmentRepository;
     private readonly IMessageNotifier messageNotifier;
 
-    public ChannelIngressService(IMessageRepository messageRepository, IMessageNotifier messageNotifier)
+    public ChannelIngressService(IMessageRepository messageRepository, IFileAttachmentRepository fileAttachmentRepository, IMessageNotifier messageNotifier)
     {
         this.messageRepository = messageRepository;
+        this.fileAttachmentRepository = fileAttachmentRepository;
         this.messageNotifier = messageNotifier;
     }
 
     public async Task HandleMessageAsync(ChannelName channelName, ChannelMessage channelMessage, CancellationToken cancellationToken = default)
     {
         await messageRepository.StoreMessageAsync(channelMessage.Message, cancellationToken);
+
+        foreach (FileAttachment attachment in channelMessage.Message.Attachments)
+        {
+            await fileAttachmentRepository.StoreAsync(attachment, cancellationToken);
+        }
+
         messageNotifier.NotifyNewMessage(channelMessage.Message);
     }
 

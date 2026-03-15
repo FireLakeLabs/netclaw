@@ -39,8 +39,10 @@ public sealed class GroupMessageProcessorServiceTests
             new ActiveGroupSessionRegistry(),
             [channel],
             new NullAgentEventSink(),
+            new NullFileAttachmentRepository(),
             "Andy",
-            "UTC");
+            "UTC",
+            "/tmp/netclaw-test/groups");
 
         bool result = await service.ProcessAsync(groupJid);
 
@@ -75,8 +77,10 @@ public sealed class GroupMessageProcessorServiceTests
             new ActiveGroupSessionRegistry(),
             [],
             new NullAgentEventSink(),
+            new NullFileAttachmentRepository(),
             "Andy",
-            "UTC");
+            "UTC",
+            "/tmp/netclaw-test/groups");
 
         bool result = await service.ProcessAsync(groupJid);
 
@@ -109,8 +113,10 @@ public sealed class GroupMessageProcessorServiceTests
             new ActiveGroupSessionRegistry(),
             [channel],
             new NullAgentEventSink(),
+            new NullFileAttachmentRepository(),
             "Andy",
-            "UTC");
+            "UTC",
+            "/tmp/netclaw-test/groups");
 
         bool result = await service.ProcessAsync(groupJid);
 
@@ -143,8 +149,10 @@ public sealed class GroupMessageProcessorServiceTests
             new ActiveGroupSessionRegistry(),
             [channel],
             new NullAgentEventSink(),
+            new NullFileAttachmentRepository(),
             "Andy",
-            "UTC");
+            "UTC",
+            "/tmp/netclaw-test/groups");
 
         bool result = await service.ProcessAsync(groupJid);
 
@@ -187,8 +195,10 @@ public sealed class GroupMessageProcessorServiceTests
                     new ActiveGroupSessionRegistry(),
             [],
             new NullAgentEventSink(),
+            new NullFileAttachmentRepository(),
             "Andy",
-            "UTC");
+            "UTC",
+            "/tmp/netclaw-test/groups");
 
         bool result = await service.ProcessAsync(groupJid);
 
@@ -226,8 +236,10 @@ public sealed class GroupMessageProcessorServiceTests
             new ActiveGroupSessionRegistry(),
             [channel],
             new NullAgentEventSink(),
+            new NullFileAttachmentRepository(),
             "Andy",
-            "UTC");
+            "UTC",
+            "/tmp/netclaw-test/groups");
 
         bool result = await service.ProcessAsync(groupJid);
 
@@ -258,8 +270,10 @@ public sealed class GroupMessageProcessorServiceTests
             new ActiveGroupSessionRegistry(),
             [new ThrowingChannel(groupJid)],
             new NullAgentEventSink(),
+            new NullFileAttachmentRepository(),
             "Andy",
-            "UTC");
+            "UTC",
+            "/tmp/netclaw-test/groups");
 
         bool result = await service.ProcessAsync(groupJid);
 
@@ -538,5 +552,16 @@ public sealed class GroupMessageProcessorServiceTests
 
         public bool CanTrigger(ChatJid chatJid, StoredMessage message)
             => message.IsFromMe || allowedSenders.Contains(message.Sender);
+    }
+
+    private sealed class NullFileAttachmentRepository : IFileAttachmentRepository
+    {
+        public Task StoreAsync(FileAttachment attachment, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<FileAttachment?> GetByFileIdAsync(string fileId, CancellationToken cancellationToken = default) => Task.FromResult<FileAttachment?>(null);
+
+        public Task<IReadOnlyList<FileAttachment>> GetByMessageAsync(string messageId, ChatJid chatJid, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyList<FileAttachment>>([]);
+
+        public Task<IReadOnlyDictionary<string, IReadOnlyList<FileAttachment>>> GetByMessagesAsync(IEnumerable<string> messageIds, ChatJid chatJid, CancellationToken cancellationToken = default) => Task.FromResult<IReadOnlyDictionary<string, IReadOnlyList<FileAttachment>>>(new Dictionary<string, IReadOnlyList<FileAttachment>>());
     }
 }

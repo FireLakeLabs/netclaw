@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using NetClaw.Domain.Contracts.Channels;
+using NetClaw.Domain.Entities;
 using NetClaw.Domain.ValueObjects;
 using NetClaw.Infrastructure.Channels;
 using NetClaw.Infrastructure.Configuration;
@@ -8,6 +9,9 @@ namespace NetClaw.Infrastructure.Tests.Channels;
 
 public sealed class SlackChannelTests
 {
+    private static StorageOptions CreateTestStorageOptions() =>
+        StorageOptions.Create(Path.Combine(Path.GetTempPath(), $"netclaw-test-{Guid.NewGuid():N}"));
+
     [Fact]
     public async Task PollInboundAsync_AcknowledgesEnvelopeAndNormalizesMention()
     {
@@ -38,7 +42,8 @@ public sealed class SlackChannelTests
                 MentionReplacement = "@Andy",
                 WorkingIndicatorText = "Evaluating..."
             },
-            client);
+            client,
+            CreateTestStorageOptions());
 
         await channel.ConnectAsync();
         await WaitForEnvelopeProcessingAsync(client.Connection, 1);
@@ -64,6 +69,60 @@ public sealed class SlackChannelTests
         Assert.Single(messages);
         Assert.Equal("@Andy hello", messages[0].Message.Content);
         Assert.True(channel.Owns(new ChatJid("C12345")));
+
+        await channel.DisconnectAsync();
+    }
+
+    [Fact]
+    public async Task PollInboundAsync_AcceptsFileShareSubtypeAndCreatesAttachments()
+    {
+        FakeSlackSocketModeClient client = new("U-BOT", new SlackConversationInfo("C12345", "general", true));
+        client.Connection.Enqueue(new SlackSocketEnvelope(
+            "envelope-1",
+            "events_api",
+            new SlackSocketPayload(
+                "events_api",
+                new SlackEventPayload(
+                    "message",
+                    "C12345",
+                    "channel",
+                    "U-USER",
+                    null,
+                    "1710115200.000200",
+                    null,
+                    "client-message-2",
+                    "file_share",
+                    null,
+                    [new SlackFileObject("F001", "report.pdf", 2048, "application/pdf", "https://files.slack.com/files-pri/T1234/report.pdf", "pdf")]))));
+
+        SlackChannel channel = new(
+            new SlackChannelOptions
+            {
+                Enabled = true,
+                BotToken = "xoxb-test",
+                AppToken = "xapp-test",
+                WorkingIndicatorText = "Evaluating..."
+            },
+            client,
+            CreateTestStorageOptions());
+
+        await channel.ConnectAsync();
+        await WaitForEnvelopeProcessingAsync(client.Connection, 1);
+
+        List<ChannelMessage> messages = [];
+        await channel.PollInboundAsync(
+            (message, _) =>
+            {
+                messages.Add(message);
+                return Task.CompletedTask;
+            },
+            (_, _) => Task.CompletedTask);
+
+        Assert.Single(messages);
+        Assert.Contains("[Uploaded: report.pdf]", messages[0].Message.Content);
+        Assert.Single(messages[0].Message.Attachments);
+        Assert.Equal("F001", messages[0].Message.Attachments[0].FileId);
+        Assert.Equal("report.pdf", messages[0].Message.Attachments[0].FileName);
 
         await channel.DisconnectAsync();
     }
@@ -97,7 +156,8 @@ public sealed class SlackChannelTests
                 AppToken = "xapp-test",
                 WorkingIndicatorText = "Evaluating..."
             },
-            client);
+            client,
+            CreateTestStorageOptions());
 
         await channel.ConnectAsync();
         await WaitForEnvelopeProcessingAsync(client.Connection, 1);
@@ -129,7 +189,8 @@ public sealed class SlackChannelTests
                 AppToken = "xapp-test",
                 WorkingIndicatorText = "Evaluating..."
             },
-            client);
+            client,
+            CreateTestStorageOptions());
 
         await channel.ConnectAsync();
 
@@ -158,7 +219,8 @@ public sealed class SlackChannelTests
                 AppToken = "xapp-test",
                 WorkingIndicatorText = "Evaluating..."
             },
-            client);
+            client,
+            CreateTestStorageOptions());
 
         await channel.ConnectAsync();
 
@@ -201,7 +263,8 @@ public sealed class SlackChannelTests
                 AppToken = "xapp-test",
                 WorkingIndicatorText = "Evaluating..."
             },
-            client);
+            client,
+            CreateTestStorageOptions());
 
         await channel.ConnectAsync();
         await WaitForEnvelopeProcessingAsync(client.Connection, 1);
@@ -255,7 +318,8 @@ public sealed class SlackChannelTests
                 AppToken = "xapp-test",
                 WorkingIndicatorText = "Evaluating..."
             },
-            client);
+            client,
+            CreateTestStorageOptions());
 
         await channel.ConnectAsync();
         await WaitForEnvelopeProcessingAsync(client.Connection, 1);
@@ -287,7 +351,8 @@ public sealed class SlackChannelTests
                 AppToken = "xapp-test",
                 WorkingIndicatorText = "Evaluating..."
             },
-            client);
+            client,
+            CreateTestStorageOptions());
 
         await channel.ConnectAsync();
 
@@ -411,6 +476,13 @@ public sealed class SlackChannelTests
 
         public Task<SlackUserInfo> GetUserInfoAsync(string userId, CancellationToken cancellationToken = default)
             => Task.FromResult(new SlackUserInfo(userId, $"User {userId}"));
+
+        public Task DownloadFileAsync(string urlPrivate, string destinationPath, CancellationToken cancellationToken = default)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+            File.WriteAllText(destinationPath, "fake file content");
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FakeSlackSocketModeConnection : ISlackSocketModeConnection

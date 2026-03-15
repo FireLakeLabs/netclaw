@@ -25,8 +25,34 @@ public sealed class XmlMessageFormatter : IMessageFormatter
                 .Append("\" time=\"")
                 .Append(EscapeXml(displayTime))
                 .Append("\">")
-                .Append(EscapeXml(message.Content))
-                .AppendLine("</message>");
+                .Append(EscapeXml(message.Content));
+
+            if (message.Attachments.Count > 0)
+            {
+                builder.Append("<attachments>");
+                foreach (var attachment in message.Attachments)
+                {
+                    builder.Append("<file name=\"")
+                        .Append(EscapeXml(attachment.FileName))
+                        .Append("\" path=\".uploads/")
+                        .Append(EscapeXml(attachment.FileName))
+                        .Append("\" size=\"")
+                        .Append(attachment.FileSize)
+                        .Append('"');
+                    if (!string.IsNullOrWhiteSpace(attachment.MimeType))
+                    {
+                        builder.Append(" type=\"")
+                            .Append(EscapeXml(attachment.MimeType))
+                            .Append('"');
+                    }
+
+                    builder.Append(" />");
+                }
+
+                builder.Append("</attachments>");
+            }
+
+            builder.AppendLine("</message>");
         }
 
         builder.Append("</messages>");

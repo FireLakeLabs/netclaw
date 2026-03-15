@@ -1,15 +1,23 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { format } from "date-fns";
-import { ArrowLeft, Bot, User } from "lucide-react";
+import { ArrowLeft, Bot, User, Paperclip } from "lucide-react";
 import { Spinner, EmptyState, PageHeader } from "@/components/ui/shared";
+import { ImageLightbox } from "@/components/ui/ImageLightbox";
 import { useChatMessages, useChats } from "@/api/client";
+import type { FileAttachmentDto } from "@/api/types";
 
 const SLACK_USER_ID_RE = /^U[A-Z0-9]{8,}$/;
 
 function resolveSenderName(senderName: string): string {
   if (!SLACK_USER_ID_RE.test(senderName)) return senderName;
   return "User";
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export function ChatDetailPage() {
@@ -19,6 +27,7 @@ export function ChatDetailPage() {
   const chat = chats?.find((c) => c.jid === jid);
   const title = chat?.name || "Chat";
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [lightbox, setLightbox] = useState<{ src: string; alt: string; fileName: string } | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -72,11 +81,57 @@ export function ChatDetailPage() {
                 <p className="text-sm text-gray-200 whitespace-pre-wrap break-words">
                   {msg.content}
                 </p>
+                {msg.attachments && msg.attachments.length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    {msg.attachments.map((file: FileAttachmentDto) => {
+                      const isImage = file.mimeType?.startsWith("image/") ?? false;
+                      const fileUrl = `/api/files/${encodeURIComponent(file.fileId)}`;
+                      return (
+                        <div key={file.fileId}>
+                          {isImage ? (
+                            <button
+                              type="button"
+                              onClick={() => setLightbox({ src: fileUrl, alt: file.fileName, fileName: file.fileName })}
+                              className="cursor-pointer"
+                            >
+                              <img
+                                src={fileUrl}
+                                alt={file.fileName}
+                                className="max-w-xs max-h-48 rounded border border-gray-700 hover:border-gray-500 transition-colors"
+                              />
+                            </button>
+                          ) : (
+                            <a
+                              href={`${fileUrl}?download=true`}
+                              download={file.fileName}
+                              className="inline-flex items-center gap-1.5 text-xs text-blue-400 hover:text-blue-300"
+                            >
+                              <Paperclip size={12} />
+                              {file.fileName}
+                              <span className="text-gray-500">
+                                ({formatFileSize(file.fileSizeBytes)})
+                              </span>
+                            </a>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}
           <div ref={bottomRef} />
         </div>
+      )}
+
+      {lightbox && (
+        <ImageLightbox
+          src={lightbox.src}
+          alt={lightbox.alt}
+          fileName={lightbox.fileName}
+          onClose={() => setLightbox(null)}
+        />
       )}
     </div>
   );

@@ -104,7 +104,20 @@ public sealed class SqliteSchemaInitializer
             """,
             "CREATE INDEX IF NOT EXISTS idx_agent_events_observed_at ON agent_events(observed_at);",
             "CREATE INDEX IF NOT EXISTS idx_agent_events_group_folder ON agent_events(group_folder);",
-            "CREATE INDEX IF NOT EXISTS idx_agent_events_session_id ON agent_events(session_id);"
+            "CREATE INDEX IF NOT EXISTS idx_agent_events_session_id ON agent_events(session_id);",
+            """
+            CREATE TABLE IF NOT EXISTS file_attachments (
+                file_id TEXT NOT NULL PRIMARY KEY,
+                message_id TEXT NOT NULL,
+                chat_jid TEXT NOT NULL,
+                file_name TEXT NOT NULL,
+                mime_type TEXT,
+                file_size INTEGER NOT NULL,
+                local_path TEXT NOT NULL,
+                downloaded_at TEXT NOT NULL
+            );
+            """,
+            "CREATE INDEX IF NOT EXISTS idx_file_attachments_message ON file_attachments(message_id, chat_jid);"
         ];
 
         foreach (string statement in statements)

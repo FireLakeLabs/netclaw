@@ -61,3 +61,14 @@ public interface IRouterStateRepository
 
     Task SetAsync(RouterStateEntry entry, CancellationToken cancellationToken = default);
 }
+
+public interface IFileAttachmentRepository
+{
+    Task StoreAsync(FileAttachment attachment, CancellationToken cancellationToken = default);
+
+    Task<FileAttachment?> GetByFileIdAsync(string fileId, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<FileAttachment>> GetByMessageAsync(string messageId, ChatJid chatJid, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyDictionary<string, IReadOnlyList<FileAttachment>>> GetByMessagesAsync(IEnumerable<string> messageIds, ChatJid chatJid, CancellationToken cancellationToken = default);
+}
