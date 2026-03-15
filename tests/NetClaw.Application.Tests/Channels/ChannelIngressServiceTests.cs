@@ -1,4 +1,5 @@
 using NetClaw.Application.Channels;
+using NetClaw.Application.Observability;
 using NetClaw.Domain.Contracts.Channels;
 using NetClaw.Domain.Contracts.Persistence;
 using NetClaw.Domain.Entities;
@@ -12,7 +13,7 @@ public sealed class ChannelIngressServiceTests
     public async Task HandleMetadataAsync_PersistsChatMetadata()
     {
         RecordingMessageRepository repository = new();
-        ChannelIngressService service = new(repository);
+        ChannelIngressService service = new(repository, new NullMessageNotifier());
         DateTimeOffset timestamp = DateTimeOffset.UtcNow;
 
         await service.HandleMetadataAsync(new ChannelMetadataEvent(
@@ -32,7 +33,7 @@ public sealed class ChannelIngressServiceTests
     public async Task HandleMessageAsync_PersistsInboundMessage()
     {
         RecordingMessageRepository repository = new();
-        ChannelIngressService service = new(repository);
+        ChannelIngressService service = new(repository, new NullMessageNotifier());
         StoredMessage message = new("message-1", new ChatJid("team@jid"), "sender-1", "User", "hello", DateTimeOffset.UtcNow);
 
         await service.HandleMessageAsync(new ChannelName("reference-file"), new ChannelMessage(message.ChatJid, message));

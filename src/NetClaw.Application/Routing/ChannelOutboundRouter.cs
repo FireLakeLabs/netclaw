@@ -1,10 +1,13 @@
+using NetClaw.Application.Observability;
 using NetClaw.Domain.Contracts.Channels;
+using NetClaw.Domain.Contracts.Persistence;
 using NetClaw.Domain.Contracts.Services;
+using NetClaw.Domain.Entities;
 using NetClaw.Domain.ValueObjects;
 
 namespace NetClaw.Application.Routing;
 
-public sealed class ChannelOutboundRouter : IOutboundRouter
+public sealed class ChannelOutboundRouter(IMessageRepository messageRepository, IMessageNotifier messageNotifier) : IOutboundRouter
 {
     public async Task RouteAsync(IReadOnlyList<IChannel> channels, ChatJid chatJid, string text, CancellationToken cancellationToken = default)
     {
@@ -15,5 +18,19 @@ public sealed class ChannelOutboundRouter : IOutboundRouter
         }
 
         await channel.SendMessageAsync(chatJid, text, cancellationToken);
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        StoredMessage outbound = new(
+            $"out-{now.ToUnixTimeMilliseconds()}-{Guid.NewGuid()}",
+            chatJid,
+            "agent",
+            "Agent",
+            text,
+            now,
+            isFromMe: true,
+            isBotMessage: true);
+
+        await messageRepository.StoreMessageAsync(outbound, cancellationToken);
+        messageNotifier.NotifyNewMessage(outbound);
     }
 }

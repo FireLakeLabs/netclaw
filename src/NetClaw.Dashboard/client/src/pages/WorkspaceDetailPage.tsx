@@ -1,14 +1,14 @@
-import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Folder, FileText, ChevronRight, ChevronDown } from "lucide-react";
 import { Card, Spinner, EmptyState, PageHeader } from "@/components/ui/shared";
 import { useWorkspaceTree, useWorkspaceFile } from "@/api/client";
+import { usePageState } from "@/hooks/usePageState";
 import type { WorkspaceTreeEntryDto } from "@/api/types";
 
 export function WorkspaceDetailPage() {
   const { folder } = useParams<{ folder: string }>();
   const { data: tree, isLoading } = useWorkspaceTree(folder ?? "");
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = usePageState<string | null>(`workspace:${folder}:selectedFile`, null);
   const file = useWorkspaceFile(folder ?? "", selectedFile ?? "");
 
   return (
@@ -35,6 +35,7 @@ export function WorkspaceDetailPage() {
                   path={entry.relativePath || entry.name}
                   selectedFile={selectedFile}
                   onSelect={setSelectedFile}
+                  folder={folder ?? ""}
                 />
               ))}
             </div>
@@ -70,15 +71,17 @@ function TreeNode({
   path,
   selectedFile,
   onSelect,
+  folder,
   depth = 0,
 }: {
   entry: WorkspaceTreeEntryDto;
   path: string;
   selectedFile: string | null;
   onSelect: (path: string) => void;
+  folder: string;
   depth?: number;
 }) {
-  const [expanded, setExpanded] = useState(depth < 1);
+  const [expanded, setExpanded] = usePageState(`workspace:${folder}:tree:${path}`, depth < 1);
 
   if (entry.isDirectory) {
     return (
@@ -99,6 +102,7 @@ function TreeNode({
             path={child.relativePath}
             selectedFile={selectedFile}
             onSelect={onSelect}
+            folder={folder}
             depth={depth + 1}
           />
         ))}

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
+using NetClaw.Application.Observability;
 using NetClaw.Dashboard.Hubs;
 using NetClaw.Dashboard.Services;
 
@@ -14,7 +15,9 @@ public static class DashboardServiceExtensions
         services.AddSignalR();
         services.AddSingleton<DashboardStateService>();
         services.AddSingleton(new WorkspaceFileService(groupsDirectory, dataDirectory));
-        services.AddHostedService<DashboardBroadcastService>();
+        services.AddSingleton<DashboardBroadcastService>();
+        services.AddSingleton<IMessageNotifier>(sp => sp.GetRequiredService<DashboardBroadcastService>());
+        services.AddHostedService(sp => sp.GetRequiredService<DashboardBroadcastService>());
         return services;
     }
 

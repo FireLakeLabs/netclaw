@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { formatDistanceToNow, format } from "date-fns";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { Badge, Card, Spinner, EmptyState, PageHeader } from "@/components/ui/shared";
 import { useRecentActivity } from "@/api/client";
 import type { AgentActivityEventDto } from "@/api/types";
@@ -9,15 +11,15 @@ export function eventKindVariant(kind: string): Variant {
   switch (kind) {
     case "MessageCompleted":
       return "success";
-    case "ToolCallStarted":
-    case "ToolCallCompleted":
+    case "ToolStarted":
+    case "ToolCompleted":
       return "info";
     case "Error":
       return "error";
     case "Idle":
       return "default";
-    case "Thinking":
-    case "MessageDelta":
+    case "ReasoningDelta":
+    case "TextDelta":
       return "warning";
     default:
       return "default";
@@ -28,6 +30,52 @@ export function eventKindLabel(kind: string): string {
   return kind.replace(/([A-Z])/g, " $1").trim();
 }
 
+interface CollapsedGroup {
+  kind: "delta-group";
+  events: AgentActivityEventDto[];
+  accumulatedContent: string;
+}
+
+type DisplayItem =
+  | { kind: "single"; event: AgentActivityEventDto }
+  | CollapsedGroup;
+
+const COLLAPSIBLE_DELTAS = new Set(["TextDelta", "ReasoningDelta"]);
+
+function collapseDeltas(events: AgentActivityEventDto[]): DisplayItem[] {
+  const items: DisplayItem[] = [];
+  let i = 0;
+  while (i < events.length) {
+    const event = events[i]!;
+    if (COLLAPSIBLE_DELTAS.has(event.eventKind)) {
+      const group: AgentActivityEventDto[] = [event];
+      while (
+        i + 1 < events.length &&
+        events[i + 1]!.eventKind === event.eventKind &&
+        events[i + 1]!.sessionId === event.sessionId &&
+        events[i + 1]!.groupFolder === event.groupFolder
+      ) {
+        i++;
+        group.push(events[i]!);
+      }
+      if (group.length > 1) {
+        // Events are newest-first, so reverse for chronological accumulation
+        const chronological = [...group].reverse();
+        const accumulated = chronological
+          .map((e) => e.content ?? "")
+          .join("");
+        items.push({ kind: "delta-group", events: group, accumulatedContent: accumulated });
+      } else {
+        items.push({ kind: "single", event });
+      }
+    } else {
+      items.push({ kind: "single", event });
+    }
+    i++;
+  }
+  return items;
+}
+
 interface ActivityPageProps {
   recentEvents: AgentActivityEventDto[];
 }
@@ -35,6 +83,7 @@ interface ActivityPageProps {
 export function ActivityPage({ recentEvents }: ActivityPageProps) {
   const historicalActivity = useRecentActivity(200);
   const events = recentEvents.length > 0 ? recentEvents : historicalActivity.data ?? [];
+  const displayItems = collapseDeltas(events);
 
   return (
     <div>
@@ -48,12 +97,69 @@ export function ActivityPage({ recentEvents }: ActivityPageProps) {
         <EmptyState message="No activity recorded yet" />
       ) : (
         <div className="space-y-2">
-          {events.map((event) => (
-            <EventCard key={event.id} event={event} />
-          ))}
+          {displayItems.map((item, idx) =>
+            item.kind === "single" ? (
+              <EventCard key={item.event.id} event={item.event} />
+            ) : (
+              <DeltaGroupCard key={`delta-${item.events[0]!.id}`} group={item} index={idx} />
+            )
+          )}
         </div>
       )}
     </div>
+  );
+}
+
+function DeltaGroupCard({ group }: { group: CollapsedGroup; index: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const first = group.events[0]!;
+  return (
+    <Card>
+      <div className="flex items-start gap-3">
+        <div className="shrink-0 pt-0.5">
+          <Badge variant="warning">{eventKindLabel(first.eventKind)}</Badge>
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
+            <span>{first.groupFolder}</span>
+            <span>·</span>
+            <span title={format(new Date(first.observedAt), "PPpp")}>
+              {formatDistanceToNow(new Date(first.observedAt), { addSuffix: true })}
+            </span>
+            <span>·</span>
+            <span className="text-gray-500">{group.events.length} deltas</span>
+            {first.sessionId && (
+              <>
+                <span>·</span>
+                <span className="text-gray-500">session: {first.sessionId.slice(0, 8)}</span>
+              </>
+            )}
+          </div>
+          <p className="text-sm text-gray-300 whitespace-pre-wrap break-words">
+            {group.accumulatedContent}
+          </p>
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="flex items-center gap-1 mt-2 text-xs text-gray-500 hover:text-gray-300"
+          >
+            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            {expanded ? "Hide" : "Show"} individual deltas
+          </button>
+          {expanded && (
+            <div className="mt-2 space-y-1 pl-2 border-l border-gray-700">
+              {group.events.map((event) => (
+                <div key={event.id} className="text-xs text-gray-500 py-0.5">
+                  <span className="text-gray-600 mr-2">
+                    {format(new Date(event.observedAt), "HH:mm:ss.SSS")}
+                  </span>
+                  {event.content}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </Card>
   );
 }
 

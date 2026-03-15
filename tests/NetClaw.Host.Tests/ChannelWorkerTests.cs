@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using NetClaw.Application.Channels;
+using NetClaw.Application.Observability;
 using NetClaw.Domain.Contracts.Channels;
 using NetClaw.Domain.Contracts.Persistence;
 using NetClaw.Domain.Entities;
@@ -18,7 +19,7 @@ public sealed class ChannelWorkerTests
         FakeInboundChannel channel = new();
         ChannelWorker worker = new(
             [channel],
-            new ChannelIngressService(repository),
+            new ChannelIngressService(repository, new NullMessageNotifier()),
             new ChannelWorkerOptions
             {
                 PollInterval = TimeSpan.FromMilliseconds(20),

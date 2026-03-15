@@ -11,7 +11,7 @@ using NetClaw.Domain.Entities;
 
 namespace NetClaw.Dashboard.Services;
 
-public sealed class DashboardBroadcastService : BackgroundService
+public sealed class DashboardBroadcastService : BackgroundService, IMessageNotifier
 {
     private readonly IHubContext<DashboardHub> hubContext;
     private readonly GroupExecutionQueue executionQueue;
@@ -20,6 +20,13 @@ public sealed class DashboardBroadcastService : BackgroundService
     private readonly ILogger<DashboardBroadcastService> logger;
     private readonly Channel<(AgentActivityEventDto Dto, string? GroupFolder)> eventQueue =
         Channel.CreateBounded<(AgentActivityEventDto, string?)>(new BoundedChannelOptions(1024)
+        {
+            FullMode = BoundedChannelFullMode.DropOldest,
+            SingleReader = true,
+            SingleWriter = false
+        });
+    private readonly Channel<MessageDto> messageQueue =
+        Channel.CreateBounded<MessageDto>(new BoundedChannelOptions(1024)
         {
             FullMode = BoundedChannelFullMode.DropOldest,
             SingleReader = true,
@@ -40,10 +47,28 @@ public sealed class DashboardBroadcastService : BackgroundService
         this.logger = logger;
     }
 
+    public void NotifyNewMessage(StoredMessage message)
+    {
+        MessageDto dto = new(
+            message.Id,
+            message.ChatJid.Value,
+            message.Sender,
+            message.SenderName,
+            message.Content,
+            message.Timestamp,
+            message.IsFromMe,
+            message.IsBotMessage);
+
+        if (!messageQueue.Writer.TryWrite(dto))
+        {
+            logger.LogDebug("Message broadcast queue is closed; message notification dropped.");
+        }
+    }
+
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
     {
         eventSink.SetBroadcastCallback(BroadcastAgentEvent);
-        return Task.WhenAll(RunHeartbeatAsync(stoppingToken), RunEventQueueAsync(stoppingToken));
+        return Task.WhenAll(RunHeartbeatAsync(stoppingToken), RunEventQueueAsync(stoppingToken), RunMessageQueueAsync(stoppingToken));
     }
 
     private async Task RunHeartbeatAsync(CancellationToken stoppingToken)
@@ -131,5 +156,30 @@ public sealed class DashboardBroadcastService : BackgroundService
             snapshot.Groups.Select(g => new GroupQueueStateDto(
                 g.ChatJid, g.Active, g.IsTaskExecution, g.PendingMessages,
                 g.PendingTaskCount, g.IdleWaiting, g.RetryCount, g.RunningTaskIds)).ToArray());
+    }
+
+    private async Task RunMessageQueueAsync(CancellationToken stoppingToken)
+    {
+        try
+        {
+            await foreach (MessageDto dto in messageQueue.Reader.ReadAllAsync(stoppingToken))
+            {
+                try
+                {
+                    await hubContext.Clients.All.SendAsync("OnNewMessage", dto, stoppingToken);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to broadcast new message to dashboard clients.");
+                }
+            }
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+        }
     }
 }

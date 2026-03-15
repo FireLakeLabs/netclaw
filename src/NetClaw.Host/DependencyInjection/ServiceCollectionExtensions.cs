@@ -134,6 +134,7 @@ public static class ServiceCollectionExtensions
         }
 
         services.AddSingleton<IReadOnlyList<IChannel>>(serviceProvider => serviceProvider.GetServices<IChannel>().ToArray());
+        services.AddSingleton<IMessageNotifier, NullMessageNotifier>();
         services.AddSingleton<ChannelIngressService>();
         services.AddSingleton<IMessageFormatter, XmlMessageFormatter>();
         services.AddSingleton<IOutboundRouter, ChannelOutboundRouter>();

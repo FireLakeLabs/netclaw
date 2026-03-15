@@ -7,6 +7,7 @@ import {
 } from "@microsoft/signalr";
 import type {
   AgentActivityEventDto,
+  MessageDto,
   QueueStateDto,
   WorkerHeartbeatDto,
 } from "@/api/types";
@@ -17,6 +18,7 @@ interface SignalRCallbacks {
   onAgentEvent?: (event: AgentActivityEventDto) => void;
   onQueueStateChanged?: (state: QueueStateDto) => void;
   onWorkerHeartbeat?: (heartbeat: WorkerHeartbeatDto) => void;
+  onNewMessage?: (message: MessageDto) => void;
 }
 
 export function useSignalR(callbacks: SignalRCallbacks) {
@@ -44,6 +46,10 @@ export function useSignalR(callbacks: SignalRCallbacks) {
 
     connection.on("OnWorkerHeartbeat", (heartbeat: WorkerHeartbeatDto) => {
       callbacksRef.current.onWorkerHeartbeat?.(heartbeat);
+    });
+
+    connection.on("OnNewMessage", (message: MessageDto) => {
+      callbacksRef.current.onNewMessage?.(message);
     });
 
     connection.onreconnecting(() => setStatus("reconnecting"));

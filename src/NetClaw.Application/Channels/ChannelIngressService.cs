@@ -1,3 +1,4 @@
+using NetClaw.Application.Observability;
 using NetClaw.Domain.Contracts.Channels;
 using NetClaw.Domain.Contracts.Persistence;
 using NetClaw.Domain.Entities;
@@ -8,15 +9,18 @@ namespace NetClaw.Application.Channels;
 public sealed class ChannelIngressService
 {
     private readonly IMessageRepository messageRepository;
+    private readonly IMessageNotifier messageNotifier;
 
-    public ChannelIngressService(IMessageRepository messageRepository)
+    public ChannelIngressService(IMessageRepository messageRepository, IMessageNotifier messageNotifier)
     {
         this.messageRepository = messageRepository;
+        this.messageNotifier = messageNotifier;
     }
 
-    public Task HandleMessageAsync(ChannelName channelName, ChannelMessage channelMessage, CancellationToken cancellationToken = default)
+    public async Task HandleMessageAsync(ChannelName channelName, ChannelMessage channelMessage, CancellationToken cancellationToken = default)
     {
-        return messageRepository.StoreMessageAsync(channelMessage.Message, cancellationToken);
+        await messageRepository.StoreMessageAsync(channelMessage.Message, cancellationToken);
+        messageNotifier.NotifyNewMessage(channelMessage.Message);
     }
 
     public Task HandleMetadataAsync(ChannelMetadataEvent metadataEvent, CancellationToken cancellationToken = default)

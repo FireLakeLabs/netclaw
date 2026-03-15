@@ -21,6 +21,7 @@ public sealed class SlackChannel : IInboundChannel
     private readonly ConcurrentDictionary<string, string?> replyThreads = new(StringComparer.Ordinal);
     private readonly ConcurrentQueue<ChannelMetadataEvent> pendingMetadata = new();
     private readonly ConcurrentQueue<StoredMessage> pendingMessages = new();
+    private readonly ConcurrentDictionary<string, string> userDisplayNameCache = new(StringComparer.Ordinal);
     private CancellationTokenSource? receiveLoopCancellation;
     private Task? receiveLoopTask;
     private ISlackSocketModeConnection? connection;
@@ -347,11 +348,13 @@ public sealed class SlackChannel : IInboundChannel
             ? $"slack:{conversationId}:{slackEvent.Ts}"
             : slackEvent.ClientMessageId;
 
+        string senderDisplayName = await ResolveUserDisplayNameAsync(slackEvent.User, cancellationToken);
+
         pendingMessages.Enqueue(new StoredMessage(
             messageId,
             chatJid,
             slackEvent.User,
-            slackEvent.User,
+            senderDisplayName,
             content,
             timestamp,
             isFromMe: false,
@@ -406,6 +409,27 @@ public sealed class SlackChannel : IInboundChannel
             SlackConversationInfo fallback = new(conversationId, conversationId, isGroup);
             conversationInfoCache[conversationId] = fallback;
             return fallback;
+        }
+    }
+
+    private async Task<string> ResolveUserDisplayNameAsync(string userId, CancellationToken cancellationToken)
+    {
+        if (userDisplayNameCache.TryGetValue(userId, out string? cached))
+        {
+            return cached;
+        }
+
+        try
+        {
+            SlackUserInfo info = await slackClient.GetUserInfoAsync(userId, cancellationToken);
+            userDisplayNameCache[userId] = info.DisplayName;
+            return info.DisplayName;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to resolve Slack user display name for {UserId}. Ensure the bot token has the 'users:read' scope.", userId);
+            userDisplayNameCache[userId] = userId;
+            return userId;
         }
     }
 
