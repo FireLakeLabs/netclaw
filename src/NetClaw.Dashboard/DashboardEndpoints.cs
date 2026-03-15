@@ -299,7 +299,7 @@ public static class DashboardEndpoints
             ".jpg" or ".jpeg" => "image/jpeg",
             ".gif" => "image/gif",
             ".webp" => "image/webp",
-            ".svg" => "image/svg+xml",
+            ".svg" => "application/octet-stream",
             ".bmp" => "image/bmp",
             ".ico" => "image/x-icon",
             _ => "application/octet-stream"

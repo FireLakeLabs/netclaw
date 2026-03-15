@@ -170,6 +170,12 @@ public sealed class SlackSocketModeClient : ISlackSocketModeClient
         using HttpResponseMessage response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         response.EnsureSuccessStatusCode();
 
+        long maxBytes = options.MaxFileDownloadBytes;
+        if (response.Content.Headers.ContentLength is > 0 and var declaredLength && declaredLength > maxBytes)
+        {
+            throw new InvalidOperationException($"File download rejected: Content-Length {declaredLength} exceeds limit of {maxBytes} bytes.");
+        }
+
         string? directory = Path.GetDirectoryName(destinationPath);
         if (!string.IsNullOrEmpty(directory))
         {
@@ -178,7 +184,20 @@ public sealed class SlackSocketModeClient : ISlackSocketModeClient
 
         await using Stream contentStream = await response.Content.ReadAsStreamAsync(cancellationToken);
         await using FileStream fileStream = new(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None);
-        await contentStream.CopyToAsync(fileStream, cancellationToken);
+
+        byte[] buffer = new byte[81920];
+        long totalBytesRead = 0;
+        int bytesRead;
+        while ((bytesRead = await contentStream.ReadAsync(buffer, cancellationToken)) > 0)
+        {
+            totalBytesRead += bytesRead;
+            if (totalBytesRead > maxBytes)
+            {
+                throw new InvalidOperationException($"File download aborted: exceeded limit of {maxBytes} bytes.");
+            }
+
+            await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead), cancellationToken);
+        }
     }
 
     public async Task<SlackFileUploadUrl> GetUploadUrlExternalAsync(string fileName, long fileSize, CancellationToken cancellationToken = default)

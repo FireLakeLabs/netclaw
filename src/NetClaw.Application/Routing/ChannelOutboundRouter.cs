@@ -59,6 +59,19 @@ public sealed class ChannelOutboundRouter(IMessageRepository messageRepository, 
             filePath,
             now);
 
+        StoredMessage outbound = new(
+            messageId,
+            chatJid,
+            "agent",
+            "Agent",
+            string.Empty,
+            now,
+            isFromMe: true,
+            isBotMessage: true,
+            attachments: [attachment]);
+
+        await messageRepository.StoreMessageAsync(outbound, cancellationToken);
         await fileAttachmentRepository.StoreAsync(attachment, cancellationToken);
+        messageNotifier.NotifyNewMessage(outbound);
     }
 }

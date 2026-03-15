@@ -20,7 +20,7 @@ public sealed class SqliteFileAttachmentRepository : IFileAttachmentRepository
         await using SqliteCommand command = connection.CreateCommand();
         command.CommandText =
             """
-            INSERT OR REPLACE INTO file_attachments (file_id, message_id, chat_jid, file_name, mime_type, file_size, local_path, downloaded_at)
+            INSERT OR IGNORE INTO file_attachments (file_id, message_id, chat_jid, file_name, mime_type, file_size, local_path, downloaded_at)
             VALUES ($fileId, $messageId, $chatJid, $fileName, $mimeType, $fileSize, $localPath, $downloadedAt);
             """;
         command.Parameters.AddWithValue("$fileId", attachment.FileId);
