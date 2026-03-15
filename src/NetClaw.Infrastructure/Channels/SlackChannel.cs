@@ -136,6 +136,29 @@ public sealed class SlackChannel : IInboundChannel
         return ownedChats.ContainsKey(chatJid.Value) || LooksLikeSlackConversationId(chatJid.Value);
     }
 
+    public async Task SendFileAsync(ChatJid chatJid, string filePath, string fileName, string? threadTs, CancellationToken cancellationToken = default)
+    {
+        if (!IsConnected)
+        {
+            throw new InvalidOperationException("Slack channel is not connected.");
+        }
+
+        ownedChats.TryAdd(chatJid.Value, 0);
+
+        string? resolvedThreadTs = threadTs;
+        if (resolvedThreadTs is null)
+        {
+            replyThreads.TryGetValue(chatJid.Value, out resolvedThreadTs);
+        }
+
+        long fileSize = new FileInfo(filePath).Length;
+        SlackFileUploadUrl uploadUrl = await slackClient.GetUploadUrlExternalAsync(fileName, fileSize, cancellationToken);
+        await slackClient.UploadFileToUrlAsync(uploadUrl.UploadUrl, filePath, cancellationToken);
+        await slackClient.CompleteUploadExternalAsync(uploadUrl.FileId, chatJid.Value, resolvedThreadTs, cancellationToken);
+
+        logger.LogInformation("Uploaded file {FileName} to Slack for {ChatJid}.", fileName, chatJid.Value);
+    }
+
     public async Task SendMessageAsync(ChatJid chatJid, string text, CancellationToken cancellationToken = default)
     {
         if (!IsConnected)

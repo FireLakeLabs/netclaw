@@ -14,7 +14,7 @@ public sealed class ChannelOutboundRouterTests
     {
         FakeMessageRepository messageRepo = new();
         FakeChannel channel = new(new ChannelName("whatsapp"), owns: true, isConnected: true);
-        ChannelOutboundRouter router = new(messageRepo, new NullMessageNotifier());
+        ChannelOutboundRouter router = new(messageRepo, new FakeFileAttachmentRepository(), new NullMessageNotifier());
 
         await router.RouteAsync([channel], new ChatJid("chat@jid"), "hello");
 
@@ -27,7 +27,7 @@ public sealed class ChannelOutboundRouterTests
     {
         FakeMessageRepository messageRepo = new();
         FakeChannel channel = new(new ChannelName("whatsapp"), owns: false, isConnected: true);
-        ChannelOutboundRouter router = new(messageRepo, new NullMessageNotifier());
+        ChannelOutboundRouter router = new(messageRepo, new FakeFileAttachmentRepository(), new NullMessageNotifier());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => router.RouteAsync([channel], new ChatJid("chat@jid"), "hello"));
     }
@@ -37,7 +37,7 @@ public sealed class ChannelOutboundRouterTests
     {
         FakeMessageRepository messageRepo = new();
         FakeChannel channel = new(new ChannelName("whatsapp"), owns: true, isConnected: true);
-        ChannelOutboundRouter router = new(messageRepo, new NullMessageNotifier());
+        ChannelOutboundRouter router = new(messageRepo, new FakeFileAttachmentRepository(), new NullMessageNotifier());
 
         await router.RouteAsync([channel], new ChatJid("chat@jid"), "hello");
 
@@ -80,6 +80,8 @@ public sealed class ChannelOutboundRouterTests
 
         public Task SetTypingAsync(ChatJid chatJid, bool isTyping, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
+        public Task SendFileAsync(ChatJid chatJid, string filePath, string fileName, string? threadTs, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
         public Task SyncGroupsAsync(bool force, CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
@@ -107,5 +109,18 @@ public sealed class ChannelOutboundRouterTests
 
         public Task StoreChatMetadataAsync(ChatInfo chatInfo, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
+    }
+
+    private sealed class FakeFileAttachmentRepository : IFileAttachmentRepository
+    {
+        public Task StoreAsync(FileAttachment attachment, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task<FileAttachment?> GetByFileIdAsync(string fileId, CancellationToken cancellationToken = default) => Task.FromResult<FileAttachment?>(null);
+
+        public Task<IReadOnlyList<FileAttachment>> GetByMessageAsync(string messageId, ChatJid chatJid, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<FileAttachment>>([]);
+
+        public Task<IReadOnlyDictionary<string, IReadOnlyList<FileAttachment>>> GetByMessagesAsync(IEnumerable<string> messageIds, ChatJid chatJid, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyDictionary<string, IReadOnlyList<FileAttachment>>>(new Dictionary<string, IReadOnlyList<FileAttachment>>());
     }
 }

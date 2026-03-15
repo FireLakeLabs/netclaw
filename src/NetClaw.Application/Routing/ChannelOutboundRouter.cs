@@ -7,7 +7,7 @@ using NetClaw.Domain.ValueObjects;
 
 namespace NetClaw.Application.Routing;
 
-public sealed class ChannelOutboundRouter(IMessageRepository messageRepository, IMessageNotifier messageNotifier) : IOutboundRouter
+public sealed class ChannelOutboundRouter(IMessageRepository messageRepository, IFileAttachmentRepository fileAttachmentRepository, IMessageNotifier messageNotifier) : IOutboundRouter
 {
     public async Task RouteAsync(IReadOnlyList<IChannel> channels, ChatJid chatJid, string text, CancellationToken cancellationToken = default)
     {
@@ -32,5 +32,33 @@ public sealed class ChannelOutboundRouter(IMessageRepository messageRepository, 
 
         await messageRepository.StoreMessageAsync(outbound, cancellationToken);
         messageNotifier.NotifyNewMessage(outbound);
+    }
+
+    public async Task RouteFileAsync(IReadOnlyList<IChannel> channels, ChatJid chatJid, string filePath, string fileName, CancellationToken cancellationToken = default)
+    {
+        IChannel? channel = channels.FirstOrDefault(candidate => candidate.IsConnected && candidate.Owns(chatJid));
+        if (channel is null)
+        {
+            throw new InvalidOperationException($"No connected channel owns chat JID '{chatJid.Value}'.");
+        }
+
+        await channel.SendFileAsync(chatJid, filePath, fileName, threadTs: null, cancellationToken);
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        string messageId = $"out-{now.ToUnixTimeMilliseconds()}-{Guid.NewGuid()}";
+        string fileId = $"outfile-{Guid.NewGuid()}";
+        long fileSize = new FileInfo(filePath).Length;
+
+        FileAttachment attachment = new(
+            fileId,
+            messageId,
+            chatJid,
+            fileName,
+            mimeType: null,
+            fileSize,
+            filePath,
+            now);
+
+        await fileAttachmentRepository.StoreAsync(attachment, cancellationToken);
     }
 }

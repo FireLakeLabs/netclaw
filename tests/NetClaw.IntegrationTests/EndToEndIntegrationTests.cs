@@ -621,6 +621,8 @@ public sealed class EndToEndIntegrationTests
             return Task.CompletedTask;
         }
 
+        public Task SendFileAsync(ChatJid chatJid, string filePath, string fileName, string? threadTs, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
         public Task SetTypingAsync(ChatJid chatJid, bool isTyping, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task SyncGroupsAsync(bool force, CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -706,6 +708,15 @@ public sealed class EndToEndIntegrationTests
             File.WriteAllText(destinationPath, "fake file content");
             return Task.CompletedTask;
         }
+
+        public Task<SlackFileUploadUrl> GetUploadUrlExternalAsync(string fileName, long fileSize, CancellationToken cancellationToken = default)
+            => Task.FromResult(new SlackFileUploadUrl("https://upload.example.com", "F_FAKE"));
+
+        public Task UploadFileToUrlAsync(string uploadUrl, string filePath, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public Task CompleteUploadExternalAsync(string fileId, string channelId, string? threadTs, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
     }
 
     private sealed class FakeSlackSocketModeConnection : ISlackSocketModeConnection

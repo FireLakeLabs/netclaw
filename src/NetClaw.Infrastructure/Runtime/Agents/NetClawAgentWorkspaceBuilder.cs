@@ -56,7 +56,17 @@ public sealed class NetClawAgentWorkspaceBuilder : IAgentWorkspaceBuilder
                 $"Main group: {(group.IsMain ? "yes" : "no")}",
                 string.Empty,
                 "Prioritize safe file operations, preserve existing project structure, and route all external actions through NetClaw-owned tools when available.",
-                "Treat this file as the provider-neutral instruction surface."
+                "Treat this file as the provider-neutral instruction surface.",
+                string.Empty,
+                "## Sending files back",
+                "When the user asks you to produce, create, or modify a file and send it back, you MUST include a file tag in your text response on its own line:",
+                string.Empty,
+                "  <file path=\"relative/path/to/file\" />",
+                string.Empty,
+                "Or with a description: <file path=\"relative/path/to/file\">description</file>",
+                "The path must be relative to the workspace root. Only reference files that actually exist on disk after you have created or modified them.",
+                "Multiple file tags are allowed in a single response. Without this tag, the file will NOT be delivered to the user.",
+                "Do NOT wrap the file tag in a code block or backticks — it must appear as raw text.",
             ]);
 
         AgentInstructionSet instructionSet = new(

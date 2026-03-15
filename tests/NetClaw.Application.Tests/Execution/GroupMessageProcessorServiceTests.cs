@@ -287,15 +287,25 @@ public sealed class GroupMessageProcessorServiceTests
 
         public string NormalizeOutbound(string rawText)
             => rawText.Replace("<internal>reasoning</internal>", string.Empty, StringComparison.Ordinal);
+
+        public IReadOnlyList<OutboundFileReference> ExtractFileReferences(string rawText) => [];
     }
 
     private sealed class RecordingOutboundRouter : IOutboundRouter
     {
         public List<(ChatJid ChatJid, string Text)> Messages { get; } = [];
 
+        public List<(ChatJid ChatJid, string FilePath, string FileName)> Files { get; } = [];
+
         public Task RouteAsync(IReadOnlyList<IChannel> channels, ChatJid chatJid, string text, CancellationToken cancellationToken = default)
         {
             Messages.Add((chatJid, text));
+            return Task.CompletedTask;
+        }
+
+        public Task RouteFileAsync(IReadOnlyList<IChannel> channels, ChatJid chatJid, string filePath, string fileName, CancellationToken cancellationToken = default)
+        {
+            Files.Add((chatJid, filePath, fileName));
             return Task.CompletedTask;
         }
     }
@@ -419,6 +429,8 @@ public sealed class GroupMessageProcessorServiceTests
 
         public Task SendMessageAsync(ChatJid chatJid, string text, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
+        public Task SendFileAsync(ChatJid chatJid, string filePath, string fileName, string? threadTs, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
         public bool Owns(ChatJid chatJid) => chatJid == ownedJid;
 
         public Task DisconnectAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -448,6 +460,8 @@ public sealed class GroupMessageProcessorServiceTests
         public Task ConnectAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task SendMessageAsync(ChatJid chatJid, string text, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task SendFileAsync(ChatJid chatJid, string filePath, string fileName, string? threadTs, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public bool Owns(ChatJid chatJid) => chatJid == ownedJid;
 

@@ -181,6 +181,47 @@ public sealed class SlackSocketModeClient : ISlackSocketModeClient
         await contentStream.CopyToAsync(fileStream, cancellationToken);
     }
 
+    public async Task<SlackFileUploadUrl> GetUploadUrlExternalAsync(string fileName, long fileSize, CancellationToken cancellationToken = default)
+    {
+        string escapedFileName = Uri.EscapeDataString(fileName);
+        SlackGetUploadUrlResponse response = await SendAsync<SlackGetUploadUrlResponse>(
+            HttpMethod.Get,
+            $"files.getUploadURLExternal?filename={escapedFileName}&length={fileSize}",
+            options.BotToken,
+            body: null,
+            cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(response.UploadUrl) || string.IsNullOrWhiteSpace(response.FileId))
+        {
+            throw new InvalidOperationException("Slack files.getUploadURLExternal did not return an upload URL or file ID.");
+        }
+
+        return new SlackFileUploadUrl(response.UploadUrl, response.FileId);
+    }
+
+    public async Task UploadFileToUrlAsync(string uploadUrl, string filePath, CancellationToken cancellationToken = default)
+    {
+        await using FileStream fileStream = new(filePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+        using StreamContent streamContent = new(fileStream);
+        streamContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
+
+        using HttpResponseMessage response = await httpClient.PostAsync(uploadUrl, streamContent, cancellationToken);
+        response.EnsureSuccessStatusCode();
+    }
+
+    public async Task CompleteUploadExternalAsync(string fileId, string channelId, string? threadTs, CancellationToken cancellationToken = default)
+    {
+        await SendAsync<SlackCompleteUploadResponse>(
+            HttpMethod.Post,
+            "files.completeUploadExternal",
+            options.BotToken,
+            new SlackCompleteUploadRequest(
+                [new SlackCompleteUploadFile(fileId)],
+                channelId,
+                threadTs),
+            cancellationToken);
+    }
+
     private async Task<TResponse> SendAsync<TResponse>(HttpMethod method, string path, string token, object? body, CancellationToken cancellationToken)
     {
         using HttpRequestMessage request = new(method, BuildApiUri(path));
@@ -357,4 +398,18 @@ public sealed class SlackSocketModeClient : ISlackSocketModeClient
     private sealed record SlackUserResponseProfile(
         [property: JsonPropertyName("display_name")] string? DisplayName,
         [property: JsonPropertyName("real_name")] string? RealName);
+
+    private sealed record SlackGetUploadUrlResponse(
+        [property: JsonPropertyName("upload_url")] string? UploadUrl,
+        [property: JsonPropertyName("file_id")] string? FileId);
+
+    private sealed record SlackCompleteUploadResponse();
+
+    private sealed record SlackCompleteUploadFile(
+        [property: JsonPropertyName("id")] string Id);
+
+    private sealed record SlackCompleteUploadRequest(
+        [property: JsonPropertyName("files")] IReadOnlyList<SlackCompleteUploadFile> Files,
+        [property: JsonPropertyName("channel_id")] string ChannelId,
+        [property: JsonPropertyName("thread_ts")] string? ThreadTs);
 }

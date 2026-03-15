@@ -123,6 +123,11 @@ public sealed class TerminalChannel : IInboundChannel
         return Task.CompletedTask;
     }
 
+    public Task SendFileAsync(ChatJid chatJid, string filePath, string fileName, string? threadTs, CancellationToken cancellationToken = default)
+    {
+        return Task.CompletedTask;
+    }
+
     public Task SyncGroupsAsync(bool force, CancellationToken cancellationToken = default)
     {
         return Task.CompletedTask;
