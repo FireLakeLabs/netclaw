@@ -9,8 +9,6 @@ namespace NetClaw.Application.Routing;
 
 public sealed class ChannelOutboundRouter(IMessageRepository messageRepository, IMessageNotifier messageNotifier) : IOutboundRouter
 {
-    private int sequence;
-
     public async Task RouteAsync(IReadOnlyList<IChannel> channels, ChatJid chatJid, string text, CancellationToken cancellationToken = default)
     {
         IChannel? channel = channels.FirstOrDefault(candidate => candidate.IsConnected && candidate.Owns(chatJid));
@@ -21,14 +19,14 @@ public sealed class ChannelOutboundRouter(IMessageRepository messageRepository, 
 
         await channel.SendMessageAsync(chatJid, text, cancellationToken);
 
-        int seq = Interlocked.Increment(ref sequence);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
         StoredMessage outbound = new(
-            $"out-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}-{seq}",
+            $"out-{now.ToUnixTimeMilliseconds()}-{Guid.NewGuid()}",
             chatJid,
             "agent",
             "Agent",
             text,
-            DateTimeOffset.UtcNow,
+            now,
             isFromMe: true,
             isBotMessage: true);
 
