@@ -115,7 +115,9 @@ public static class DashboardEndpoints
             }
 
             string contentType = attachment.MimeType ?? "application/octet-stream";
-            string? downloadName = download == true ? attachment.FileName : null;
+            bool safeInline = contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)
+                && !contentType.Contains("svg", StringComparison.OrdinalIgnoreCase);
+            string? downloadName = (download == true || !safeInline) ? attachment.FileName : null;
             return Results.File(attachment.LocalPath, contentType, downloadName, enableRangeProcessing: true);
         });
     }

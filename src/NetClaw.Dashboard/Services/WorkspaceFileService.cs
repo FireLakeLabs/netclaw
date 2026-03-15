@@ -67,13 +67,26 @@ public sealed class WorkspaceFileService
             return null;
         }
 
-        FileInfo fileInfo = new(fullPath);
-        if (fileInfo.Attributes.HasFlag(FileAttributes.ReparsePoint))
-        {
-            throw new WorkspacePathTraversalException("Symbolic links and reparse points are not allowed.");
-        }
-
+        RejectReparsePoints(fullPath);
         return fullPath;
+    }
+
+    private static void RejectReparsePoints(string fullPath)
+    {
+        string? current = fullPath;
+        while (!string.IsNullOrEmpty(current))
+        {
+            if (File.Exists(current) || Directory.Exists(current))
+            {
+                FileAttributes attributes = File.GetAttributes(current);
+                if (attributes.HasFlag(FileAttributes.ReparsePoint))
+                {
+                    throw new WorkspacePathTraversalException("Symbolic links and reparse points are not allowed.");
+                }
+            }
+
+            current = Path.GetDirectoryName(current);
+        }
     }
 
     public WorkspaceFileDto? ReadFile(GroupFolder groupFolder, string relativePath)

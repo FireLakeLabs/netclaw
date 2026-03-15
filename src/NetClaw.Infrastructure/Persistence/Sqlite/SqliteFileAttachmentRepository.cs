@@ -43,8 +43,7 @@ public sealed class SqliteFileAttachmentRepository : IFileAttachmentRepository
             """
             SELECT file_id, message_id, chat_jid, file_name, mime_type, file_size, local_path, downloaded_at
             FROM file_attachments
-            WHERE file_id = $fileId
-            LIMIT 1;
+            WHERE file_id = $fileId;
             """;
         command.Parameters.AddWithValue("$fileId", fileId);
 

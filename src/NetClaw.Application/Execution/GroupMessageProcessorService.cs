@@ -255,7 +255,18 @@ public sealed class GroupMessageProcessorService
                     directoryCreated = true;
                 }
 
-                string destination = Path.Combine(uploadsDir, attachment.FileName);
+                string safeName = Path.GetFileName(attachment.FileName);
+                if (string.IsNullOrWhiteSpace(safeName))
+                {
+                    safeName = attachment.FileId;
+                }
+
+                string destination = Path.GetFullPath(Path.Combine(uploadsDir, safeName));
+                if (!destination.StartsWith(uploadsDir, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
                 File.Copy(attachment.LocalPath, destination, overwrite: true);
             }
         }

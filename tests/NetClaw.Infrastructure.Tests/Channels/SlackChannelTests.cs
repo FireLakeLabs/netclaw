@@ -9,7 +9,8 @@ namespace NetClaw.Infrastructure.Tests.Channels;
 
 public sealed class SlackChannelTests
 {
-    private static readonly StorageOptions TestStorageOptions = StorageOptions.Create(Path.Combine(Path.GetTempPath(), "netclaw-test"));
+    private static StorageOptions CreateTestStorageOptions() =>
+        StorageOptions.Create(Path.Combine(Path.GetTempPath(), $"netclaw-test-{Guid.NewGuid():N}"));
 
     [Fact]
     public async Task PollInboundAsync_AcknowledgesEnvelopeAndNormalizesMention()
@@ -42,7 +43,7 @@ public sealed class SlackChannelTests
                 WorkingIndicatorText = "Evaluating..."
             },
             client,
-            TestStorageOptions);
+            CreateTestStorageOptions());
 
         await channel.ConnectAsync();
         await WaitForEnvelopeProcessingAsync(client.Connection, 1);
@@ -103,7 +104,7 @@ public sealed class SlackChannelTests
                 WorkingIndicatorText = "Evaluating..."
             },
             client,
-            TestStorageOptions);
+            CreateTestStorageOptions());
 
         await channel.ConnectAsync();
         await WaitForEnvelopeProcessingAsync(client.Connection, 1);
@@ -156,7 +157,7 @@ public sealed class SlackChannelTests
                 WorkingIndicatorText = "Evaluating..."
             },
             client,
-            TestStorageOptions);
+            CreateTestStorageOptions());
 
         await channel.ConnectAsync();
         await WaitForEnvelopeProcessingAsync(client.Connection, 1);
@@ -189,7 +190,7 @@ public sealed class SlackChannelTests
                 WorkingIndicatorText = "Evaluating..."
             },
             client,
-            TestStorageOptions);
+            CreateTestStorageOptions());
 
         await channel.ConnectAsync();
 
@@ -219,7 +220,7 @@ public sealed class SlackChannelTests
                 WorkingIndicatorText = "Evaluating..."
             },
             client,
-            TestStorageOptions);
+            CreateTestStorageOptions());
 
         await channel.ConnectAsync();
 
@@ -263,7 +264,7 @@ public sealed class SlackChannelTests
                 WorkingIndicatorText = "Evaluating..."
             },
             client,
-            TestStorageOptions);
+            CreateTestStorageOptions());
 
         await channel.ConnectAsync();
         await WaitForEnvelopeProcessingAsync(client.Connection, 1);
@@ -318,7 +319,7 @@ public sealed class SlackChannelTests
                 WorkingIndicatorText = "Evaluating..."
             },
             client,
-            TestStorageOptions);
+            CreateTestStorageOptions());
 
         await channel.ConnectAsync();
         await WaitForEnvelopeProcessingAsync(client.Connection, 1);
@@ -351,7 +352,7 @@ public sealed class SlackChannelTests
                 WorkingIndicatorText = "Evaluating..."
             },
             client,
-            TestStorageOptions);
+            CreateTestStorageOptions());
 
         await channel.ConnectAsync();
 

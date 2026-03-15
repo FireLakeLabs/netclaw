@@ -10,7 +10,9 @@ import type { WorkspaceTreeEntryDto } from "@/api/types";
 const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico"]);
 
 function isImageFile(path: string): boolean {
-  const ext = path.substring(path.lastIndexOf(".")).toLowerCase();
+  const dotIndex = path.lastIndexOf(".");
+  if (dotIndex < 0 || dotIndex === path.length - 1) return false;
+  const ext = path.substring(dotIndex).toLowerCase();
   return IMAGE_EXTENSIONS.has(ext);
 }
 

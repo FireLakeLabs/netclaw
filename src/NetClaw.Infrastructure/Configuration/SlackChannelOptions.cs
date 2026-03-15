@@ -16,6 +16,8 @@ public sealed record SlackChannelOptions
 
     public bool ReplyInThreadByDefault { get; init; } = true;
 
+    public long MaxFileDownloadBytes { get; init; } = 50 * 1024 * 1024;
+
     public void Validate()
     {
         if (!Enabled)

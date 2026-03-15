@@ -366,9 +366,20 @@ public sealed class SlackChannel : IInboundChannel
 
                 try
                 {
+                    if (file.Size > options.MaxFileDownloadBytes)
+                    {
+                        logger.LogWarning("Skipping Slack file {FileId} ({Size} bytes) — exceeds max {Max} bytes.", file.Id, file.Size, options.MaxFileDownloadBytes);
+                        continue;
+                    }
+
                     string fileDir = Path.Combine(storageOptions.DataDirectory, "files", chatJid.Value, file.Id);
-                    string fileName = string.IsNullOrWhiteSpace(file.Name) ? file.Id : file.Name;
-                    string localPath = Path.Combine(fileDir, fileName);
+                    string fileName = SanitizeFileName(string.IsNullOrWhiteSpace(file.Name) ? file.Id : file.Name);
+                    string localPath = Path.GetFullPath(Path.Combine(fileDir, fileName));
+                    if (!localPath.StartsWith(fileDir, StringComparison.Ordinal))
+                    {
+                        logger.LogWarning("Skipping Slack file {FileId} — sanitized name escapes storage directory.", file.Id);
+                        continue;
+                    }
 
                     await slackClient.DownloadFileAsync(file.UrlPrivate, localPath, cancellationToken);
                     logger.LogInformation("Downloaded Slack file {FileId} ({FileName}) to {LocalPath}.", file.Id, fileName, localPath);
@@ -405,6 +416,22 @@ public sealed class SlackChannel : IInboundChannel
             isFromMe: false,
             isBotMessage: false,
             attachments: attachments));
+    }
+
+    private static string SanitizeFileName(string name)
+    {
+        string safe = Path.GetFileName(name);
+        if (string.IsNullOrWhiteSpace(safe))
+        {
+            return "file";
+        }
+
+        foreach (char c in Path.GetInvalidFileNameChars())
+        {
+            safe = safe.Replace(c, '_');
+        }
+
+        return safe;
     }
 
     private async Task<ISlackSocketModeConnection> EnsureConnectionAsync(CancellationToken cancellationToken)
