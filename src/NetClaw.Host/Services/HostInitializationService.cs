@@ -67,6 +67,10 @@ public sealed class HostInitializationService : IHostedService
         string sessionsDirectory = Path.Combine(storageOptions.DataDirectory, "sessions");
         string filesDirectory = Path.Combine(storageOptions.DataDirectory, "files");
 
+        // Ensure all sensitive storage locations are restricted to the owner
+        DirectoryPermissions.RestrictToOwner(storageOptions.ProjectRoot, logger);
+        DirectoryPermissions.RestrictToOwner(storageOptions.StoreDirectory, logger);
+        DirectoryPermissions.RestrictToOwner(storageOptions.GroupsDirectory, logger);
         DirectoryPermissions.RestrictToOwner(storageOptions.DataDirectory, logger);
         DirectoryPermissions.RestrictToOwner(ipcDirectory, logger);
         DirectoryPermissions.RestrictToOwner(sessionsDirectory, logger);
