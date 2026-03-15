@@ -40,16 +40,18 @@ type DisplayItem =
   | { kind: "single"; event: AgentActivityEventDto }
   | CollapsedGroup;
 
+const COLLAPSIBLE_DELTAS = new Set(["TextDelta", "ReasoningDelta"]);
+
 function collapseDeltas(events: AgentActivityEventDto[]): DisplayItem[] {
   const items: DisplayItem[] = [];
   let i = 0;
   while (i < events.length) {
     const event = events[i]!;
-    if (event.eventKind === "TextDelta") {
+    if (COLLAPSIBLE_DELTAS.has(event.eventKind)) {
       const group: AgentActivityEventDto[] = [event];
       while (
         i + 1 < events.length &&
-        events[i + 1]!.eventKind === "TextDelta" &&
+        events[i + 1]!.eventKind === event.eventKind &&
         events[i + 1]!.sessionId === event.sessionId &&
         events[i + 1]!.groupFolder === event.groupFolder
       ) {
@@ -115,7 +117,7 @@ function DeltaGroupCard({ group }: { group: CollapsedGroup; index: number }) {
     <Card>
       <div className="flex items-start gap-3">
         <div className="shrink-0 pt-0.5">
-          <Badge variant="warning">Text Delta</Badge>
+          <Badge variant="warning">{eventKindLabel(first.eventKind)}</Badge>
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
