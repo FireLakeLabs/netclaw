@@ -33,7 +33,7 @@ file sealed class TempDirectory : IDisposable
     {
         if (Directory.Exists(Path))
         {
-            Directory.Delete(Path, recursive: false);
+            Directory.Delete(Path, recursive: true);
         }
     }
 }
