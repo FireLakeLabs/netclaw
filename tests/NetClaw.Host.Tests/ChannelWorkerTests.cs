@@ -70,6 +70,8 @@ public sealed class ChannelWorkerTests
 
         public Task SetTypingAsync(ChatJid chatJid, bool isTyping, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
+        public Task SendFileAsync(ChatJid chatJid, string filePath, string fileName, string? threadTs, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
         public Task SyncGroupsAsync(bool force, CancellationToken cancellationToken = default)
         {
             SyncCalled = true;

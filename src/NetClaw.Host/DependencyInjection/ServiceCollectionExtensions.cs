@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using NetClaw.Application.Channels;
 using NetClaw.Application.Execution;
 using NetClaw.Application.Formatting;
@@ -165,7 +166,8 @@ public static class ServiceCollectionExtensions
             serviceProvider.GetRequiredService<IFileAttachmentRepository>(),
             serviceProvider.GetRequiredService<AssistantIdentityOptions>().Name,
             serviceProvider.GetRequiredService<MessageLoopOptions>().Timezone,
-            serviceProvider.GetRequiredService<StorageOptions>().GroupsDirectory));
+            serviceProvider.GetRequiredService<StorageOptions>().GroupsDirectory,
+            serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger<GroupMessageProcessorService>()));
         services.AddSingleton(serviceProvider =>
         {
             GroupExecutionQueue queue = new(maxConcurrentExecutions: 1);

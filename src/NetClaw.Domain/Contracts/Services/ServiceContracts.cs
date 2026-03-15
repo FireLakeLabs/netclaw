@@ -13,11 +13,15 @@ public interface IMessageFormatter
     string FormatInbound(IReadOnlyList<StoredMessage> messages, string timezone);
 
     string NormalizeOutbound(string rawText);
+
+    IReadOnlyList<OutboundFileReference> ExtractFileReferences(string rawText);
 }
 
 public interface IOutboundRouter
 {
     Task RouteAsync(IReadOnlyList<IChannel> channels, ChatJid chatJid, string text, CancellationToken cancellationToken = default);
+
+    Task RouteFileAsync(IReadOnlyList<IChannel> channels, ChatJid chatJid, string filePath, string fileName, CancellationToken cancellationToken = default);
 }
 
 public interface IGroupExecutionQueue

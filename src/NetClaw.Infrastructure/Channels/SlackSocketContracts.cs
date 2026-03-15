@@ -21,6 +21,12 @@ public interface ISlackSocketModeClient
     Task<SlackUserInfo> GetUserInfoAsync(string userId, CancellationToken cancellationToken = default);
 
     Task DownloadFileAsync(string urlPrivate, string destinationPath, CancellationToken cancellationToken = default);
+
+    Task<SlackFileUploadUrl> GetUploadUrlExternalAsync(string fileName, long fileSize, CancellationToken cancellationToken = default);
+
+    Task UploadFileToUrlAsync(string uploadUrl, string filePath, CancellationToken cancellationToken = default);
+
+    Task CompleteUploadExternalAsync(string fileId, string channelId, string? threadTs, CancellationToken cancellationToken = default);
 }
 
 public interface ISlackSocketModeConnection : IAsyncDisposable
@@ -67,3 +73,5 @@ public sealed record SlackFileObject(
     [property: JsonPropertyName("mimetype")] string? MimeType,
     [property: JsonPropertyName("url_private")] string? UrlPrivate,
     [property: JsonPropertyName("filetype")] string? FileType);
+
+public sealed record SlackFileUploadUrl(string UploadUrl, string FileId);

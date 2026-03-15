@@ -84,7 +84,7 @@ export function ChatDetailPage() {
                 {msg.attachments && msg.attachments.length > 0 && (
                   <div className="mt-2 space-y-2">
                     {msg.attachments.map((file: FileAttachmentDto) => {
-                      const isImage = file.mimeType?.startsWith("image/") ?? false;
+                      const isImage = (file.mimeType?.startsWith("image/") && !file.mimeType?.includes("svg")) ?? false;
                       const fileUrl = `/api/files/${encodeURIComponent(file.fileId)}`;
                       return (
                         <div key={file.fileId}>

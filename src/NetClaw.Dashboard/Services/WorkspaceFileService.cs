@@ -67,22 +67,42 @@ public sealed class WorkspaceFileService
             return null;
         }
 
-        RejectReparsePoints(fullPath);
+        RejectReparsePoints(fullPath, groupsDirectory, dataDirectory);
         return fullPath;
     }
 
-    private static void RejectReparsePoints(string fullPath)
+    private static void RejectReparsePoints(string fullPath, params string[] stopDirectories)
     {
         string? current = fullPath;
         while (!string.IsNullOrEmpty(current))
         {
-            if (File.Exists(current) || Directory.Exists(current))
+            if (stopDirectories.Any(d => string.Equals(current, d, StringComparison.Ordinal)))
             {
-                FileAttributes attributes = File.GetAttributes(current);
-                if (attributes.HasFlag(FileAttributes.ReparsePoint))
+                break;
+            }
+
+            try
+            {
+                if (File.Exists(current) || Directory.Exists(current))
                 {
-                    throw new WorkspacePathTraversalException("Symbolic links and reparse points are not allowed.");
+                    FileAttributes attributes = File.GetAttributes(current);
+                    if (attributes.HasFlag(FileAttributes.ReparsePoint))
+                    {
+                        throw new WorkspacePathTraversalException("Symbolic links and reparse points are not allowed.");
+                    }
                 }
+            }
+            catch (WorkspacePathTraversalException)
+            {
+                throw;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                throw new WorkspacePathTraversalException("Cannot verify path safety — access denied.");
+            }
+            catch (IOException)
+            {
+                throw new WorkspacePathTraversalException("Cannot verify path safety — I/O error.");
             }
 
             current = Path.GetDirectoryName(current);

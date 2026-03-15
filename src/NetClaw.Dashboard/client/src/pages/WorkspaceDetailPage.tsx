@@ -7,7 +7,7 @@ import { useWorkspaceTree, useWorkspaceFile } from "@/api/client";
 import { usePageState } from "@/hooks/usePageState";
 import type { WorkspaceTreeEntryDto } from "@/api/types";
 
-const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp", ".ico"]);
+const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".ico"]);
 
 function isImageFile(path: string): boolean {
   const dotIndex = path.lastIndexOf(".");
@@ -64,12 +64,17 @@ export function WorkspaceDetailPage() {
             <EmptyState message="Select a file from the tree to view its contents" />
           ) : isImage ? (
             <div>
-              <img
-                src={rawFileUrl(folder ?? "", selectedFile)}
-                alt={selectedFile}
-                className="max-w-full max-h-[60vh] rounded cursor-pointer"
+              <button
+                type="button"
                 onClick={() => setLightboxSrc(rawFileUrl(folder ?? "", selectedFile))}
-              />
+                className="cursor-pointer"
+              >
+                <img
+                  src={rawFileUrl(folder ?? "", selectedFile)}
+                  alt={selectedFile}
+                  className="max-w-full max-h-[60vh] rounded"
+                />
+              </button>
             </div>
           ) : file.isLoading ? (
             <Spinner />

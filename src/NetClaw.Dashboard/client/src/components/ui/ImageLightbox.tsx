@@ -28,6 +28,9 @@ export function ImageLightbox({ src, alt, fileName, onClose }: ImageLightboxProp
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Image preview: ${alt}`}
       onClick={onClose}
     >
       <div className="absolute top-4 right-4 flex items-center gap-2 z-10">
@@ -36,14 +39,14 @@ export function ImageLightbox({ src, alt, fileName, onClose }: ImageLightboxProp
           download={fileName}
           onClick={(e) => e.stopPropagation()}
           className="p-2 rounded-full bg-gray-800/80 text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
-          title="Download"
+          aria-label="Download"
         >
           <Download size={20} />
         </a>
         <button
           onClick={onClose}
           className="p-2 rounded-full bg-gray-800/80 text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
-          title="Close"
+          aria-label="Close"
         >
           <X size={20} />
         </button>

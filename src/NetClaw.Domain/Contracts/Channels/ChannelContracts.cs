@@ -7,6 +7,8 @@ public sealed record ChannelMessage(ChatJid ChatJid, StoredMessage Message);
 
 public sealed record ChannelMetadataEvent(ChatJid ChatJid, DateTimeOffset Timestamp, string? Name, ChannelName? Channel, bool? IsGroup);
 
+public sealed record OutboundFileReference(string RelativePath, string? AltText);
+
 public interface IChannel
 {
     ChannelName Name { get; }
@@ -14,6 +16,8 @@ public interface IChannel
     Task ConnectAsync(CancellationToken cancellationToken = default);
 
     Task SendMessageAsync(ChatJid chatJid, string text, CancellationToken cancellationToken = default);
+
+    Task SendFileAsync(ChatJid chatJid, string filePath, string fileName, string? threadTs, CancellationToken cancellationToken = default);
 
     bool IsConnected { get; }
 

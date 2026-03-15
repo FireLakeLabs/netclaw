@@ -162,6 +162,8 @@ public sealed class InboundMessagePollingServiceTests
 
         public string NormalizeOutbound(string rawText)
             => rawText;
+
+        public IReadOnlyList<OutboundFileReference> ExtractFileReferences(string rawText) => [];
     }
 
     private sealed class InMemoryMessageRepository : IMessageRepository
@@ -299,6 +301,8 @@ public sealed class InboundMessagePollingServiceTests
 
         public Task SendMessageAsync(ChatJid chatJid, string text, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
+        public Task SendFileAsync(ChatJid chatJid, string filePath, string fileName, string? threadTs, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
         public bool Owns(ChatJid chatJid) => chatJid == ownedJid;
 
         public Task DisconnectAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
@@ -328,6 +332,8 @@ public sealed class InboundMessagePollingServiceTests
         public Task ConnectAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task SendMessageAsync(ChatJid chatJid, string text, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task SendFileAsync(ChatJid chatJid, string filePath, string fileName, string? threadTs, CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public bool Owns(ChatJid chatJid) => chatJid == ownedJid;
 

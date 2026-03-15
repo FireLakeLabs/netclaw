@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using NetClaw.Application.Observability;
 using NetClaw.Domain.Contracts.Channels;
 using NetClaw.Domain.Contracts.Containers;
@@ -17,6 +19,7 @@ public sealed class GroupMessageProcessorService
     private readonly string assistantName;
     private readonly IReadOnlyList<IChannel> channels;
     private readonly IGroupExecutionQueue groupExecutionQueue;
+    private readonly ILogger<GroupMessageProcessorService> logger;
     private readonly IMessageFormatter messageFormatter;
     private readonly IMessageRepository messageRepository;
     private readonly IGroupRepository groupRepository;
@@ -43,6 +46,30 @@ public sealed class GroupMessageProcessorService
         string assistantName,
         string timezone,
         string groupsDirectory)
+        : this(messageRepository, groupRepository, routerStateRepository, senderAuthorizationService,
+               messageFormatter, outboundRouter, agentRuntime, groupExecutionQueue, activeSessionRegistry,
+               channels, agentEventSink, fileAttachmentRepository, assistantName, timezone, groupsDirectory,
+               NullLogger<GroupMessageProcessorService>.Instance)
+    {
+    }
+
+    public GroupMessageProcessorService(
+        IMessageRepository messageRepository,
+        IGroupRepository groupRepository,
+        IRouterStateRepository routerStateRepository,
+        ISenderAuthorizationService senderAuthorizationService,
+        IMessageFormatter messageFormatter,
+        IOutboundRouter outboundRouter,
+        IAgentRuntime agentRuntime,
+        IGroupExecutionQueue groupExecutionQueue,
+        ActiveGroupSessionRegistry activeSessionRegistry,
+        IReadOnlyList<IChannel> channels,
+        IAgentEventSink agentEventSink,
+        IFileAttachmentRepository fileAttachmentRepository,
+        string assistantName,
+        string timezone,
+        string groupsDirectory,
+        ILogger<GroupMessageProcessorService> logger)
     {
         this.messageRepository = messageRepository;
         this.groupRepository = groupRepository;
@@ -59,6 +86,7 @@ public sealed class GroupMessageProcessorService
         this.assistantName = assistantName;
         this.timezone = timezone;
         this.groupsDirectory = groupsDirectory;
+        this.logger = logger;
     }
 
     public async Task<bool> ProcessAsync(ChatJid groupJid, CancellationToken cancellationToken = default)
@@ -106,7 +134,17 @@ public sealed class GroupMessageProcessorService
                         {
                             case ContainerEventKind.MessageCompleted:
                                 {
-                                    string text = messageFormatter.NormalizeOutbound(streamEvent.Output.Result ?? string.Empty);
+                                    string rawOutput = streamEvent.Output.Result ?? string.Empty;
+                                    try
+                                    {
+                                        await RouteFileReferencesAsync(rawOutput, group.Folder, groupJid, ct);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        logger.LogWarning(ex, "Failed to route outbound file references for {GroupJid}.", groupJid.Value);
+                                    }
+
+                                    string text = messageFormatter.NormalizeOutbound(rawOutput);
                                     if (!string.IsNullOrWhiteSpace(text))
                                     {
                                         await outboundRouter.RouteAsync(channels, groupJid, text, ct);
@@ -139,9 +177,21 @@ public sealed class GroupMessageProcessorService
                 }
 
                 string outboundText = messageFormatter.NormalizeOutbound(executionResult.Result ?? string.Empty);
-                if (!streamedCompletedMessage && !string.IsNullOrWhiteSpace(outboundText))
+                if (!streamedCompletedMessage)
                 {
-                    await outboundRouter.RouteAsync(channels, groupJid, outboundText, cancellationToken);
+                    try
+                    {
+                        await RouteFileReferencesAsync(executionResult.Result ?? string.Empty, group.Folder, groupJid, cancellationToken);
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogWarning(ex, "Failed to route outbound file references for {GroupJid}.", groupJid.Value);
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(outboundText))
+                    {
+                        await outboundRouter.RouteAsync(channels, groupJid, outboundText, cancellationToken);
+                    }
                 }
 
                 await routerStateRepository.SetAsync(
@@ -269,6 +319,38 @@ public sealed class GroupMessageProcessorService
 
                 File.Copy(attachment.LocalPath, destination, overwrite: true);
             }
+        }
+    }
+
+    private async Task RouteFileReferencesAsync(string rawOutput, GroupFolder groupFolder, ChatJid groupJid, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<OutboundFileReference> fileRefs = messageFormatter.ExtractFileReferences(rawOutput);
+        if (fileRefs.Count == 0)
+        {
+            return;
+        }
+
+        logger.LogInformation("Found {Count} outbound file reference(s) for {GroupJid}.", fileRefs.Count, groupJid.Value);
+        string workspaceRoot = Path.GetFullPath(Path.Combine(groupsDirectory, groupFolder.Value));
+
+        foreach (OutboundFileReference fileRef in fileRefs)
+        {
+            string resolvedPath = Path.GetFullPath(Path.Combine(workspaceRoot, fileRef.RelativePath));
+            if (!resolvedPath.StartsWith(workspaceRoot, StringComparison.Ordinal))
+            {
+                logger.LogWarning("Outbound file reference '{Path}' escapes workspace root. Skipping.", fileRef.RelativePath);
+                continue;
+            }
+
+            if (!File.Exists(resolvedPath))
+            {
+                logger.LogWarning("Outbound file reference '{Path}' not found at '{ResolvedPath}'. Skipping.", fileRef.RelativePath, resolvedPath);
+                continue;
+            }
+
+            string fileName = Path.GetFileName(resolvedPath);
+            logger.LogInformation("Routing outbound file '{FileName}' from '{ResolvedPath}' for {GroupJid}.", fileName, resolvedPath, groupJid.Value);
+            await outboundRouter.RouteFileAsync(channels, groupJid, resolvedPath, fileName, cancellationToken);
         }
     }
 }

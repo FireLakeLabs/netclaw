@@ -1,11 +1,13 @@
 using System.Globalization;
 using System.Text;
+using System.Text.RegularExpressions;
+using NetClaw.Domain.Contracts.Channels;
 using NetClaw.Domain.Contracts.Services;
 using NetClaw.Domain.Entities;
 
 namespace NetClaw.Application.Formatting;
 
-public sealed class XmlMessageFormatter : IMessageFormatter
+public sealed partial class XmlMessageFormatter : IMessageFormatter
 {
     public string FormatInbound(IReadOnlyList<StoredMessage> messages, string timezone)
     {
@@ -61,8 +63,38 @@ public sealed class XmlMessageFormatter : IMessageFormatter
 
     public string NormalizeOutbound(string rawText)
     {
-        return StripInternalTags(rawText).Trim();
+        string stripped = StripInternalTags(rawText);
+        stripped = StripFileTags(stripped);
+        return stripped.Trim();
     }
+
+    public IReadOnlyList<OutboundFileReference> ExtractFileReferences(string rawText)
+    {
+        List<OutboundFileReference> references = [];
+        foreach (Match match in FileTagRegex().Matches(rawText))
+        {
+            string path = match.Groups["path"].Value;
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                continue;
+            }
+
+            string? altText = match.Groups["alt"].Success && !string.IsNullOrWhiteSpace(match.Groups["alt"].Value)
+                ? match.Groups["alt"].Value
+                : null;
+            references.Add(new OutboundFileReference(path, altText));
+        }
+
+        return references;
+    }
+
+    internal static string StripFileTags(string value)
+    {
+        return FileTagRegex().Replace(value, string.Empty);
+    }
+
+    [GeneratedRegex(@"<file\s+path=""(?<path>[^""]+)""\s*(?:/>|>(?<alt>.*?)</file>)", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex FileTagRegex();
 
     internal static string EscapeXml(string value)
     {
