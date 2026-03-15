@@ -26,7 +26,6 @@ export function useRecentActivity(limit = 100) {
       fetchJson<AgentActivityEventDto[]>(
         `/api/activity/recent?limit=${limit}`
       ),
-    refetchInterval: 10_000,
   });
 }
 
@@ -45,7 +44,6 @@ export function useLiveState() {
   return useQuery({
     queryKey: ["activity", "liveState"],
     queryFn: () => fetchJson<QueueStateDto>("/api/activity/live-state"),
-    refetchInterval: 3_000,
   });
 }
 
@@ -116,7 +114,6 @@ export function useSystemHealth() {
   return useQuery({
     queryKey: ["system", "health"],
     queryFn: () => fetchJson<SystemHealthDto>("/api/system/health"),
-    refetchInterval: 5_000,
   });
 }
 

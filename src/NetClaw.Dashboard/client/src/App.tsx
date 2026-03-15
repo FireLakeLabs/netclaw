@@ -29,14 +29,17 @@ function AppShell() {
 
   const onAgentEvent = useCallback((event: AgentActivityEventDto) => {
     setRecentEvents((prev) => [event, ...prev].slice(0, 200));
+    queryClient.invalidateQueries({ queryKey: ["activity"] });
   }, []);
 
   const onQueueStateChanged = useCallback((state: QueueStateDto) => {
     setQueueState(state);
+    queryClient.invalidateQueries({ queryKey: ["activity", "liveState"] });
   }, []);
 
   const onWorkerHeartbeat = useCallback((hb: WorkerHeartbeatDto) => {
     setHeartbeat(hb);
+    queryClient.invalidateQueries({ queryKey: ["system", "health"] });
   }, []);
 
   const onNewMessage = useCallback(() => {
