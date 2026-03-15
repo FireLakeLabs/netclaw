@@ -60,7 +60,7 @@ public sealed class DirectoryPermissionsTests
         DirectoryPermissions.RestrictToOwner(tmp.Path);
 
         UnixFileMode mode = File.GetUnixFileMode(tmp.Path);
-        Assert.Equal(0, (int)(mode & GroupAndOther));
+        Assert.Equal(UnixFileMode.None, mode & GroupAndOther);
         Assert.Equal(
             UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute,
             mode & (UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute));
