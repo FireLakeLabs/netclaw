@@ -109,13 +109,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IContainerRuntime, DockerContainerRuntime>();
         services.AddSingleton<IAgentWorkspaceBuilder, NetClawAgentWorkspaceBuilder>();
         services.AddSingleton<IAgentToolRegistry, NetClawAgentToolRegistry>();
-        services.AddSingleton<ICopilotToolFactory, NetClawCopilotToolFactory>();
-        services.AddSingleton<ICopilotClientAdapterFactory, SdkCopilotClientAdapterFactory>();
-        services.AddSingleton<ICopilotClientPool, CopilotClientPool>();
-        services.AddSingleton<ICodingAgentEngine, CopilotCodingAgentEngine>();
-        services.AddSingleton<ICodingAgentEngine, ClaudeCodePlaceholderEngine>();
-        services.AddSingleton<ICodingAgentEngine, CodexPlaceholderEngine>();
-        services.AddSingleton<ICodingAgentEngine, OpenCodePlaceholderEngine>();
+        services.AddSingleton<ContainerizedAgentEngine>();
+        services.AddSingleton<ICodingAgentEngine>(static serviceProvider => serviceProvider.GetRequiredService<ContainerizedAgentEngine>());
+        services.AddSingleton<IContainerExecutionService, ContainerExecutionService>();
+        services.AddSingleton<ICredentialProxyService, CredentialProxyService>();
         services.AddSingleton<IAgentRuntime, NetClawAgentRuntime>();
         services.AddSingleton<IIpcCommandWatcher, FileSystemIpcWatcher>();
 
@@ -208,6 +205,7 @@ public static class ServiceCollectionExtensions
             serviceProvider.GetRequiredService<Func<ChatJid, string, CancellationToken, Task>>()));
 
         services.AddHostedService<HostInitializationService>();
+        services.AddHostedService<CredentialProxyWorker>();
         services.AddHostedService<ChannelWorker>();
         services.AddHostedService<MessageLoopWorker>();
         services.AddHostedService<IpcWatcherWorker>();
@@ -236,32 +234,43 @@ public static class ServiceCollectionExtensions
         return new CredentialProxyOptions
         {
             Host = configuration["NetClaw:CredentialProxy:Host"] ?? "127.0.0.1",
-            Port = port
+            Port = port,
+            CopilotUpstreamUrl = configuration["NetClaw:CredentialProxy:CopilotUpstreamUrl"] ?? "https://api.githubcopilot.com",
+            ClaudeUpstreamUrl = configuration["NetClaw:CredentialProxy:ClaudeUpstreamUrl"] ?? "https://api.anthropic.com",
+            AuthMode = configuration["NetClaw:CredentialProxy:AuthMode"] ?? "api-key"
         };
     }
 
     private static ContainerRuntimeOptions CreateContainerRuntimeOptions(IConfiguration configuration)
     {
+        TimeSpan executionTimeout = TimeSpan.FromMinutes(10);
+        if (TimeSpan.TryParse(configuration["NetClaw:ContainerRuntime:ExecutionTimeout"], out TimeSpan configuredTimeout))
+        {
+            executionTimeout = configuredTimeout;
+        }
+
+        int maxOutputBytes = 10 * 1024 * 1024;
+        if (int.TryParse(configuration["NetClaw:ContainerRuntime:MaxOutputBytes"], out int configuredMax))
+        {
+            maxOutputBytes = configuredMax;
+        }
+
         return new ContainerRuntimeOptions
         {
             RuntimeBinary = configuration["NetClaw:ContainerRuntime:RuntimeBinary"] ?? "docker",
             HostGatewayName = configuration["NetClaw:ContainerRuntime:HostGatewayName"] ?? "host.docker.internal",
-            ProxyBindHostOverride = configuration["NetClaw:ContainerRuntime:ProxyBindHostOverride"] ?? string.Empty
+            ProxyBindHostOverride = configuration["NetClaw:ContainerRuntime:ProxyBindHostOverride"] ?? string.Empty,
+            ImageName = configuration["NetClaw:ContainerRuntime:ImageName"] ?? "netclaw-agent:latest",
+            ExecutionTimeout = executionTimeout,
+            MaxOutputBytes = maxOutputBytes
         };
     }
 
     private static AgentRuntimeOptions CreateAgentRuntimeOptions(IConfiguration configuration, HostPathOptions hostPathOptions)
     {
-        bool keepContainerBoundary = true;
-        if (bool.TryParse(configuration["NetClaw:AgentRuntime:KeepContainerBoundary"], out bool configuredKeepContainerBoundary))
-        {
-            keepContainerBoundary = configuredKeepContainerBoundary;
-        }
-
         return new AgentRuntimeOptions
         {
             DefaultProvider = configuration["NetClaw:AgentRuntime:DefaultProvider"] ?? "copilot",
-            KeepContainerBoundary = keepContainerBoundary,
             CopilotCliPath = configuration["NetClaw:AgentRuntime:CopilotCliPath"] ?? "copilot",
             CopilotConfigDirectory = configuration["NetClaw:AgentRuntime:CopilotConfigDirectory"] ?? Path.Combine(hostPathOptions.ProjectRoot, "data", "copilot"),
             CopilotCliUrl = configuration["NetClaw:AgentRuntime:CopilotCliUrl"],

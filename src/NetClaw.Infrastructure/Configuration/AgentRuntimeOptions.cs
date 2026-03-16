@@ -6,8 +6,6 @@ public sealed record AgentRuntimeOptions
 {
     public string DefaultProvider { get; init; } = "copilot";
 
-    public bool KeepContainerBoundary { get; init; } = true;
-
     public string CopilotCliPath { get; init; } = "copilot";
 
     public string CopilotConfigDirectory { get; init; } = string.Empty;

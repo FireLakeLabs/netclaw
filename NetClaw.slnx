@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/NetClaw.AgentRunner/NetClaw.AgentRunner.csproj" />
     <Project Path="src/NetClaw.Application/NetClaw.Application.csproj" />
     <Project Path="src/NetClaw.Dashboard/NetClaw.Dashboard.csproj" />
     <Project Path="src/NetClaw.Domain/NetClaw.Domain.csproj" />

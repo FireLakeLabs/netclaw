@@ -22,6 +22,8 @@ namespace NetClaw.IntegrationTests;
 
 public sealed class EndToEndIntegrationTests
 {
+    private static int _nextProxyPort = 13000;
+
     [Fact]
     public async Task SetupRegistration_IsVisibleThroughHostRepositories()
     {
@@ -474,6 +476,7 @@ public sealed class EndToEndIntegrationTests
                 Dictionary<string, string?> settings = new()
                 {
                     ["NetClaw:ProjectRoot"] = projectRoot,
+                    ["NetClaw:CredentialProxy:Port"] = Interlocked.Increment(ref _nextProxyPort).ToString(),
                     ["NetClaw:MessageLoop:PollInterval"] = "00:10:00",
                     ["NetClaw:MessageLoop:Timezone"] = "UTC",
                     ["NetClaw:Scheduler:PollInterval"] = "00:10:00",

@@ -53,14 +53,12 @@ public sealed class OptionsTests
         AgentRuntimeOptions options = new()
         {
             DefaultProvider = "copilot",
-            KeepContainerBoundary = true,
             CopilotConfigDirectory = "/tmp/netclaw/copilot"
         };
 
         options.Validate();
 
         Assert.Equal(NetClaw.Domain.Enums.AgentProviderKind.Copilot, options.GetDefaultProvider());
-        Assert.True(options.KeepContainerBoundary);
     }
 
     [Fact]

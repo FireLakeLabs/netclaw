@@ -70,10 +70,13 @@ The runtime boundary is intentionally separate from channel and storage concerns
 - resolves the provider from configuration
 - builds a per-group workspace
 - resolves an existing session if one exists
-- exposes the currently allowed tools for the request
-- calls the selected provider engine
+- delegates execution to `IContainerExecutionService`
 
-The active provider engine is `CopilotCodingAgentEngine`. Placeholder engines exist for future providers, but they do not provide live parity today.
+All agent work runs inside an isolated Docker or Podman container. `ContainerizedAgentEngine` spawns the container, writes input to stdin as JSON, and parses JSONL output from stdout. A `CredentialProxyService` on the host injects real API keys — containers never see the actual secrets.
+
+Inside the container, `NetClaw.AgentRunner` dispatches to the configured provider CLI (Copilot or Claude Code). The provider is selected at runtime via the `NETCLAW_PROVIDER` environment variable. Placeholder engines for Codex and OpenCode still exist but are not wired into DI — their CLIs can be added to the container image when ready.
+
+The previous in-process execution path through `CopilotCodingAgentEngine` and the Copilot SDK has been replaced by containerized execution.
 
 ## Workspaces And Sessions
 

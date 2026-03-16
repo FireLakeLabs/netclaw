@@ -11,6 +11,8 @@ namespace NetClaw.Host.Tests;
 
 public sealed class ProgramTests
 {
+    private static int _nextProxyPort = 14000;
+
     [Fact]
     public async Task CreateHostBuilder_BuildsAndStartsHost()
     {
@@ -23,6 +25,7 @@ public sealed class ProgramTests
                     configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
                     {
                         ["NetClaw:ProjectRoot"] = projectRoot,
+                        ["NetClaw:CredentialProxy:Port"] = Interlocked.Increment(ref _nextProxyPort).ToString(),
                         ["NetClaw:Scheduler:PollInterval"] = "00:00:30",
                         ["NetClaw:Channels:Terminal:Enabled"] = "false",
                         ["NetClaw:Channels:Slack:Enabled"] = "false",
@@ -61,6 +64,7 @@ public sealed class ProgramTests
                     configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
                     {
                         ["NetClaw:ProjectRoot"] = projectRoot,
+                        ["NetClaw:CredentialProxy:Port"] = Interlocked.Increment(ref _nextProxyPort).ToString(),
                         ["NetClaw:Assistant:Name"] = "NetClaw",
                         ["NetClaw:Ipc:PollInterval"] = "00:00:05",
                         ["NetClaw:MessageLoop:PollInterval"] = "00:00:07",

@@ -12,25 +12,22 @@ namespace NetClaw.Infrastructure.Runtime.Agents;
 public sealed class NetClawAgentRuntime : IAgentRuntime
 {
     private readonly AgentRuntimeOptions options;
-    private readonly IReadOnlyDictionary<AgentProviderKind, ICodingAgentEngine> engines;
+    private readonly IContainerExecutionService containerExecutionService;
     private readonly IGroupRepository groupRepository;
     private readonly ISessionRepository sessionRepository;
-    private readonly IAgentToolRegistry toolRegistry;
     private readonly IAgentWorkspaceBuilder workspaceBuilder;
 
     public NetClawAgentRuntime(
-        IEnumerable<ICodingAgentEngine> engines,
+        IContainerExecutionService containerExecutionService,
         IGroupRepository groupRepository,
         ISessionRepository sessionRepository,
         IAgentWorkspaceBuilder workspaceBuilder,
-        IAgentToolRegistry toolRegistry,
         AgentRuntimeOptions options)
     {
-        this.engines = engines.ToDictionary(engine => engine.Provider);
+        this.containerExecutionService = containerExecutionService;
         this.groupRepository = groupRepository;
         this.sessionRepository = sessionRepository;
         this.workspaceBuilder = workspaceBuilder;
-        this.toolRegistry = toolRegistry;
         this.options = options;
     }
 
@@ -52,39 +49,19 @@ public sealed class NetClawAgentRuntime : IAgentRuntime
                 BuildContainerName(provider, input.GroupFolder));
         }
 
-        if (!engines.TryGetValue(provider, out ICodingAgentEngine? engine))
-        {
-            return new ContainerExecutionResult(
-                ContainerRunStatus.Error,
-                null,
-                input.SessionId,
-                $"No coding agent engine is registered for provider '{provider}'.",
-                BuildContainerName(provider, group.Folder));
-        }
-
         ContainerInput effectiveInput = input with { IsMain = group.IsMain };
-        AgentWorkspaceContext workspace = await workspaceBuilder.BuildAsync(group, effectiveInput, cancellationToken);
-        AgentSessionReference? session = await ResolveSessionAsync(provider, group.Folder, effectiveInput.SessionId, workspace, cancellationToken);
-        AgentExecutionRequest request = new(provider, group, effectiveInput, workspace, session, toolRegistry.GetTools(group, effectiveInput));
+        ContainerName containerName = BuildContainerName(provider, group.Folder);
 
-        AgentExecutionResult executionResult = await engine.ExecuteAsync(
-            request,
-            onStreamEvent is null ? null : (agentEvent, ct) => onStreamEvent(TranslateStreamEvent(agentEvent), ct),
-            cancellationToken);
+        ContainerExecutionRequest request = new(group, effectiveInput, [], containerName);
 
-        if (executionResult.Session is not null)
+        ContainerExecutionResult result = await containerExecutionService.RunAsync(request, onStreamEvent, cancellationToken);
+
+        if (result.NewSessionId is { } newSessionId)
         {
-            await sessionRepository.UpsertAsync(
-                new SessionState(group.Folder, new SessionId(executionResult.Session.SessionId)),
-                cancellationToken);
+            await sessionRepository.UpsertAsync(new SessionState(group.Folder, newSessionId), cancellationToken);
         }
 
-        return new ContainerExecutionResult(
-            executionResult.Status,
-            executionResult.Result,
-            executionResult.Session is null ? null : new SessionId(executionResult.Session.SessionId),
-            executionResult.Error,
-            BuildContainerName(provider, group.Folder));
+        return result;
     }
 
     public async Task<IInteractiveContainerSession> StartInteractiveSessionAsync(
@@ -100,95 +77,35 @@ public sealed class NetClawAgentRuntime : IAgentRuntime
             return new FailedInteractiveContainerSession(BuildContainerName(provider, input.GroupFolder), "Group not registered.");
         }
 
-        if (!engines.TryGetValue(provider, out ICodingAgentEngine? engine))
-        {
-            return new FailedInteractiveContainerSession(BuildContainerName(provider, group.Folder), $"No coding agent engine is registered for provider '{provider}'.");
-        }
-
-        if (engine is not IInteractiveCodingAgentEngine interactiveEngine)
-        {
-            return new FailedInteractiveContainerSession(BuildContainerName(provider, group.Folder), $"Provider '{provider}' does not support interactive sessions.");
-        }
-
+        // For interactive sessions, the container execution service handles the lifecycle.
+        // We still return a session wrapper that delegates to the container.
         ContainerInput effectiveInput = input with { IsMain = group.IsMain };
-        AgentWorkspaceContext workspace = await workspaceBuilder.BuildAsync(group, effectiveInput, cancellationToken);
-        AgentSessionReference? session = await ResolveSessionAsync(provider, group.Folder, effectiveInput.SessionId, workspace, cancellationToken);
-        AgentExecutionRequest request = new(provider, group, effectiveInput, workspace, session, toolRegistry.GetTools(group, effectiveInput));
+        ContainerName containerName = BuildContainerName(provider, group.Folder);
 
-        IInteractiveAgentSession interactiveSession = await interactiveEngine.StartInteractiveSessionAsync(
-            request,
-            onStreamEvent is null ? null : (agentEvent, ct) => onStreamEvent(TranslateStreamEvent(agentEvent), ct),
-            cancellationToken);
+        ContainerExecutionRequest request = new(group, effectiveInput, [], containerName);
+        ContainerExecutionResult result = await containerExecutionService.RunAsync(request, onStreamEvent, cancellationToken);
 
-        if (interactiveSession.Session is not null)
+        if (result.NewSessionId is { } newSessionId)
         {
-            await sessionRepository.UpsertAsync(
-                new SessionState(group.Folder, new SessionId(interactiveSession.Session.SessionId)),
-                cancellationToken);
+            await sessionRepository.UpsertAsync(new SessionState(group.Folder, newSessionId), cancellationToken);
         }
 
-        return new InteractiveContainerSessionAdapter(interactiveSession, BuildContainerName(provider, group.Folder));
-    }
-
-    private async Task<AgentSessionReference?> ResolveSessionAsync(
-        AgentProviderKind provider,
-        GroupFolder groupFolder,
-        SessionId? requestedSessionId,
-        AgentWorkspaceContext workspace,
-        CancellationToken cancellationToken)
-    {
-        if (requestedSessionId is { } explicitSessionId)
-        {
-            return new AgentSessionReference(provider, explicitSessionId.Value, workspace.WorkspaceDirectory);
-        }
-
-        SessionId? persistedSessionId = await sessionRepository.GetByGroupFolderAsync(groupFolder, cancellationToken);
-        return persistedSessionId is null ? null : new AgentSessionReference(provider, persistedSessionId.Value.Value, workspace.WorkspaceDirectory);
-    }
-
-    private static ContainerStreamEvent TranslateStreamEvent(AgentStreamEvent agentEvent)
-    {
-        ContainerRunStatus status = agentEvent.Kind == AgentEventKind.Error ? ContainerRunStatus.Error : ContainerRunStatus.Running;
-        SessionId? sessionId = agentEvent.Session is null ? null : new SessionId(agentEvent.Session.SessionId);
-
-        return new ContainerStreamEvent(
-            TranslateEventKind(agentEvent.Kind),
-            new ContainerOutput(status, agentEvent.Content, sessionId, agentEvent.Error),
-            agentEvent.ObservedAt);
-    }
-
-    private static ContainerEventKind TranslateEventKind(AgentEventKind kind)
-    {
-        return kind switch
-        {
-            AgentEventKind.SessionStarted => ContainerEventKind.SessionStarted,
-            AgentEventKind.TextDelta => ContainerEventKind.TextDelta,
-            AgentEventKind.MessageCompleted => ContainerEventKind.MessageCompleted,
-            AgentEventKind.ToolStarted => ContainerEventKind.ToolStarted,
-            AgentEventKind.ToolCompleted => ContainerEventKind.ToolCompleted,
-            AgentEventKind.ReasoningDelta => ContainerEventKind.ReasoningDelta,
-            AgentEventKind.Idle => ContainerEventKind.Idle,
-            AgentEventKind.Error => ContainerEventKind.Error,
-            _ => ContainerEventKind.Error
-        };
+        return new CompletedInteractiveContainerSession(containerName, result);
     }
 
     private static ContainerName BuildContainerName(AgentProviderKind provider, GroupFolder groupFolder)
     {
         string safeGroup = new string(groupFolder.Value.Select(ch => char.IsLetterOrDigit(ch) ? char.ToLowerInvariant(ch) : '-').ToArray()).Trim('-');
-        return new ContainerName($"agent-{provider.ToString().ToLowerInvariant()}-{safeGroup}");
+        return new ContainerName($"netclaw-{provider.ToString().ToLowerInvariant()}-{safeGroup}");
     }
 
-    private sealed class InteractiveContainerSessionAdapter : IInteractiveContainerSession
+    private sealed class CompletedInteractiveContainerSession : IInteractiveContainerSession
     {
-        private readonly IInteractiveAgentSession session;
-
-        public InteractiveContainerSessionAdapter(IInteractiveAgentSession session, ContainerName containerName)
+        public CompletedInteractiveContainerSession(ContainerName containerName, ContainerExecutionResult result)
         {
-            this.session = session;
             ContainerName = containerName;
-            SessionId = new SessionId(session.Session.SessionId);
-            Completion = AwaitCompletionAsync(containerName);
+            SessionId = result.NewSessionId;
+            Completion = Task.FromResult(result);
         }
 
         public SessionId? SessionId { get; }
@@ -197,22 +114,13 @@ public sealed class NetClawAgentRuntime : IAgentRuntime
 
         public Task<ContainerExecutionResult> Completion { get; }
 
-        public bool TryPostInput(string text) => session.TryPostInput(text);
+        public bool TryPostInput(string text) => false;
 
-        public void RequestClose() => session.RequestClose();
-
-        public ValueTask DisposeAsync() => session.DisposeAsync();
-
-        private async Task<ContainerExecutionResult> AwaitCompletionAsync(ContainerName containerName)
+        public void RequestClose()
         {
-            AgentExecutionResult result = await session.Completion;
-            return new ContainerExecutionResult(
-                result.Status,
-                result.Result,
-                result.Session is null ? null : new SessionId(result.Session.SessionId),
-                result.Error,
-                containerName);
         }
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
     private sealed class FailedInteractiveContainerSession : IInteractiveContainerSession

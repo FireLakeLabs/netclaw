@@ -159,12 +159,11 @@ public sealed class AgentRuntimeServicesTests
         await groupRepository.UpsertAsync(new ChatJid("team@jid"), group);
 
         NetClawAgentRuntime runtime = new(
-            [new TestCodingAgentEngine()],
+            new TestContainerExecutionService(),
             groupRepository,
             sessionRepository,
             new TestWorkspaceBuilder(),
-            new NetClawAgentToolRegistry(),
-            new AgentRuntimeOptions { DefaultProvider = "copilot", KeepContainerBoundary = true });
+            new AgentRuntimeOptions { DefaultProvider = "copilot" });
 
         ContainerExecutionResult result = await runtime.ExecuteAsync(
             new ContainerInput("Prompt", null, new GroupFolder("team"), new ChatJid("team@jid"), false, false, "Andy"));
@@ -441,6 +440,22 @@ public sealed class AgentRuntimeServicesTests
         public Task<AgentWorkspaceContext> BuildAsync(RegisteredGroup group, ContainerInput input, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(new AgentWorkspaceContext(group.Folder, "/workspace/group", "/workspace/sessions/team", "/workspace/runtime/team", false, [], new AgentInstructionSet([new AgentInstructionDocument("AGENTS.md", "# A", true)])));
+        }
+    }
+
+    private sealed class TestContainerExecutionService : IContainerExecutionService
+    {
+        public Task<ContainerExecutionResult> RunAsync(
+            ContainerExecutionRequest request,
+            Func<ContainerStreamEvent, CancellationToken, Task>? onStreamEvent = null,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new ContainerExecutionResult(
+                ContainerRunStatus.Success,
+                "done",
+                new SessionId("copilot-session-1"),
+                null,
+                request.ContainerName));
         }
     }
 
