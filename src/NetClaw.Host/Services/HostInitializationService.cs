@@ -50,6 +50,8 @@ public sealed class HostInitializationService : IHostedService
             fileSystem.CreateDirectory(databaseDirectory);
         }
 
+        RestrictSensitiveDirectories();
+
         await mountAllowlistLoader.LoadAsync(hostPathOptions.MountAllowlistPath, cancellationToken);
         await senderAllowlistService.LoadAsync(hostPathOptions.SenderAllowlistPath, cancellationToken);
         await schemaInitializer.InitializeAsync(cancellationToken);
@@ -58,4 +60,26 @@ public sealed class HostInitializationService : IHostedService
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+    private void RestrictSensitiveDirectories()
+    {
+        string ipcDirectory = Path.Combine(storageOptions.DataDirectory, "ipc");
+        string sessionsDirectory = Path.Combine(storageOptions.DataDirectory, "sessions");
+        string filesDirectory = Path.Combine(storageOptions.DataDirectory, "files");
+
+        // Ensure all sensitive storage locations are restricted to the owner
+        DirectoryPermissions.RestrictToOwner(storageOptions.ProjectRoot, logger);
+        DirectoryPermissions.RestrictToOwner(storageOptions.StoreDirectory, logger);
+        DirectoryPermissions.RestrictToOwner(storageOptions.GroupsDirectory, logger);
+        DirectoryPermissions.RestrictToOwner(storageOptions.DataDirectory, logger);
+        DirectoryPermissions.RestrictToOwner(ipcDirectory, logger);
+        DirectoryPermissions.RestrictToOwner(sessionsDirectory, logger);
+        DirectoryPermissions.RestrictToOwner(filesDirectory, logger);
+
+        string? databaseDirectory = Path.GetDirectoryName(hostPathOptions.DatabasePath);
+        if (!string.IsNullOrWhiteSpace(databaseDirectory))
+        {
+            DirectoryPermissions.RestrictToOwner(databaseDirectory, logger);
+        }
+    }
 }
