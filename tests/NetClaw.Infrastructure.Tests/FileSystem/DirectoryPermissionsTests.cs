@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using NetClaw.Infrastructure.FileSystem;
 
 namespace NetClaw.Infrastructure.Tests.FileSystem;
@@ -50,6 +51,8 @@ public sealed class DirectoryPermissionsTests
         UnixFileMode.OtherRead | UnixFileMode.OtherExecute;
 
     [UnixOnlyFact]
+    [SupportedOSPlatform("linux")]
+    [SupportedOSPlatform("osx")]
     public void RestrictToOwner_ClearsGroupAndOtherBits()
     {
         using TempDirectory tmp = new();
@@ -67,6 +70,8 @@ public sealed class DirectoryPermissionsTests
     }
 
     [UnixOnlyFact]
+    [SupportedOSPlatform("linux")]
+    [SupportedOSPlatform("osx")]
     public void VerifyOwnerOnly_ReturnsFalse_WhenGroupOrOtherBitsAreSet()
     {
         using TempDirectory tmp = new();
@@ -78,6 +83,8 @@ public sealed class DirectoryPermissionsTests
     }
 
     [UnixOnlyFact]
+    [SupportedOSPlatform("linux")]
+    [SupportedOSPlatform("osx")]
     public void VerifyOwnerOnly_ReturnsTrue_WhenPermissionsAreOwnerOnly()
     {
         using TempDirectory tmp = new();
