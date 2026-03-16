@@ -14,12 +14,15 @@ public sealed record HostPathOptions
 
     public required string SenderAllowlistPath { get; init; }
 
+    public static string DefaultProjectRoot { get; } =
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".netclaw");
+
     public static HostPathOptions Create(IConfiguration configuration, IHostEnvironment environment)
     {
         string? projectRoot = configuration["NetClaw:ProjectRoot"];
         if (string.IsNullOrWhiteSpace(projectRoot))
         {
-            projectRoot = environment.ContentRootPath;
+            projectRoot = DefaultProjectRoot;
         }
 
         StorageOptions storageOptions = StorageOptions.Create(projectRoot);

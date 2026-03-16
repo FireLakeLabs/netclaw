@@ -38,6 +38,28 @@ public sealed record StoredMessage
         Attachments = attachments ?? [];
     }
 
+    /// <summary>
+    /// Creates a StoredMessage from persisted data where attachments are loaded separately.
+    /// Allows empty content since attachments may be enriched in a later step.
+    /// </summary>
+    public static StoredMessage FromStorage(string id, ChatJid chatJid, string sender, string senderName, string content, DateTimeOffset timestamp, bool isFromMe, bool isBotMessage)
+    {
+        return new StoredMessage(id, chatJid, sender, senderName, content, timestamp, isFromMe, isBotMessage, skipContentValidation: true);
+    }
+
+    private StoredMessage(string id, ChatJid chatJid, string sender, string senderName, string content, DateTimeOffset timestamp, bool isFromMe, bool isBotMessage, bool skipContentValidation)
+    {
+        Id = (id ?? throw new ArgumentException("Message ID is required.", nameof(id))).Trim();
+        ChatJid = chatJid;
+        Sender = (sender ?? throw new ArgumentException("Sender is required.", nameof(sender))).Trim();
+        SenderName = (senderName ?? throw new ArgumentException("Sender name is required.", nameof(senderName))).Trim();
+        Content = content ?? string.Empty;
+        Timestamp = timestamp;
+        IsFromMe = isFromMe;
+        IsBotMessage = isBotMessage;
+        Attachments = [];
+    }
+
     public string Id { get; }
 
     public ChatJid ChatJid { get; }

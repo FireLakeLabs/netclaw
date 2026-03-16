@@ -23,7 +23,10 @@ public sealed class ProgramTests
                     configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
                     {
                         ["NetClaw:ProjectRoot"] = projectRoot,
-                        ["NetClaw:Scheduler:PollInterval"] = "00:00:30"
+                        ["NetClaw:Scheduler:PollInterval"] = "00:00:30",
+                        ["NetClaw:Channels:Terminal:Enabled"] = "false",
+                        ["NetClaw:Channels:Slack:Enabled"] = "false",
+                        ["NetClaw:Channels:ReferenceFile:Enabled"] = "false"
                     });
                 })
                 .Build();
@@ -62,7 +65,10 @@ public sealed class ProgramTests
                         ["NetClaw:Ipc:PollInterval"] = "00:00:05",
                         ["NetClaw:MessageLoop:PollInterval"] = "00:00:07",
                         ["NetClaw:MessageLoop:Timezone"] = "UTC",
-                        ["NetClaw:Scheduler:PollInterval"] = "00:00:45"
+                        ["NetClaw:Scheduler:PollInterval"] = "00:00:45",
+                        ["NetClaw:Channels:Terminal:Enabled"] = "false",
+                        ["NetClaw:Channels:Slack:Enabled"] = "false",
+                        ["NetClaw:Channels:ReferenceFile:Enabled"] = "false"
                     });
                 })
                 .Build();

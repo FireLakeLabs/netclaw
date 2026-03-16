@@ -476,7 +476,10 @@ public sealed class EndToEndIntegrationTests
                     ["NetClaw:ProjectRoot"] = projectRoot,
                     ["NetClaw:MessageLoop:PollInterval"] = "00:10:00",
                     ["NetClaw:MessageLoop:Timezone"] = "UTC",
-                    ["NetClaw:Scheduler:PollInterval"] = "00:10:00"
+                    ["NetClaw:Scheduler:PollInterval"] = "00:10:00",
+                    ["NetClaw:Channels:Terminal:Enabled"] = "false",
+                    ["NetClaw:Channels:Slack:Enabled"] = "false",
+                    ["NetClaw:Channels:ReferenceFile:Enabled"] = "false"
                 };
 
                 if (overrides is not null)

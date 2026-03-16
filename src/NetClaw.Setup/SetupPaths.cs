@@ -32,9 +32,14 @@ public sealed record SetupPaths
 
     public required string EnvironmentFilePath { get; init; }
 
+    public required string AppSettingsPath { get; init; }
+
+    public static string DefaultProjectRoot { get; } =
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".netclaw");
+
     public static SetupPaths Create(string? projectRootOverride = null, string? homeDirectoryOverride = null)
     {
-        string projectRoot = Path.GetFullPath(projectRootOverride ?? Directory.GetCurrentDirectory());
+        string projectRoot = Path.GetFullPath(projectRootOverride ?? DefaultProjectRoot);
         string homeDirectory = Path.GetFullPath(homeDirectoryOverride ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
         StorageOptions storageOptions = StorageOptions.Create(projectRoot);
 
@@ -47,13 +52,14 @@ public sealed record SetupPaths
             DatabasePath = Path.Combine(storageOptions.DataDirectory, "netclaw.db"),
             LogsDirectory = Path.Combine(projectRoot, "logs"),
             HomeDirectory = homeDirectory,
-            UserConfigDirectory = Path.Combine(homeDirectory, ".config", "netclaw"),
-            MountAllowlistPath = Path.Combine(homeDirectory, ".config", "netclaw", "mount-allowlist.json"),
+            UserConfigDirectory = projectRoot,
+            MountAllowlistPath = Path.Combine(projectRoot, "mount-allowlist.json"),
             UserServicePath = Path.Combine(homeDirectory, ".config", "systemd", "user", "netclaw.service"),
             SystemServicePath = "/etc/systemd/system/netclaw.service",
             LauncherScriptPath = Path.Combine(projectRoot, "start-netclaw.sh"),
             PidFilePath = Path.Combine(projectRoot, "netclaw.pid"),
-            EnvironmentFilePath = Path.Combine(projectRoot, ".env")
+            EnvironmentFilePath = Path.Combine(projectRoot, ".env"),
+            AppSettingsPath = Path.Combine(projectRoot, "appsettings.json")
         };
     }
 }

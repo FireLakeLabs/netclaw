@@ -202,7 +202,7 @@ public sealed class SqliteMessageRepository : IMessageRepository
 
     private static StoredMessage ReadStoredMessage(SqliteDataReader reader)
     {
-        return new StoredMessage(
+        return StoredMessage.FromStorage(
             reader.GetString(0),
             new ChatJid(reader.GetString(1)),
             reader.GetString(2),

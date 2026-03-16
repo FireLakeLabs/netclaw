@@ -49,7 +49,7 @@ public sealed class ProgramTests
             ]));
 
             Assert.Equal(0, result.ExitCode);
-            Assert.True(File.Exists(Path.Combine(homeDirectory, ".config", "netclaw", "mount-allowlist.json")));
+            Assert.True(File.Exists(Path.Combine(projectRoot, "mount-allowlist.json")));
         }
         finally
         {

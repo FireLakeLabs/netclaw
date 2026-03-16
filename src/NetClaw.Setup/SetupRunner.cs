@@ -39,6 +39,7 @@ public sealed class SetupRunner
 
         return command.Step.ToLowerInvariant() switch
         {
+            "init" => await RunInitAsync(cancellationToken),
             "environment" => await RunEnvironmentAsync(cancellationToken),
             "register" => await RunRegisterAsync(command, cancellationToken),
             "mounts" => await RunMountsAsync(command, cancellationToken),
@@ -46,6 +47,97 @@ public sealed class SetupRunner
             "verify" => await RunVerifyAsync(cancellationToken),
             _ => CreateFailure(command.Step, "ERROR", $"Unsupported step '{command.Step}'.")
         };
+    }
+
+    private async Task<SetupResult> RunInitAsync(CancellationToken cancellationToken)
+    {
+        fileSystem.CreateDirectory(paths.ProjectRoot);
+        fileSystem.CreateDirectory(paths.DataDirectory);
+        fileSystem.CreateDirectory(paths.StoreDirectory);
+        fileSystem.CreateDirectory(paths.GroupsDirectory);
+        fileSystem.CreateDirectory(paths.LogsDirectory);
+
+        bool configCreated = false;
+        if (!fileSystem.FileExists(paths.AppSettingsPath))
+        {
+            string exampleContent = GetDefaultAppSettingsContent();
+            await fileSystem.WriteAllTextAsync(paths.AppSettingsPath, exampleContent, cancellationToken);
+            configCreated = true;
+        }
+
+        await EnsureSchemaAsync(cancellationToken);
+
+        return new SetupResult("init", 0, new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["STATUS"] = "initialized",
+            ["PROJECT_ROOT"] = paths.ProjectRoot,
+            ["APPSETTINGS_PATH"] = paths.AppSettingsPath,
+            ["APPSETTINGS_CREATED"] = configCreated.ToString().ToLowerInvariant(),
+            ["DATABASE_PATH"] = paths.DatabasePath
+        });
+    }
+
+    private static string GetDefaultAppSettingsContent()
+    {
+        string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        string root = Path.Combine(home, ".netclaw");
+
+        return $$"""
+            {
+              "NetClaw": {
+                "ProjectRoot": "{{root}}",
+                "Assistant": {
+                  "Name": "Andy",
+                  "HasOwnNumber": false
+                },
+                "ContainerRuntime": {
+                  "RuntimeBinary": "docker",
+                  "HostGatewayName": "host.docker.internal"
+                },
+                "AgentRuntime": {
+                  "DefaultProvider": "copilot",
+                  "KeepContainerBoundary": true,
+                  "CopilotUseLoggedInUser": true,
+                  "CopilotModel": "gpt-5",
+                  "CopilotReasoningEffort": "high",
+                  "CopilotStreaming": true
+                },
+                "Channels": {
+                  "PollInterval": "00:00:01",
+                  "InitialSyncOnStart": true,
+                  "Terminal": {
+                    "Enabled": true,
+                    "ChatJid": "team@jid",
+                    "Sender": "terminal-user",
+                    "SenderName": "Terminal User",
+                    "ChatName": "Terminal Chat",
+                    "IsGroup": true,
+                    "OutboundPrefix": "assistant> ",
+                    "InputPrompt": "you> "
+                  },
+                  "Slack": {
+                    "Enabled": false,
+                    "MentionReplacement": "@Andy",
+                    "WorkingIndicatorText": "Evaluating...",
+                    "ReplyInThreadByDefault": true
+                  }
+                },
+                "MessageLoop": {
+                  "PollInterval": "00:00:01",
+                  "Timezone": "UTC"
+                },
+                "Dashboard": {
+                  "Enabled": true,
+                  "Port": 5080,
+                  "BindAddress": "127.0.0.1"
+                },
+                "CredentialProxy": {
+                  "Host": "127.0.0.1",
+                  "Port": 3001
+                }
+              }
+            }
+            """;
     }
 
     private async Task<SetupResult> RunEnvironmentAsync(CancellationToken cancellationToken)
