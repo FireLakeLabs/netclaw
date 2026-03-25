@@ -1,7 +1,7 @@
-using Microsoft.Data.Sqlite;
 using FireLakeLabs.NetClaw.Domain.Contracts.Persistence;
 using FireLakeLabs.NetClaw.Domain.Entities;
 using FireLakeLabs.NetClaw.Domain.Enums;
+using Microsoft.Data.Sqlite;
 
 namespace FireLakeLabs.NetClaw.Infrastructure.Persistence.Sqlite;
 

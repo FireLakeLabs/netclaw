@@ -1,11 +1,11 @@
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using FireLakeLabs.NetClaw.Domain.Contracts.Agents;
 using FireLakeLabs.NetClaw.Domain.Contracts.Persistence;
 using FireLakeLabs.NetClaw.Domain.Contracts.Services;
 using FireLakeLabs.NetClaw.Infrastructure.Configuration;
 using FireLakeLabs.NetClaw.Infrastructure.Runtime;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace FireLakeLabs.NetClaw.Host.Tests;
 

@@ -1,5 +1,5 @@
-using Microsoft.Data.Sqlite;
 using FireLakeLabs.NetClaw.Infrastructure.Persistence.Sqlite;
+using Microsoft.Data.Sqlite;
 
 namespace FireLakeLabs.NetClaw.Infrastructure.Tests.Persistence.Sqlite;
 

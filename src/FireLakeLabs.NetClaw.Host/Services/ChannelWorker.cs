@@ -1,8 +1,8 @@
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using FireLakeLabs.NetClaw.Application.Channels;
 using FireLakeLabs.NetClaw.Domain.Contracts.Channels;
 using FireLakeLabs.NetClaw.Infrastructure.Configuration;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace FireLakeLabs.NetClaw.Host.Services;
 

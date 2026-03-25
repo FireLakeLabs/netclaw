@@ -1,8 +1,8 @@
-using Microsoft.Data.Sqlite;
 using FireLakeLabs.NetClaw.Domain.Entities;
 using FireLakeLabs.NetClaw.Domain.Enums;
 using FireLakeLabs.NetClaw.Domain.ValueObjects;
 using FireLakeLabs.NetClaw.Infrastructure.Persistence.Sqlite;
+using Microsoft.Data.Sqlite;
 using TaskStatusEnum = FireLakeLabs.NetClaw.Domain.Enums.TaskStatus;
 
 namespace FireLakeLabs.NetClaw.Infrastructure.Tests.Persistence.Sqlite;

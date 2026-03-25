@@ -1,7 +1,3 @@
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using FireLakeLabs.NetClaw.Application.Channels;
 using FireLakeLabs.NetClaw.Application.Execution;
 using FireLakeLabs.NetClaw.Application.Formatting;
@@ -28,6 +24,10 @@ using FireLakeLabs.NetClaw.Infrastructure.Persistence.Sqlite;
 using FireLakeLabs.NetClaw.Infrastructure.Runtime;
 using FireLakeLabs.NetClaw.Infrastructure.Runtime.Agents;
 using FireLakeLabs.NetClaw.Infrastructure.Security;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace FireLakeLabs.NetClaw.Host;
 

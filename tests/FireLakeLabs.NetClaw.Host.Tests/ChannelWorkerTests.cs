@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging.Abstractions;
 using FireLakeLabs.NetClaw.Application.Channels;
 using FireLakeLabs.NetClaw.Application.Observability;
 using FireLakeLabs.NetClaw.Domain.Contracts.Channels;
@@ -7,6 +6,7 @@ using FireLakeLabs.NetClaw.Domain.Entities;
 using FireLakeLabs.NetClaw.Domain.ValueObjects;
 using FireLakeLabs.NetClaw.Host.Services;
 using FireLakeLabs.NetClaw.Infrastructure.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FireLakeLabs.NetClaw.Host.Tests;
 

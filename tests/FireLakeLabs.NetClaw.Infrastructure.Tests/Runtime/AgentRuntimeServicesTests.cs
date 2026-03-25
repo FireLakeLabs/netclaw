@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Microsoft.Extensions.AI;
 using FireLakeLabs.NetClaw.Domain.Contracts.Agents;
 using FireLakeLabs.NetClaw.Domain.Contracts.Containers;
 using FireLakeLabs.NetClaw.Domain.Contracts.Persistence;
@@ -11,6 +10,7 @@ using FireLakeLabs.NetClaw.Infrastructure.Configuration;
 using FireLakeLabs.NetClaw.Infrastructure.FileSystem;
 using FireLakeLabs.NetClaw.Infrastructure.Paths;
 using FireLakeLabs.NetClaw.Infrastructure.Runtime.Agents;
+using Microsoft.Extensions.AI;
 
 namespace FireLakeLabs.NetClaw.Infrastructure.Tests.Runtime;
 

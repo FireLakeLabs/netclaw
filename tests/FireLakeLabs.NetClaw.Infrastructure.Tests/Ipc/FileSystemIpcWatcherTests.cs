@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging.Abstractions;
 using FireLakeLabs.NetClaw.Domain.Contracts.Ipc;
 using FireLakeLabs.NetClaw.Domain.Contracts.Persistence;
 using FireLakeLabs.NetClaw.Domain.Contracts.Services;
@@ -8,6 +7,7 @@ using FireLakeLabs.NetClaw.Domain.ValueObjects;
 using FireLakeLabs.NetClaw.Infrastructure.Configuration;
 using FireLakeLabs.NetClaw.Infrastructure.FileSystem;
 using FireLakeLabs.NetClaw.Infrastructure.Ipc;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FireLakeLabs.NetClaw.Infrastructure.Tests.Ipc;
 

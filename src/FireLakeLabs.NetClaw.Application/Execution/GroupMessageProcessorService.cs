@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using FireLakeLabs.NetClaw.Application.Observability;
 using FireLakeLabs.NetClaw.Domain.Contracts.Channels;
 using FireLakeLabs.NetClaw.Domain.Contracts.Containers;
@@ -8,6 +6,8 @@ using FireLakeLabs.NetClaw.Domain.Contracts.Services;
 using FireLakeLabs.NetClaw.Domain.Entities;
 using FireLakeLabs.NetClaw.Domain.Enums;
 using FireLakeLabs.NetClaw.Domain.ValueObjects;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace FireLakeLabs.NetClaw.Application.Execution;
 

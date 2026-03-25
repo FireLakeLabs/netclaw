@@ -1,6 +1,6 @@
+using FireLakeLabs.NetClaw.Domain.Contracts.Services;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using FireLakeLabs.NetClaw.Domain.Contracts.Services;
 
 namespace FireLakeLabs.NetClaw.Host.Services;
 

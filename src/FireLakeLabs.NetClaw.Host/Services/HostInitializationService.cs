@@ -1,10 +1,10 @@
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using FireLakeLabs.NetClaw.Host.Configuration;
 using FireLakeLabs.NetClaw.Infrastructure.Configuration;
 using FireLakeLabs.NetClaw.Infrastructure.FileSystem;
 using FireLakeLabs.NetClaw.Infrastructure.Persistence.Sqlite;
 using FireLakeLabs.NetClaw.Infrastructure.Security;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace FireLakeLabs.NetClaw.Host.Services;
 

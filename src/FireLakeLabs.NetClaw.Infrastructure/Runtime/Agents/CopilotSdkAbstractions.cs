@@ -1,8 +1,8 @@
-using GitHub.Copilot.SDK;
-using Microsoft.Extensions.AI;
 using FireLakeLabs.NetClaw.Domain.Contracts.Agents;
 using FireLakeLabs.NetClaw.Domain.Enums;
 using FireLakeLabs.NetClaw.Infrastructure.Configuration;
+using GitHub.Copilot.SDK;
+using Microsoft.Extensions.AI;
 
 namespace FireLakeLabs.NetClaw.Infrastructure.Runtime.Agents;
 

@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Microsoft.Extensions.Logging;
 using FireLakeLabs.NetClaw.Domain.Contracts.Ipc;
 using FireLakeLabs.NetClaw.Domain.Contracts.Persistence;
 using FireLakeLabs.NetClaw.Domain.Contracts.Services;
@@ -8,6 +7,7 @@ using FireLakeLabs.NetClaw.Domain.Enums;
 using FireLakeLabs.NetClaw.Domain.ValueObjects;
 using FireLakeLabs.NetClaw.Infrastructure.Configuration;
 using FireLakeLabs.NetClaw.Infrastructure.FileSystem;
+using Microsoft.Extensions.Logging;
 
 namespace FireLakeLabs.NetClaw.Infrastructure.Ipc;
 

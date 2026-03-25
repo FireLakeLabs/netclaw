@@ -1,10 +1,5 @@
 using System.Text.Json;
 using System.Threading.Channels;
-using Microsoft.Data.Sqlite;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Hosting;
 using FireLakeLabs.NetClaw.Application.Execution;
 using FireLakeLabs.NetClaw.Domain.Contracts.Channels;
 using FireLakeLabs.NetClaw.Domain.Contracts.Containers;
@@ -17,6 +12,11 @@ using FireLakeLabs.NetClaw.Domain.ValueObjects;
 using FireLakeLabs.NetClaw.Infrastructure.Channels;
 using FireLakeLabs.NetClaw.Infrastructure.Persistence.Sqlite;
 using FireLakeLabs.NetClaw.Setup;
+using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 
 namespace FireLakeLabs.NetClaw.IntegrationTests;
 

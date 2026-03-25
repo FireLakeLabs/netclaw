@@ -1,8 +1,8 @@
-using Microsoft.Extensions.Logging;
 using FireLakeLabs.NetClaw.Domain.Contracts.Agents;
 using FireLakeLabs.NetClaw.Domain.Contracts.Containers;
 using FireLakeLabs.NetClaw.Domain.Contracts.Services;
 using FireLakeLabs.NetClaw.Domain.Enums;
+using SessionId = FireLakeLabs.NetClaw.Domain.ValueObjects.SessionId;
 
 namespace FireLakeLabs.NetClaw.Infrastructure.Runtime.Agents;
 
@@ -11,18 +11,15 @@ public sealed class ContainerExecutionService : IContainerExecutionService
     private readonly ContainerizedAgentEngine engine;
     private readonly IAgentWorkspaceBuilder workspaceBuilder;
     private readonly IAgentToolRegistry toolRegistry;
-    private readonly ILogger<ContainerExecutionService> logger;
 
     public ContainerExecutionService(
         ContainerizedAgentEngine engine,
         IAgentWorkspaceBuilder workspaceBuilder,
-        IAgentToolRegistry toolRegistry,
-        ILogger<ContainerExecutionService> logger)
+        IAgentToolRegistry toolRegistry)
     {
         this.engine = engine;
         this.workspaceBuilder = workspaceBuilder;
         this.toolRegistry = toolRegistry;
-        this.logger = logger;
     }
 
     public async Task<ContainerExecutionResult> RunAsync(
@@ -63,7 +60,7 @@ public sealed class ContainerExecutionService : IContainerExecutionService
         return new ContainerExecutionResult(
             result.Status,
             result.Result,
-            result.Session is not null ? new Domain.ValueObjects.SessionId(result.Session.SessionId) : null,
+            result.Session is not null ? new SessionId(result.Session.SessionId) : null,
             result.Error,
             request.ContainerName);
     }

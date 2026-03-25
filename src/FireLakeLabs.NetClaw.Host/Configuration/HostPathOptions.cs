@@ -1,6 +1,6 @@
+using FireLakeLabs.NetClaw.Infrastructure.Configuration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-using FireLakeLabs.NetClaw.Infrastructure.Configuration;
 
 namespace FireLakeLabs.NetClaw.Host.Configuration;
 
