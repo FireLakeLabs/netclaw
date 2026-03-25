@@ -44,7 +44,7 @@ Container-based execution provides:
 ┌──────────────────────────────────────────────────────────────────┐
 │                     Container (netclaw-agent)                     │
 │                                                                  │
-│  NetClaw.AgentRunner (.NET console app)                          │
+│  FireLakeLabs.NetClaw.AgentRunner (.NET console app)                          │
 │      │                                                           │
 │      ├── Read ContainerInput from stdin                          │
 │      ├── Select provider (Copilot CLI / claude CLI)              │
@@ -66,7 +66,7 @@ Container-based execution provides:
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Container image count | Single image with both CLIs | Copilot CLI and Claude Code don't conflict; negligible size difference; simpler config |
-| Agent runner language | .NET console app | Same toolchain as the host; shares `NetClaw.Domain` contracts directly |
+| Agent runner language | .NET console app | Same toolchain as the host; shares `FireLakeLabs.NetClaw.Domain` contracts directly |
 | Host-side fallback | None — remove in-process path | Container execution is the only mode; eliminates dual-path maintenance |
 | Credential injection | HTTP proxy on docker bridge | Containers never see real secrets; proxy intercepts and injects transparently |
 | Interactive session IPC | File-based polling in mounted directory | Replaces in-memory `Channel<string>`; works across the process boundary |
@@ -91,12 +91,12 @@ These interfaces and types already exist and are filled in by this work:
 
 ## Phase 1: Container Agent Runner
 
-A standalone .NET 10 console app (`src/NetClaw.AgentRunner/`) that runs inside the container.
+A standalone .NET 10 console app (`src/FireLakeLabs.NetClaw.AgentRunner/`) that runs inside the container.
 
 ### 1. Project structure
 
-- References only `NetClaw.Domain` for shared records (`ContainerInput`, `ContainerOutput`, `ContainerStreamEvent`).
-- No reference to `NetClaw.Infrastructure` or `NetClaw.Host`.
+- References only `FireLakeLabs.NetClaw.Domain` for shared records (`ContainerInput`, `ContainerOutput`, `ContainerStreamEvent`).
+- No reference to `FireLakeLabs.NetClaw.Infrastructure` or `FireLakeLabs.NetClaw.Host`.
 - Entry point reads `NETCLAW_PROVIDER` env var and dispatches to the appropriate provider path.
 
 ### 2. Stdin/stdout protocol (JSONL)
@@ -146,7 +146,7 @@ Single Dockerfile producing `netclaw-agent`.
 - Install Node.js (for Claude CLI).
 - Install Copilot CLI globally.
 - Install `@anthropic-ai/claude-code` globally.
-- Publish `NetClaw.AgentRunner` into the image.
+- Publish `FireLakeLabs.NetClaw.AgentRunner` into the image.
 - Entry point: the agent runner, with provider selected via `NETCLAW_PROVIDER` env var.
 
 ### 8. Build script
@@ -161,7 +161,7 @@ Single Dockerfile producing `netclaw-agent`.
 
 ### 10. CredentialProxyService
 
-Implement `ICredentialProxyService` in `NetClaw.Infrastructure`:
+Implement `ICredentialProxyService` in `FireLakeLabs.NetClaw.Infrastructure`:
 
 - HTTP listener (Kestrel or `HttpListener`).
 - Binds to the docker bridge IP on Linux (auto-detected from `docker0` interface), 127.0.0.1 on WSL/macOS.
@@ -327,7 +327,7 @@ Extend `EndToEndIntegrationTests`:
 
 ## Verification Criteria
 
-1. `dotnet build` succeeds for all projects including `NetClaw.AgentRunner`.
+1. `dotnet build` succeeds for all projects including `FireLakeLabs.NetClaw.AgentRunner`.
 2. `dotnet test` passes all unit and integration tests.
 3. `container/build.sh` produces a working `netclaw-agent` image.
 4. Smoke test: `echo '{"prompt":"hi",...}' | docker run -i -e NETCLAW_PROVIDER=copilot netclaw-agent:latest` returns valid JSONL output (one JSON object per line).

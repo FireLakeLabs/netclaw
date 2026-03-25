@@ -11,19 +11,19 @@
 ## Files And Projects Affected
 
 - Production:
-  - `src/NetClaw.Infrastructure/Channels/TerminalChannel.cs`
-  - `src/NetClaw.Infrastructure/Configuration/TerminalChannelOptions.cs`
-  - `src/NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Channels/TerminalChannel.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Configuration/TerminalChannelOptions.cs`
+  - `src/FireLakeLabs.NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs`
   - `run-terminal-channel.sh`
   - `README.md`
 - Tests:
-  - `tests/NetClaw.Infrastructure.Tests/Channels/TerminalChannelTests.cs`
-  - `tests/NetClaw.IntegrationTests/EndToEndIntegrationTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/Channels/TerminalChannelTests.cs`
+  - `tests/FireLakeLabs.NetClaw.IntegrationTests/EndToEndIntegrationTests.cs`
 
 ## Verification
 
-- `dotnet test tests/NetClaw.Infrastructure.Tests/NetClaw.Infrastructure.Tests.csproj --filter TerminalChannelTests`
-- `dotnet test tests/NetClaw.IntegrationTests/NetClaw.IntegrationTests.csproj --filter TerminalChannel_ProcessesConsoleInputAndWritesReply`
+- `dotnet test tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FireLakeLabs.NetClaw.Infrastructure.Tests.csproj --filter TerminalChannelTests`
+- `dotnet test tests/FireLakeLabs.NetClaw.IntegrationTests/FireLakeLabs.NetClaw.IntegrationTests.csproj --filter TerminalChannel_ProcessesConsoleInputAndWritesReply`
 - `bash -n run-terminal-channel.sh`
 
 ## Notes

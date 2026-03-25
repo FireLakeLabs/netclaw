@@ -24,8 +24,8 @@ Run these from the repo root.
 
 ```bash
 dotnet --version
-dotnet format NetClaw.slnx --verify-no-changes
-dotnet build NetClaw.slnx
+dotnet format FireLakeLabs.NetClaw.slnx --verify-no-changes
+dotnet build FireLakeLabs.NetClaw.slnx
 dotnet test
 ```
 
@@ -36,11 +36,11 @@ The expected SDK is pinned in `global.json`. If your local SDK does not match, f
 Also run the most relevant focused suite for the area you changed. Common examples:
 
 ```bash
-dotnet test tests/NetClaw.Infrastructure.Tests/NetClaw.Infrastructure.Tests.csproj --filter "AgentRuntimeServicesTests"
-dotnet test tests/NetClaw.Infrastructure.Tests/NetClaw.Infrastructure.Tests.csproj --filter "SlackChannelTests"
-dotnet test tests/NetClaw.Application.Tests/NetClaw.Application.Tests.csproj --filter "TaskSchedulerServiceTests"
-dotnet test tests/NetClaw.Host.Tests/NetClaw.Host.Tests.csproj
-dotnet test tests/NetClaw.IntegrationTests/NetClaw.IntegrationTests.csproj
+dotnet test tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FireLakeLabs.NetClaw.Infrastructure.Tests.csproj --filter "AgentRuntimeServicesTests"
+dotnet test tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FireLakeLabs.NetClaw.Infrastructure.Tests.csproj --filter "SlackChannelTests"
+dotnet test tests/FireLakeLabs.NetClaw.Application.Tests/FireLakeLabs.NetClaw.Application.Tests.csproj --filter "TaskSchedulerServiceTests"
+dotnet test tests/FireLakeLabs.NetClaw.Host.Tests/FireLakeLabs.NetClaw.Host.Tests.csproj
+dotnet test tests/FireLakeLabs.NetClaw.IntegrationTests/FireLakeLabs.NetClaw.IntegrationTests.csproj
 ```
 
 If you changed runtime wiring, channel behavior, scheduling, host setup, or persistence, do not stop at focused tests. Run the full suite.

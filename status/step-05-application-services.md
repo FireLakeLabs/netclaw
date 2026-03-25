@@ -12,19 +12,19 @@
 ## Files And Projects Affected
 
 - Production:
-  - `src/NetClaw.Application/NetClaw.Application.csproj`
-  - `src/NetClaw.Application/Formatting/*`
-  - `src/NetClaw.Application/Routing/*`
-  - `src/NetClaw.Application/Execution/*`
-  - `src/NetClaw.Application/Scheduling/*`
-  - `src/NetClaw.Application/Ipc/*`
+  - `src/FireLakeLabs.NetClaw.Application/FireLakeLabs.NetClaw.Application.csproj`
+  - `src/FireLakeLabs.NetClaw.Application/Formatting/*`
+  - `src/FireLakeLabs.NetClaw.Application/Routing/*`
+  - `src/FireLakeLabs.NetClaw.Application/Execution/*`
+  - `src/FireLakeLabs.NetClaw.Application/Scheduling/*`
+  - `src/FireLakeLabs.NetClaw.Application/Ipc/*`
 - Tests:
-  - `tests/NetClaw.Application.Tests/AssemblySmokeTests.cs`
-  - `tests/NetClaw.Application.Tests/Formatting/*`
-  - `tests/NetClaw.Application.Tests/Routing/*`
-  - `tests/NetClaw.Application.Tests/Execution/*`
-  - `tests/NetClaw.Application.Tests/Scheduling/*`
-  - `tests/NetClaw.Application.Tests/Ipc/*`
+  - `tests/FireLakeLabs.NetClaw.Application.Tests/AssemblySmokeTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Application.Tests/Formatting/*`
+  - `tests/FireLakeLabs.NetClaw.Application.Tests/Routing/*`
+  - `tests/FireLakeLabs.NetClaw.Application.Tests/Execution/*`
+  - `tests/FireLakeLabs.NetClaw.Application.Tests/Scheduling/*`
+  - `tests/FireLakeLabs.NetClaw.Application.Tests/Ipc/*`
 
 ## Unit Tests And Integration Tests Added
 
@@ -48,8 +48,8 @@
 
 ## Verification Performed
 
-- `dotnet build tests/NetClaw.Application.Tests/NetClaw.Application.Tests.csproj`
-- `dotnet test tests/NetClaw.Application.Tests/NetClaw.Application.Tests.csproj`
+- `dotnet build tests/FireLakeLabs.NetClaw.Application.Tests/FireLakeLabs.NetClaw.Application.Tests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.Application.Tests/FireLakeLabs.NetClaw.Application.Tests.csproj`
 
 Result: 15 xUnit tests passed.
 

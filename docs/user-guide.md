@@ -91,7 +91,7 @@ Example prompts in a no-trigger Slack chat:
 Use the setup CLI:
 
 ```bash
-dotnet run --project src/NetClaw.Setup -- --step register \
+dotnet run --project src/FireLakeLabs.NetClaw.Setup -- --step register \
   --jid team@jid \
   --name Team \
   --trigger @Andy \

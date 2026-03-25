@@ -11,13 +11,13 @@
 ## Files And Projects Affected
 
 - Production:
-  - `src/NetClaw.Domain/Enums/ContainerRunStatus.cs`
-  - `src/NetClaw.Application/Execution/GroupMessageProcessorService.cs`
-  - `src/NetClaw.Infrastructure/Runtime/Agents/CopilotCodingAgentEngine.cs`
+  - `src/FireLakeLabs.NetClaw.Domain/Enums/ContainerRunStatus.cs`
+  - `src/FireLakeLabs.NetClaw.Application/Execution/GroupMessageProcessorService.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Runtime/Agents/CopilotCodingAgentEngine.cs`
 - Tests:
-  - `tests/NetClaw.Domain.Tests/Entities/StoredMessageAndRunLogTests.cs`
-  - `tests/NetClaw.Application.Tests/Execution/GroupMessageProcessorServiceTests.cs`
-  - `tests/NetClaw.Infrastructure.Tests/Runtime/AgentRuntimeServicesTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Domain.Tests/Entities/StoredMessageAndRunLogTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Application.Tests/Execution/GroupMessageProcessorServiceTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/Runtime/AgentRuntimeServicesTests.cs`
 
 ## Unit Tests And Integration Tests Added
 
@@ -30,9 +30,9 @@
 
 ## Verification Performed
 
-- `dotnet test tests/NetClaw.Domain.Tests/NetClaw.Domain.Tests.csproj`
-- `dotnet test tests/NetClaw.Application.Tests/NetClaw.Application.Tests.csproj`
-- `dotnet test tests/NetClaw.Infrastructure.Tests/NetClaw.Infrastructure.Tests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.Domain.Tests/FireLakeLabs.NetClaw.Domain.Tests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.Application.Tests/FireLakeLabs.NetClaw.Application.Tests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FireLakeLabs.NetClaw.Infrastructure.Tests.csproj`
 - `dotnet test`
 
 Result: 115 xUnit tests passed across the solution.

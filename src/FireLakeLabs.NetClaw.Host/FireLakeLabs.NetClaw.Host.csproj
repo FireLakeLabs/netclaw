@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FireLakeLabs.NetClaw.Domain\FireLakeLabs.NetClaw.Domain.csproj" />
+    <ProjectReference Include="..\FireLakeLabs.NetClaw.Application\FireLakeLabs.NetClaw.Application.csproj" />
+    <ProjectReference Include="..\FireLakeLabs.NetClaw.Infrastructure\FireLakeLabs.NetClaw.Infrastructure.csproj" />
+    <ProjectReference Include="..\FireLakeLabs.NetClaw.Dashboard\FireLakeLabs.NetClaw.Dashboard.csproj" />
+  </ItemGroup>
+</Project>

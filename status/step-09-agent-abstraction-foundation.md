@@ -14,21 +14,21 @@
 ## Files And Projects Affected
 
 - Production:
-  - `src/NetClaw.Domain/Contracts/Agents/*`
-  - `src/NetClaw.Domain/Enums/Agent*`
-  - `src/NetClaw.Domain/Contracts/Services/ServiceContracts.cs`
-  - `src/NetClaw.Infrastructure/Configuration/AgentRuntimeOptions.cs`
-  - `src/NetClaw.Infrastructure/Paths/GroupPathResolver.cs`
-  - `src/NetClaw.Infrastructure/Runtime/Agents/*`
-  - `src/NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs`
+  - `src/FireLakeLabs.NetClaw.Domain/Contracts/Agents/*`
+  - `src/FireLakeLabs.NetClaw.Domain/Enums/Agent*`
+  - `src/FireLakeLabs.NetClaw.Domain/Contracts/Services/ServiceContracts.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Configuration/AgentRuntimeOptions.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Paths/GroupPathResolver.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Runtime/Agents/*`
+  - `src/FireLakeLabs.NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs`
 - Tests:
-  - `tests/NetClaw.Domain.Tests/Contracts/*`
-  - `tests/NetClaw.Domain.Tests/AssemblySmokeTests.cs`
-  - `tests/NetClaw.Infrastructure.Tests/Configuration/OptionsTests.cs`
-  - `tests/NetClaw.Infrastructure.Tests/Paths/GroupPathResolverTests.cs`
-  - `tests/NetClaw.Infrastructure.Tests/Runtime/*`
-  - `tests/NetClaw.Infrastructure.Tests/AssemblySmokeTests.cs`
-  - `tests/NetClaw.Host.Tests/ProgramTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Domain.Tests/Contracts/*`
+  - `tests/FireLakeLabs.NetClaw.Domain.Tests/AssemblySmokeTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/Configuration/OptionsTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/Paths/GroupPathResolverTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/Runtime/*`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/AssemblySmokeTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Host.Tests/ProgramTests.cs`
 
 ## Unit Tests And Integration Tests Added
 
@@ -48,15 +48,15 @@
 
 ## Verification Performed
 
-- `dotnet build tests/NetClaw.Domain.Tests/NetClaw.Domain.Tests.csproj`
-- `dotnet test tests/NetClaw.Domain.Tests/NetClaw.Domain.Tests.csproj`
-- `dotnet build tests/NetClaw.Infrastructure.Tests/NetClaw.Infrastructure.Tests.csproj`
-- `dotnet test tests/NetClaw.Infrastructure.Tests/NetClaw.Infrastructure.Tests.csproj`
-- `dotnet build tests/NetClaw.Host.Tests/NetClaw.Host.Tests.csproj`
-- `dotnet test tests/NetClaw.Host.Tests/NetClaw.Host.Tests.csproj`
-- `dotnet build tests/NetClaw.IntegrationTests/NetClaw.IntegrationTests.csproj`
-- `dotnet test tests/NetClaw.IntegrationTests/NetClaw.IntegrationTests.csproj`
-- `dotnet test NetClaw.slnx`
+- `dotnet build tests/FireLakeLabs.NetClaw.Domain.Tests/FireLakeLabs.NetClaw.Domain.Tests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.Domain.Tests/FireLakeLabs.NetClaw.Domain.Tests.csproj`
+- `dotnet build tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FireLakeLabs.NetClaw.Infrastructure.Tests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FireLakeLabs.NetClaw.Infrastructure.Tests.csproj`
+- `dotnet build tests/FireLakeLabs.NetClaw.Host.Tests/FireLakeLabs.NetClaw.Host.Tests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.Host.Tests/FireLakeLabs.NetClaw.Host.Tests.csproj`
+- `dotnet build tests/FireLakeLabs.NetClaw.IntegrationTests/FireLakeLabs.NetClaw.IntegrationTests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.IntegrationTests/FireLakeLabs.NetClaw.IntegrationTests.csproj`
+- `dotnet test FireLakeLabs.NetClaw.slnx`
 
 Result: 87 xUnit tests passed across the solution.
 

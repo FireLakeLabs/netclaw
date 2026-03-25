@@ -12,20 +12,20 @@
 ## Files And Projects Affected
 
 - Production:
-  - `src/NetClaw.Application/Execution/GroupMessageProcessorService.cs`
-  - `src/NetClaw.Application/Execution/InboundMessagePollingService.cs`
-  - `src/NetClaw.Domain/Contracts/Services/ServiceContracts.cs`
-  - `src/NetClaw.Domain/Entities/SenderAllowlist.cs`
-  - `src/NetClaw.Domain/Enums/SenderPolicyMode.cs`
-  - `src/NetClaw.Host/Configuration/HostPathOptions.cs`
-  - `src/NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs`
-  - `src/NetClaw.Host/Services/HostInitializationService.cs`
-  - `src/NetClaw.Infrastructure/Security/MountAllowlistLoader.cs`
-  - `src/NetClaw.Infrastructure/Security/SenderAllowlistService.cs`
+  - `src/FireLakeLabs.NetClaw.Application/Execution/GroupMessageProcessorService.cs`
+  - `src/FireLakeLabs.NetClaw.Application/Execution/InboundMessagePollingService.cs`
+  - `src/FireLakeLabs.NetClaw.Domain/Contracts/Services/ServiceContracts.cs`
+  - `src/FireLakeLabs.NetClaw.Domain/Entities/SenderAllowlist.cs`
+  - `src/FireLakeLabs.NetClaw.Domain/Enums/SenderPolicyMode.cs`
+  - `src/FireLakeLabs.NetClaw.Host/Configuration/HostPathOptions.cs`
+  - `src/FireLakeLabs.NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs`
+  - `src/FireLakeLabs.NetClaw.Host/Services/HostInitializationService.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Security/MountAllowlistLoader.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Security/SenderAllowlistService.cs`
 - Tests:
-  - `tests/NetClaw.Application.Tests/Execution/GroupMessageProcessorServiceTests.cs`
-  - `tests/NetClaw.Application.Tests/Execution/InboundMessagePollingServiceTests.cs`
-  - `tests/NetClaw.Infrastructure.Tests/Security/SenderAllowlistServiceTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Application.Tests/Execution/GroupMessageProcessorServiceTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Application.Tests/Execution/InboundMessagePollingServiceTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/Security/SenderAllowlistServiceTests.cs`
 
 ## Unit Tests And Integration Tests Added
 
@@ -39,9 +39,9 @@
 
 ## Verification Performed
 
-- `dotnet test tests/NetClaw.Application.Tests/NetClaw.Application.Tests.csproj`
-- `dotnet test tests/NetClaw.Infrastructure.Tests/NetClaw.Infrastructure.Tests.csproj`
-- `dotnet test NetClaw.slnx`
+- `dotnet test tests/FireLakeLabs.NetClaw.Application.Tests/FireLakeLabs.NetClaw.Application.Tests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FireLakeLabs.NetClaw.Infrastructure.Tests.csproj`
+- `dotnet test FireLakeLabs.NetClaw.slnx`
 
 Result: 109 xUnit tests passed across the solution.
 

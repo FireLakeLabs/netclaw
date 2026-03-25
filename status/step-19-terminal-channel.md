@@ -12,13 +12,13 @@
 ## Files And Projects Affected
 
 - Production:
-  - `src/NetClaw.Infrastructure/Channels/TerminalChannel.cs`
-  - `src/NetClaw.Infrastructure/Configuration/TerminalChannelOptions.cs`
-  - `src/NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Channels/TerminalChannel.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Configuration/TerminalChannelOptions.cs`
+  - `src/FireLakeLabs.NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs`
   - `README.md`
 - Tests:
-  - `tests/NetClaw.Infrastructure.Tests/Channels/TerminalChannelTests.cs`
-  - `tests/NetClaw.IntegrationTests/EndToEndIntegrationTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/Channels/TerminalChannelTests.cs`
+  - `tests/FireLakeLabs.NetClaw.IntegrationTests/EndToEndIntegrationTests.cs`
 
 ## Unit Tests And Integration Tests Added
 
@@ -31,12 +31,12 @@
 
 ## Verification Performed
 
-- `dotnet test tests/NetClaw.Infrastructure.Tests/NetClaw.Infrastructure.Tests.csproj`
-- `dotnet test tests/NetClaw.IntegrationTests/NetClaw.IntegrationTests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FireLakeLabs.NetClaw.Infrastructure.Tests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.IntegrationTests/FireLakeLabs.NetClaw.IntegrationTests.csproj`
 - `dotnet test`
 - Live smoke test:
   - registered `team@jid` in `/tmp/netclaw-terminal-live-1773166157`
-  - ran `NetClaw.Host` with `NetClaw:Channels:Terminal:Enabled=true`
+  - ran `FireLakeLabs.NetClaw.Host` with `NetClaw:Channels:Terminal:Enabled=true`
   - piped `@Andy reply with exactly: TERMINAL_SMOKE_OK`
   - observed stdout reply `assistant> TERMINAL_SMOKE_OK`
 

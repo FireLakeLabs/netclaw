@@ -12,17 +12,17 @@
 ## Files And Projects Affected
 
 - Production:
-  - `src/NetClaw.Application/Execution/InboundMessagePollingService.cs`
-  - `src/NetClaw.Application/Execution/GroupMessageProcessorService.cs`
-  - `src/NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs`
-  - `src/NetClaw.Host/Services/MessageLoopWorker.cs`
-  - `src/NetClaw.Infrastructure/Configuration/MessageLoopOptions.cs`
+  - `src/FireLakeLabs.NetClaw.Application/Execution/InboundMessagePollingService.cs`
+  - `src/FireLakeLabs.NetClaw.Application/Execution/GroupMessageProcessorService.cs`
+  - `src/FireLakeLabs.NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs`
+  - `src/FireLakeLabs.NetClaw.Host/Services/MessageLoopWorker.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Configuration/MessageLoopOptions.cs`
 - Tests:
-  - `tests/NetClaw.Application.Tests/Execution/InboundMessagePollingServiceTests.cs`
-  - `tests/NetClaw.Application.Tests/Execution/GroupMessageProcessorServiceTests.cs`
-  - `tests/NetClaw.Host.Tests/ProgramTests.cs`
-  - `tests/NetClaw.Infrastructure.Tests/Configuration/OptionsTests.cs`
-  - `tests/NetClaw.IntegrationTests/EndToEndIntegrationTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Application.Tests/Execution/InboundMessagePollingServiceTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Application.Tests/Execution/GroupMessageProcessorServiceTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Host.Tests/ProgramTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/Configuration/OptionsTests.cs`
+  - `tests/FireLakeLabs.NetClaw.IntegrationTests/EndToEndIntegrationTests.cs`
 
 ## Unit Tests And Integration Tests Added
 
@@ -40,10 +40,10 @@
 
 ## Verification Performed
 
-- `dotnet test tests/NetClaw.Application.Tests/NetClaw.Application.Tests.csproj`
-- `dotnet test tests/NetClaw.Host.Tests/NetClaw.Host.Tests.csproj`
-- `dotnet test tests/NetClaw.IntegrationTests/NetClaw.IntegrationTests.csproj`
-- `dotnet test NetClaw.slnx`
+- `dotnet test tests/FireLakeLabs.NetClaw.Application.Tests/FireLakeLabs.NetClaw.Application.Tests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.Host.Tests/FireLakeLabs.NetClaw.Host.Tests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.IntegrationTests/FireLakeLabs.NetClaw.IntegrationTests.csproj`
+- `dotnet test FireLakeLabs.NetClaw.slnx`
 
 Result: 104 xUnit tests passed across the solution.
 

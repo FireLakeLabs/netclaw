@@ -18,7 +18,7 @@ This is additive. The existing env-var approach still works. The 1Password path 
 
 ### IPC directory permissions
 
-A new `DirectoryPermissions` utility in `NetClaw.Infrastructure.FileSystem` sets owner-only permissions (`700`) on sensitive directories during host initialization. This covers `data/`, `data/ipc/`, `data/sessions/`, `data/files/`, and the database directory.
+A new `DirectoryPermissions` utility in `FireLakeLabs.NetClaw.Infrastructure.FileSystem` sets owner-only permissions (`700`) on sensitive directories during host initialization. This covers `data/`, `data/ipc/`, `data/sessions/`, `data/files/`, and the database directory.
 
 The `HostInitializationService` now calls `RestrictSensitiveDirectories()` after creating directories and before initializing the database or loading allowlists.
 

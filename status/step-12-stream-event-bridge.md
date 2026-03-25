@@ -12,15 +12,15 @@
 ## Files And Projects Affected
 
 - Production:
-  - `src/NetClaw.Application/Execution/GroupMessageProcessorService.cs`
-  - `src/NetClaw.Domain/Contracts/Containers/ContainerContracts.cs`
-  - `src/NetClaw.Domain/Contracts/Services/ServiceContracts.cs`
-  - `src/NetClaw.Domain/Enums/ContainerEventKind.cs`
-  - `src/NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs`
-  - `src/NetClaw.Infrastructure/Runtime/Agents/NetClawAgentRuntime.cs`
+  - `src/FireLakeLabs.NetClaw.Application/Execution/GroupMessageProcessorService.cs`
+  - `src/FireLakeLabs.NetClaw.Domain/Contracts/Containers/ContainerContracts.cs`
+  - `src/FireLakeLabs.NetClaw.Domain/Contracts/Services/ServiceContracts.cs`
+  - `src/FireLakeLabs.NetClaw.Domain/Enums/ContainerEventKind.cs`
+  - `src/FireLakeLabs.NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Runtime/Agents/NetClawAgentRuntime.cs`
 - Tests:
-  - `tests/NetClaw.Application.Tests/Execution/GroupMessageProcessorServiceTests.cs`
-  - `tests/NetClaw.Application.Tests/Execution/InboundMessagePollingServiceTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Application.Tests/Execution/GroupMessageProcessorServiceTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Application.Tests/Execution/InboundMessagePollingServiceTests.cs`
 
 ## Unit Tests And Integration Tests Added
 
@@ -31,8 +31,8 @@
 
 ## Verification Performed
 
-- `dotnet test tests/NetClaw.Application.Tests/NetClaw.Application.Tests.csproj`
-- `dotnet test NetClaw.slnx`
+- `dotnet test tests/FireLakeLabs.NetClaw.Application.Tests/FireLakeLabs.NetClaw.Application.Tests.csproj`
+- `dotnet test FireLakeLabs.NetClaw.slnx`
 
 Result: 105 xUnit tests passed across the solution.
 

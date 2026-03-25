@@ -2,7 +2,7 @@
 
 ## Changes Made
 
-- Implemented the first-pass NetClaw domain model under `src/NetClaw.Domain`.
+- Implemented the first-pass NetClaw domain model under `src/FireLakeLabs.NetClaw.Domain`.
 - Added domain enums for scheduling, task lifecycle, task context, and container run status.
 - Added validated value objects for:
   - `GroupFolder`
@@ -27,18 +27,18 @@
 ## Files And Projects Affected
 
 - Production:
-  - `src/NetClaw.Domain/Enums/*`
-  - `src/NetClaw.Domain/ValueObjects/*`
-  - `src/NetClaw.Domain/Entities/*`
-  - `src/NetClaw.Domain/Contracts/Channels/*`
-  - `src/NetClaw.Domain/Contracts/Containers/*`
-  - `src/NetClaw.Domain/Contracts/Ipc/*`
-  - `src/NetClaw.Domain/Contracts/Persistence/*`
-  - `src/NetClaw.Domain/Contracts/Services/*`
+  - `src/FireLakeLabs.NetClaw.Domain/Enums/*`
+  - `src/FireLakeLabs.NetClaw.Domain/ValueObjects/*`
+  - `src/FireLakeLabs.NetClaw.Domain/Entities/*`
+  - `src/FireLakeLabs.NetClaw.Domain/Contracts/Channels/*`
+  - `src/FireLakeLabs.NetClaw.Domain/Contracts/Containers/*`
+  - `src/FireLakeLabs.NetClaw.Domain/Contracts/Ipc/*`
+  - `src/FireLakeLabs.NetClaw.Domain/Contracts/Persistence/*`
+  - `src/FireLakeLabs.NetClaw.Domain/Contracts/Services/*`
 - Tests:
-  - `tests/NetClaw.Domain.Tests/AssemblySmokeTests.cs`
-  - `tests/NetClaw.Domain.Tests/ValueObjects/*`
-  - `tests/NetClaw.Domain.Tests/Entities/*`
+  - `tests/FireLakeLabs.NetClaw.Domain.Tests/AssemblySmokeTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Domain.Tests/ValueObjects/*`
+  - `tests/FireLakeLabs.NetClaw.Domain.Tests/Entities/*`
 
 ## Unit Tests And Integration Tests Added
 
@@ -71,9 +71,9 @@
 
 ## Verification Performed
 
-- `dotnet build src/NetClaw.Domain/NetClaw.Domain.csproj`
-- `dotnet build tests/NetClaw.Domain.Tests/NetClaw.Domain.Tests.csproj`
-- `dotnet test tests/NetClaw.Domain.Tests/NetClaw.Domain.Tests.csproj --no-build`
+- `dotnet build src/FireLakeLabs.NetClaw.Domain/FireLakeLabs.NetClaw.Domain.csproj`
+- `dotnet build tests/FireLakeLabs.NetClaw.Domain.Tests/FireLakeLabs.NetClaw.Domain.Tests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.Domain.Tests/FireLakeLabs.NetClaw.Domain.Tests.csproj --no-build`
 
 Result: 32 xUnit tests passed.
 

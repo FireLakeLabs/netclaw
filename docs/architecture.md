@@ -6,15 +6,15 @@ NetClaw is a hosted .NET application that accepts inbound chat messages, stores 
 
 The repo is split into five projects:
 
-- `NetClaw.Domain`: contracts and core types
-- `NetClaw.Application`: orchestration and workflow services
-- `NetClaw.Infrastructure`: adapters for channels, persistence, runtime integration, and OS-facing behavior
-- `NetClaw.Host`: dependency injection and hosted services
-- `NetClaw.Setup`: operational CLI
+- `FireLakeLabs.NetClaw.Domain`: contracts and core types
+- `FireLakeLabs.NetClaw.Application`: orchestration and workflow services
+- `FireLakeLabs.NetClaw.Infrastructure`: adapters for channels, persistence, runtime integration, and OS-facing behavior
+- `FireLakeLabs.NetClaw.Host`: dependency injection and hosted services
+- `FireLakeLabs.NetClaw.Setup`: operational CLI
 
 ## Main Runtime Flow
 
-At startup, `NetClaw.Host` builds the service graph in `ServiceCollectionExtensions`. The host wires configuration, persistence, channels, the agent runtime, scheduling, and the background workers.
+At startup, `FireLakeLabs.NetClaw.Host` builds the service graph in `ServiceCollectionExtensions`. The host wires configuration, persistence, channels, the agent runtime, scheduling, and the background workers.
 
 The main workers are:
 
@@ -74,7 +74,7 @@ The runtime boundary is intentionally separate from channel and storage concerns
 
 All agent work runs inside an isolated Docker or Podman container. `ContainerizedAgentEngine` spawns the container, writes input to stdin as JSON, and parses JSONL output from stdout. A `CredentialProxyService` on the host injects real API keys — containers never see the actual secrets.
 
-Inside the container, `NetClaw.AgentRunner` dispatches to the configured provider CLI (Copilot or Claude Code). The provider is selected at runtime via the `NETCLAW_PROVIDER` environment variable. Placeholder engines for Codex and OpenCode still exist but are not wired into DI — their CLIs can be added to the container image when ready.
+Inside the container, `FireLakeLabs.NetClaw.AgentRunner` dispatches to the configured provider CLI (Copilot or Claude Code). The provider is selected at runtime via the `NETCLAW_PROVIDER` environment variable. Placeholder engines for Codex and OpenCode still exist but are not wired into DI — their CLIs can be added to the container image when ready.
 
 The previous in-process execution path through `CopilotCodingAgentEngine` and the Copilot SDK has been replaced by containerized execution.
 
@@ -139,7 +139,7 @@ The repo still carries a container runtime abstraction and Docker-based executio
 
 ## Setup CLI
 
-`NetClaw.Setup` is a small CLI that handles operational steps such as registration. It exists so common setup actions are not hidden inside ad hoc scripts.
+`FireLakeLabs.NetClaw.Setup` is a small CLI that handles operational steps such as registration. It exists so common setup actions are not hidden inside ad hoc scripts.
 
 The helper scripts at the repo root are thin convenience wrappers over the setup CLI plus host startup.
 

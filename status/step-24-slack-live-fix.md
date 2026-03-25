@@ -9,10 +9,10 @@
 ## Files And Projects Affected
 
 - Production:
-  - `src/NetClaw.Infrastructure/Channels/SlackSocketModeClient.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Channels/SlackSocketModeClient.cs`
 - Tests:
-  - `tests/NetClaw.Infrastructure.Tests/Channels/SlackSocketModeClientTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/Channels/SlackSocketModeClientTests.cs`
 
 ## Verification
 
-- `dotnet test tests/NetClaw.Infrastructure.Tests/NetClaw.Infrastructure.Tests.csproj --filter "SlackSocketModeClientTests|SlackChannelTests"`
+- `dotnet test tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FireLakeLabs.NetClaw.Infrastructure.Tests.csproj --filter "SlackSocketModeClientTests|SlackChannelTests"`

@@ -12,12 +12,12 @@
 ## Files And Projects Affected
 
 - Production:
-  - `src/NetClaw.Host/Program.cs`
-  - `src/NetClaw.Host/Configuration/*`
-  - `src/NetClaw.Host/DependencyInjection/*`
-  - `src/NetClaw.Host/Services/*`
+  - `src/FireLakeLabs.NetClaw.Host/Program.cs`
+  - `src/FireLakeLabs.NetClaw.Host/Configuration/*`
+  - `src/FireLakeLabs.NetClaw.Host/DependencyInjection/*`
+  - `src/FireLakeLabs.NetClaw.Host/Services/*`
 - Tests:
-  - `tests/NetClaw.Host.Tests/ProgramTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Host.Tests/ProgramTests.cs`
 
 ## Unit Tests And Integration Tests Added
 
@@ -27,8 +27,8 @@
 
 ## Verification Performed
 
-- `dotnet build tests/NetClaw.Host.Tests/NetClaw.Host.Tests.csproj`
-- `dotnet test tests/NetClaw.Host.Tests/NetClaw.Host.Tests.csproj`
+- `dotnet build tests/FireLakeLabs.NetClaw.Host.Tests/FireLakeLabs.NetClaw.Host.Tests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.Host.Tests/FireLakeLabs.NetClaw.Host.Tests.csproj`
 
 Result: 2 xUnit tests passed.
 

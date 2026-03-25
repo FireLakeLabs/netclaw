@@ -2,7 +2,7 @@
 
 ## Changes Made
 
-- Added `Microsoft.Data.Sqlite` to `NetClaw.Infrastructure`.
+- Added `Microsoft.Data.Sqlite` to `FireLakeLabs.NetClaw.Infrastructure`.
 - Implemented a reusable SQLite connection factory with foreign-key enforcement.
 - Implemented a schema initializer that creates the core NetClaw tables and indexes:
   - chats
@@ -24,11 +24,11 @@
 ## Files And Projects Affected
 
 - Production:
-  - `src/NetClaw.Infrastructure/NetClaw.Infrastructure.csproj`
-  - `src/NetClaw.Infrastructure/Persistence/Sqlite/*`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/FireLakeLabs.NetClaw.Infrastructure.csproj`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Persistence/Sqlite/*`
 - Tests:
-  - `tests/NetClaw.Infrastructure.Tests/AssemblySmokeTests.cs`
-  - `tests/NetClaw.Infrastructure.Tests/Persistence/Sqlite/*`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/AssemblySmokeTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/Persistence/Sqlite/*`
 
 ## Unit Tests And Integration Tests Added
 
@@ -47,8 +47,8 @@
 
 ## Verification Performed
 
-- `dotnet build tests/NetClaw.Infrastructure.Tests/NetClaw.Infrastructure.Tests.csproj`
-- `dotnet test tests/NetClaw.Infrastructure.Tests/NetClaw.Infrastructure.Tests.csproj --no-build`
+- `dotnet build tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FireLakeLabs.NetClaw.Infrastructure.Tests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FireLakeLabs.NetClaw.Infrastructure.Tests.csproj --no-build`
 
 Result: 8 xUnit tests passed.
 
