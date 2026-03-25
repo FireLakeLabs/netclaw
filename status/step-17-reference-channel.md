@@ -12,18 +12,18 @@
 ## Files And Projects Affected
 
 - Production:
-  - `src/NetClaw.Domain/Contracts/Channels/ChannelContracts.cs`
-  - `src/NetClaw.Application/Channels/ChannelIngressService.cs`
-  - `src/NetClaw.Infrastructure/Channels/ReferenceFileChannel.cs`
-  - `src/NetClaw.Infrastructure/Configuration/ChannelWorkerOptions.cs`
-  - `src/NetClaw.Infrastructure/Configuration/ReferenceFileChannelOptions.cs`
-  - `src/NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs`
-  - `src/NetClaw.Host/Services/ChannelWorker.cs`
+  - `src/FireLakeLabs.NetClaw.Domain/Contracts/Channels/ChannelContracts.cs`
+  - `src/FireLakeLabs.NetClaw.Application/Channels/ChannelIngressService.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Channels/ReferenceFileChannel.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Configuration/ChannelWorkerOptions.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Configuration/ReferenceFileChannelOptions.cs`
+  - `src/FireLakeLabs.NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs`
+  - `src/FireLakeLabs.NetClaw.Host/Services/ChannelWorker.cs`
 - Tests:
-  - `tests/NetClaw.Application.Tests/Channels/ChannelIngressServiceTests.cs`
-  - `tests/NetClaw.Infrastructure.Tests/Channels/ReferenceFileChannelTests.cs`
-  - `tests/NetClaw.Host.Tests/ChannelWorkerTests.cs`
-  - `tests/NetClaw.IntegrationTests/EndToEndIntegrationTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Application.Tests/Channels/ChannelIngressServiceTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/Channels/ReferenceFileChannelTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Host.Tests/ChannelWorkerTests.cs`
+  - `tests/FireLakeLabs.NetClaw.IntegrationTests/EndToEndIntegrationTests.cs`
 
 ## Unit Tests And Integration Tests Added
 
@@ -39,10 +39,10 @@
 
 ## Verification Performed
 
-- `dotnet test tests/NetClaw.Application.Tests/NetClaw.Application.Tests.csproj`
-- `dotnet test tests/NetClaw.Infrastructure.Tests/NetClaw.Infrastructure.Tests.csproj`
-- `dotnet test tests/NetClaw.Host.Tests/NetClaw.Host.Tests.csproj`
-- `dotnet test tests/NetClaw.IntegrationTests/NetClaw.IntegrationTests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.Application.Tests/FireLakeLabs.NetClaw.Application.Tests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FireLakeLabs.NetClaw.Infrastructure.Tests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.Host.Tests/FireLakeLabs.NetClaw.Host.Tests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.IntegrationTests/FireLakeLabs.NetClaw.IntegrationTests.csproj`
 - `dotnet test`
 
 Result: 121 xUnit tests passed across the solution.

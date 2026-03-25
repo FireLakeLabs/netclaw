@@ -9,10 +9,10 @@
 ## Files And Projects Affected
 
 - Production:
-  - `src/NetClaw.Infrastructure/Channels/SlackChannel.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Channels/SlackChannel.cs`
 - Tests:
-  - `tests/NetClaw.Infrastructure.Tests/Channels/SlackChannelTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/Channels/SlackChannelTests.cs`
 
 ## Verification
 
-- `dotnet test tests/NetClaw.Infrastructure.Tests/NetClaw.Infrastructure.Tests.csproj --filter "SlackChannelTests"`
+- `dotnet test tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FireLakeLabs.NetClaw.Infrastructure.Tests.csproj --filter "SlackChannelTests"`

@@ -34,10 +34,16 @@ NetClaw uses [1Password CLI](https://developer.1password.com/docs/cli/) (`op`) a
 
 3. Store your secrets:
    ```bash
+   # Slack channel credentials
    op item create --vault netclaw --category login \
      --title slack \
      'bot-token=xoxb-your-actual-token' \
      'app-token=xapp-your-actual-token'
+
+   # Anthropic API key (for Claude Code agent via credential proxy)
+   op item create --vault netclaw --category login \
+     --title anthropic \
+     'api-key=sk-ant-your-actual-key'
    ```
 
 4. Verify the references work:

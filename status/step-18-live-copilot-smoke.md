@@ -3,14 +3,14 @@
 ## Changes Made
 
 - Performed a live operational smoke test against the real Copilot-backed host runtime using the new `reference-file` channel in an isolated temporary project root.
-- Registered a real group, started `NetClaw.Host` with the reference channel enabled, injected an inbound file message, and verified that the host emitted an outbound file reply through the full runtime path.
+- Registered a real group, started `FireLakeLabs.NetClaw.Host` with the reference channel enabled, injected an inbound file message, and verified that the host emitted an outbound file reply through the full runtime path.
 - Documented the reference file channel workflow and JSON envelope shapes in the repository README so the smoke path is reproducible outside this chat session.
 
 ## Live Validation Performed
 
 - Temporary project root: `/tmp/netclaw-live-1773164544`
 - Registration command:
-  - `dotnet run --project src/NetClaw.Setup -- --step register --jid team@jid --name Team --trigger @Andy --folder team`
+  - `dotnet run --project src/FireLakeLabs.NetClaw.Setup -- --step register --jid team@jid --name Team --trigger @Andy --folder team`
 - Host runtime configuration:
   - `NetClaw:Channels:ReferenceFile:Enabled=true`
   - `NetClaw:Channels:PollInterval=00:00:01`

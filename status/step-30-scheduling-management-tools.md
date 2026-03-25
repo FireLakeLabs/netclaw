@@ -11,13 +11,13 @@
 ## Files And Projects Affected
 
 - Production:
-  - `src/NetClaw.Infrastructure/Runtime/Agents/NetClawAgentToolRegistry.cs`
-  - `src/NetClaw.Infrastructure/Runtime/Agents/NetClawCopilotToolFactory.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Runtime/Agents/NetClawAgentToolRegistry.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Runtime/Agents/NetClawCopilotToolFactory.cs`
   - `README.md`
 - Tests:
-  - `tests/NetClaw.Infrastructure.Tests/Runtime/AgentRuntimeServicesTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/Runtime/AgentRuntimeServicesTests.cs`
 
 ## Verification
 
-- `dotnet test tests/NetClaw.Infrastructure.Tests/NetClaw.Infrastructure.Tests.csproj --filter "AgentRuntimeServicesTests"`
+- `dotnet test tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FireLakeLabs.NetClaw.Infrastructure.Tests.csproj --filter "AgentRuntimeServicesTests"`
 - `dotnet test`

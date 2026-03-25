@@ -12,20 +12,20 @@
 ## Files And Projects Affected
 
 - Production:
-  - `src/NetClaw.Application/Execution/ActiveGroupSessionRegistry.cs`
-  - `src/NetClaw.Application/Execution/GroupMessageProcessorService.cs`
-  - `src/NetClaw.Application/Execution/InboundMessagePollingService.cs`
-  - `src/NetClaw.Domain/Contracts/Agents/AgentContracts.cs`
-  - `src/NetClaw.Domain/Contracts/Containers/ContainerContracts.cs`
-  - `src/NetClaw.Domain/Contracts/Services/ServiceContracts.cs`
-  - `src/NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs`
-  - `src/NetClaw.Infrastructure/Configuration/AgentRuntimeOptions.cs`
-  - `src/NetClaw.Infrastructure/Runtime/Agents/CopilotCodingAgentEngine.cs`
-  - `src/NetClaw.Infrastructure/Runtime/Agents/NetClawAgentRuntime.cs`
+  - `src/FireLakeLabs.NetClaw.Application/Execution/ActiveGroupSessionRegistry.cs`
+  - `src/FireLakeLabs.NetClaw.Application/Execution/GroupMessageProcessorService.cs`
+  - `src/FireLakeLabs.NetClaw.Application/Execution/InboundMessagePollingService.cs`
+  - `src/FireLakeLabs.NetClaw.Domain/Contracts/Agents/AgentContracts.cs`
+  - `src/FireLakeLabs.NetClaw.Domain/Contracts/Containers/ContainerContracts.cs`
+  - `src/FireLakeLabs.NetClaw.Domain/Contracts/Services/ServiceContracts.cs`
+  - `src/FireLakeLabs.NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Configuration/AgentRuntimeOptions.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Runtime/Agents/CopilotCodingAgentEngine.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Runtime/Agents/NetClawAgentRuntime.cs`
 - Tests:
-  - `tests/NetClaw.Application.Tests/Execution/GroupMessageProcessorServiceTests.cs`
-  - `tests/NetClaw.Application.Tests/Execution/InboundMessagePollingServiceTests.cs`
-  - `tests/NetClaw.IntegrationTests/EndToEndIntegrationTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Application.Tests/Execution/GroupMessageProcessorServiceTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Application.Tests/Execution/InboundMessagePollingServiceTests.cs`
+  - `tests/FireLakeLabs.NetClaw.IntegrationTests/EndToEndIntegrationTests.cs`
 
 ## Unit Tests And Integration Tests Added
 

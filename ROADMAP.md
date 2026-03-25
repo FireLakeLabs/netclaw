@@ -14,7 +14,7 @@ This is a working list of the next things that would make NetClaw feel less like
 - Add real configuration samples and tighten configuration validation.
 - Expand operator workflows around registration, diagnostics, and task management.
 - Add stronger integration coverage around the full host and message loop.
-- Start the Linux-first container isolation work beyond Docker-only assumptions.
+- Harden container isolation with cross-runtime testing, orphan cleanup, and mount verification.
 
 ## Medium Term
 
@@ -25,8 +25,7 @@ This is a working list of the next things that would make NetClaw feel less like
 
 ## Explicit Gaps In Code Today
 
-- `ClaudeCode`, `Codex`, and `OpenCode` engines are still placeholder implementations.
-- Container isolation is still effectively Docker-only.
+- `Codex` and `OpenCode` engines are still placeholder implementations.
 - The future feature set described in `future-features/` is still mostly research, not shipped behavior.
 
 ## Rule Of Thumb

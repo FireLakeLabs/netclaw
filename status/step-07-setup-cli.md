@@ -18,14 +18,14 @@
 ## Files And Projects Affected
 
 - Production:
-  - `src/NetClaw.Setup/Program.cs`
-  - `src/NetClaw.Setup/SetupCommand.cs`
-  - `src/NetClaw.Setup/SetupPaths.cs`
-  - `src/NetClaw.Setup/SetupResult.cs`
-  - `src/NetClaw.Setup/SetupRunner.cs`
-  - `src/NetClaw.Setup/SetupStatusWriter.cs`
+  - `src/FireLakeLabs.NetClaw.Setup/Program.cs`
+  - `src/FireLakeLabs.NetClaw.Setup/SetupCommand.cs`
+  - `src/FireLakeLabs.NetClaw.Setup/SetupPaths.cs`
+  - `src/FireLakeLabs.NetClaw.Setup/SetupResult.cs`
+  - `src/FireLakeLabs.NetClaw.Setup/SetupRunner.cs`
+  - `src/FireLakeLabs.NetClaw.Setup/SetupStatusWriter.cs`
 - Tests:
-  - `tests/NetClaw.Setup.Tests/ProgramTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Setup.Tests/ProgramTests.cs`
 
 ## Unit Tests And Integration Tests Added
 
@@ -37,8 +37,8 @@
 
 ## Verification Performed
 
-- `dotnet build tests/NetClaw.Setup.Tests/NetClaw.Setup.Tests.csproj`
-- `dotnet test tests/NetClaw.Setup.Tests/NetClaw.Setup.Tests.csproj`
+- `dotnet build tests/FireLakeLabs.NetClaw.Setup.Tests/FireLakeLabs.NetClaw.Setup.Tests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.Setup.Tests/FireLakeLabs.NetClaw.Setup.Tests.csproj`
 
 Result: 4 xUnit tests passed.
 

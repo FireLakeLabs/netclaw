@@ -2,7 +2,7 @@
 
 ## Description
 
-Gmail parity can be split into two useful layers: tool-mode and full channel-mode. Tool-mode lets the agent read, search, draft, and send mail on request. Channel-mode lets incoming email act as a trigger source for the agent. Tool-mode is the lower-risk first milestone for NetClaw.
+Gmail parity can be split into two useful layers: tool-mode and full channel-mode. Tool-mode lets the agent read, search, draft, and send mail on request. Channel-mode lets incoming email act as a trigger source for the agent. Tool-mode is the lower-risk first milestone for FireLakeLabs.NetClaw.
 
 Current baseline:
 

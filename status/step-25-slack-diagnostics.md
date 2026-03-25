@@ -8,9 +8,9 @@
 ## Files And Projects Affected
 
 - Production:
-  - `src/NetClaw.Infrastructure/Channels/SlackChannel.cs`
-  - `src/NetClaw.Infrastructure/NetClaw.Infrastructure.csproj`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Channels/SlackChannel.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/FireLakeLabs.NetClaw.Infrastructure.csproj`
 
 ## Verification
 
-- `dotnet build src/NetClaw.Infrastructure/NetClaw.Infrastructure.csproj`
+- `dotnet build src/FireLakeLabs.NetClaw.Infrastructure/FireLakeLabs.NetClaw.Infrastructure.csproj`

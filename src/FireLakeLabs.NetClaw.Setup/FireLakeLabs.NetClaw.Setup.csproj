@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\FireLakeLabs.NetClaw.Domain\FireLakeLabs.NetClaw.Domain.csproj" />
+    <ProjectReference Include="..\FireLakeLabs.NetClaw.Application\FireLakeLabs.NetClaw.Application.csproj" />
+    <ProjectReference Include="..\FireLakeLabs.NetClaw.Infrastructure\FireLakeLabs.NetClaw.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

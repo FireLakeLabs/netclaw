@@ -12,7 +12,8 @@ If you want to study it, borrow from it, fork it, or laugh at it, that is fine.
 - Persists groups, messages, sessions, and scheduled tasks in SQLite.
 - Supports terminal, reference-file, and Slack channels.
 - Supports interactive sessions and a small control-plane tool surface for group management and scheduling.
-- Uses Copilot as the only real provider today. Other providers are placeholders.
+- Runs agents inside isolated Docker/Podman containers. Copilot and Claude Code are both supported via a shared container image.
+- Injects credentials through an HTTP proxy so containers never see real API keys.
 
 ## What It Is Not
 
@@ -23,15 +24,17 @@ If you want to study it, borrow from it, fork it, or laugh at it, that is fine.
 
 ## Repo Layout
 
-- `src/NetClaw.Domain`: contracts, entities, enums, value objects
-- `src/NetClaw.Application`: orchestration, routing, scheduling, execution
-- `src/NetClaw.Infrastructure`: channels, persistence, runtime adapters, filesystem and platform integration
-- `src/NetClaw.Host`: the long-running host process and dependency wiring
-- `src/NetClaw.Setup`: CLI for setup and operational steps
+- `src/FireLakeLabs.NetClaw.Domain`: contracts, entities, enums, value objects
+- `src/FireLakeLabs.NetClaw.Application`: orchestration, routing, scheduling, execution
+- `src/FireLakeLabs.NetClaw.Infrastructure`: channels, persistence, runtime adapters, filesystem and platform integration
+- `src/FireLakeLabs.NetClaw.Host`: the long-running host process and dependency wiring
+- `src/FireLakeLabs.NetClaw.AgentRunner`: standalone console app that runs inside the container
+- `src/FireLakeLabs.NetClaw.Setup`: CLI for setup and operational steps
+- `container/`: Dockerfile and build script for the agent container image
 - `tests`: xUnit coverage aligned to the production projects
 - `status`: step-by-step implementation notes
 - `future-features`: research notes for missing parity and delayed work
-- `docs`: architecture, user guide, coding standards
+- `docs`: architecture, user guide, coding standards, design documents
 
 ## Running It
 
@@ -58,7 +61,7 @@ export NETCLAW_CHAT_JID='C0123456789'
 Register a chat:
 
 ```bash
-dotnet run --project src/NetClaw.Setup -- --step register \
+dotnet run --project src/FireLakeLabs.NetClaw.Setup -- --step register \
   --jid team@jid \
   --name Team \
   --trigger @Andy \
@@ -69,7 +72,7 @@ dotnet run --project src/NetClaw.Setup -- --step register \
 Start the host:
 
 ```bash
-dotnet run --project src/NetClaw.Host
+dotnet run --project src/FireLakeLabs.NetClaw.Host
 ```
 
 ## Testing
@@ -83,9 +86,9 @@ dotnet test
 Common focused suites:
 
 ```bash
-dotnet test tests/NetClaw.Infrastructure.Tests/NetClaw.Infrastructure.Tests.csproj --filter "AgentRuntimeServicesTests"
-dotnet test tests/NetClaw.Infrastructure.Tests/NetClaw.Infrastructure.Tests.csproj --filter "SlackChannelTests"
-dotnet test tests/NetClaw.Application.Tests/NetClaw.Application.Tests.csproj --filter "TaskSchedulerServiceTests"
+dotnet test tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FireLakeLabs.NetClaw.Infrastructure.Tests.csproj --filter "AgentRuntimeServicesTests"
+dotnet test tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FireLakeLabs.NetClaw.Infrastructure.Tests.csproj --filter "SlackChannelTests"
+dotnet test tests/FireLakeLabs.NetClaw.Application.Tests/FireLakeLabs.NetClaw.Application.Tests.csproj --filter "TaskSchedulerServiceTests"
 ```
 
 ## Documentation
@@ -94,6 +97,7 @@ dotnet test tests/NetClaw.Application.Tests/NetClaw.Application.Tests.csproj --f
 - [CONTRIBUTING.md](CONTRIBUTING.md)
 - [ROADMAP.md](ROADMAP.md)
 - [docs/architecture.md](docs/architecture.md)
+- [docs/containerized-agent-execution.md](docs/containerized-agent-execution.md)
 - [docs/user-guide.md](docs/user-guide.md)
 - [docs/coding-standards.md](docs/coding-standards.md)
 

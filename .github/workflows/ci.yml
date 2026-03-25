@@ -22,13 +22,13 @@ jobs:
           global-json-file: global.json
 
       - name: Restore
-        run: dotnet restore NetClaw.slnx
+        run: dotnet restore FireLakeLabs.NetClaw.slnx
 
       - name: Verify formatting
-        run: dotnet format NetClaw.slnx --verify-no-changes --no-restore
+        run: dotnet format FireLakeLabs.NetClaw.slnx --verify-no-changes --no-restore
 
       - name: Build
-        run: dotnet build NetClaw.slnx --no-restore
+        run: dotnet build FireLakeLabs.NetClaw.slnx --no-restore
 
       - name: Check for flaky test patterns
         run: |
@@ -36,7 +36,7 @@ jobs:
           # Legitimate uses: polling loops with deadlines, infinite-delay-until-cancelled fakes,
           # and integration tests (which may need settling time) are excluded.
           hits=$(grep -rn 'Task\.Delay' tests/ --include='*.cs' \
-            --exclude-dir='NetClaw.IntegrationTests' \
+            --exclude-dir='FireLakeLabs.NetClaw.IntegrationTests' \
             | grep -v 'Timeout\.InfiniteTimeSpan' \
             | grep -v 'while.*deadline' \
             | grep -v '// polling' \
@@ -48,4 +48,4 @@ jobs:
           fi
 
       - name: Test
-        run: dotnet test NetClaw.slnx --no-build --blame-hang-timeout 30s
+        run: dotnet test FireLakeLabs.NetClaw.slnx --no-build --blame-hang-timeout 30s

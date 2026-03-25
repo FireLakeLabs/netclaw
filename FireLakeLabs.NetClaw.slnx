@@ -1,0 +1,19 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FireLakeLabs.NetClaw.AgentRunner/FireLakeLabs.NetClaw.AgentRunner.csproj" />
+    <Project Path="src/FireLakeLabs.NetClaw.Application/FireLakeLabs.NetClaw.Application.csproj" />
+    <Project Path="src/FireLakeLabs.NetClaw.Dashboard/FireLakeLabs.NetClaw.Dashboard.csproj" />
+    <Project Path="src/FireLakeLabs.NetClaw.Domain/FireLakeLabs.NetClaw.Domain.csproj" />
+    <Project Path="src/FireLakeLabs.NetClaw.Host/FireLakeLabs.NetClaw.Host.csproj" />
+    <Project Path="src/FireLakeLabs.NetClaw.Infrastructure/FireLakeLabs.NetClaw.Infrastructure.csproj" />
+    <Project Path="src/FireLakeLabs.NetClaw.Setup/FireLakeLabs.NetClaw.Setup.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FireLakeLabs.NetClaw.Application.Tests/FireLakeLabs.NetClaw.Application.Tests.csproj" />
+    <Project Path="tests/FireLakeLabs.NetClaw.Domain.Tests/FireLakeLabs.NetClaw.Domain.Tests.csproj" />
+    <Project Path="tests/FireLakeLabs.NetClaw.Host.Tests/FireLakeLabs.NetClaw.Host.Tests.csproj" />
+    <Project Path="tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FireLakeLabs.NetClaw.Infrastructure.Tests.csproj" />
+    <Project Path="tests/FireLakeLabs.NetClaw.IntegrationTests/FireLakeLabs.NetClaw.IntegrationTests.csproj" />
+    <Project Path="tests/FireLakeLabs.NetClaw.Setup.Tests/FireLakeLabs.NetClaw.Setup.Tests.csproj" />
+  </Folder>
+</Solution>

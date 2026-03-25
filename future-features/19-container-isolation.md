@@ -6,19 +6,19 @@ The delayed container work is really about restoring strong process and filesyst
 
 Current baseline:
 
-- NetClaw already has containerized execution semantics, but the implementation is Docker-only.
-- Mount security and workspace layout are already part of the design.
-- The repo includes container assets and a runtime abstraction that can be extended.
+- NetClaw now runs all agent execution inside Docker or Podman containers via `ContainerizedAgentEngine`.
+- A credential proxy injects real API keys so containers never see secrets.
+- Mount security, workspace layout, and per-group isolation are implemented.
+- Both Docker and Podman are supported via `ContainerRuntimeOptions.RuntimeBinary`.
+- The in-process execution path has been removed.
 
-## High-Level Steps
+## Remaining Steps
 
-1. Extend the existing container runtime abstraction so Docker is one provider rather than the only provider.
-2. Add Linux-first runtime options, with Podman as the most practical first target because it is Docker-compatible and common on Linux.
-3. Normalize mount formatting, readonly behavior, env injection, and cleanup across runtime providers.
-4. Add runtime selection and verification logic in setup so the host can choose Docker, Podman, or another supported backend.
-5. Add full integration tests around workspace mounting, auth/environment propagation, orphan cleanup, and session interruption.
-6. Only consider more specialized runtimes such as `systemd-nspawn` or `bubblewrap` if Podman/Docker compatibility proves insufficient.
+1. Normalize mount formatting and readonly behavior more thoroughly across runtime providers.
+2. Add runtime selection and verification logic in setup so the host can validate the chosen backend at registration time.
+3. Add full integration tests around workspace mounting, auth/environment propagation, orphan cleanup, and session interruption.
+4. Only consider more specialized runtimes such as `systemd-nspawn` or `bubblewrap` if Podman/Docker compatibility proves insufficient.
 
 ## Complexity
 
-Medium. This is a contained infrastructure project rather than a research spike now that the runtime boundaries already exist. The real work is cross-runtime testing and getting mount behavior exactly right under Linux.
+Low–medium. The core container execution path is implemented. Remaining work is cross-runtime testing and polish rather than greenfield implementation.

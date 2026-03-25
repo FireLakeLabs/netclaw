@@ -28,7 +28,13 @@ NETCLAW_CHAT_JID=op://netclaw/slack/chat-jid
 # NETCLAW_CHAT_JID=C0123456789
 
 # Copilot GitHub token (only needed if CopilotUseLoggedInUser is false)
-# NETCLAW_COPILOT_GITHUB_TOKEN=op://netclaw/copilot/github-token
+NETCLAW_COPILOT_GITHUB_TOKEN=op://netclaw/copilot/github-token
 
 # Dashboard bearer token (for future dashboard auth middleware)
 # NETCLAW_DASHBOARD_TOKEN=op://netclaw/dashboard/bearer-token
+
+# Anthropic API key (used by credential proxy to authenticate Claude Code requests)
+ANTHROPIC_API_KEY=op://netclaw/anthropic/api-key
+
+# GitHub token (fallback for Copilot credential proxy if CopilotGitHubToken not set in config)
+GITHUB_TOKEN=op://netclaw/copilot/github-token

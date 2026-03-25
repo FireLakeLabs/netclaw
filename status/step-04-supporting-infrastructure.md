@@ -17,17 +17,17 @@
 ## Files And Projects Affected
 
 - Production:
-  - `src/NetClaw.Infrastructure/Configuration/*`
-  - `src/NetClaw.Infrastructure/FileSystem/*`
-  - `src/NetClaw.Infrastructure/Paths/*`
-  - `src/NetClaw.Infrastructure/Security/*`
-  - `src/NetClaw.Infrastructure/Runtime/*`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Configuration/*`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/FileSystem/*`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Paths/*`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Security/*`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Runtime/*`
 - Tests:
-  - `tests/NetClaw.Infrastructure.Tests/Configuration/*`
-  - `tests/NetClaw.Infrastructure.Tests/FileSystem/*`
-  - `tests/NetClaw.Infrastructure.Tests/Paths/*`
-  - `tests/NetClaw.Infrastructure.Tests/Security/*`
-  - `tests/NetClaw.Infrastructure.Tests/Runtime/*`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/Configuration/*`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FileSystem/*`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/Paths/*`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/Security/*`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/Runtime/*`
 
 ## Unit Tests And Integration Tests Added
 
@@ -49,8 +49,8 @@
 
 ## Verification Performed
 
-- `dotnet build tests/NetClaw.Infrastructure.Tests/NetClaw.Infrastructure.Tests.csproj`
-- `dotnet test tests/NetClaw.Infrastructure.Tests/NetClaw.Infrastructure.Tests.csproj --no-build`
+- `dotnet build tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FireLakeLabs.NetClaw.Infrastructure.Tests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FireLakeLabs.NetClaw.Infrastructure.Tests.csproj --no-build`
 
 Result: 20 xUnit tests passed.
 

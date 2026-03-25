@@ -31,10 +31,10 @@ fi
 export NETCLAW_PROJECT_ROOT="$PROJECT_ROOT"
 
 # Initialize project directory and config if needed
-dotnet run --project "$SCRIPT_DIR/src/NetClaw.Setup" -- --step init
+dotnet run --project "$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Setup" -- --step init
 
 register_args=(
-	dotnet run --project "$SCRIPT_DIR/src/NetClaw.Setup" -- --step register
+	dotnet run --project "$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Setup" -- --step register
 	--jid "$CHAT_JID"
 	--name "$CHAT_NAME"
 	--trigger "$AGENT_TRIGGER"
@@ -65,5 +65,5 @@ exec env \
 	NetClaw__Channels__Slack__Enabled=true \
 	NetClaw__Channels__Slack__BotToken="$SLACK_BOT_TOKEN" \
 	NetClaw__Channels__Slack__AppToken="$SLACK_APP_TOKEN" \
-	dotnet run --project "$SCRIPT_DIR/src/NetClaw.Host" "$@"
+	dotnet run --project "$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Host" "$@"
 	

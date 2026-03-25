@@ -25,6 +25,6 @@
 
 ## Verification
 
-- `dotnet format NetClaw.slnx --verify-no-changes`
-- `dotnet build NetClaw.slnx`
+- `dotnet format FireLakeLabs.NetClaw.slnx --verify-no-changes`
+- `dotnet build FireLakeLabs.NetClaw.slnx`
 - `dotnet test`

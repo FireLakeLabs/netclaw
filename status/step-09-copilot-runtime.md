@@ -12,18 +12,18 @@
 ## Files And Projects Affected
 
 - Production:
-  - `src/NetClaw.Application/Scheduling/TaskSchedulerService.cs`
-  - `src/NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs`
-  - `src/NetClaw.Host/Services/SchedulerWorker.cs`
-  - `src/NetClaw.Infrastructure/Configuration/AgentRuntimeOptions.cs`
-  - `src/NetClaw.Infrastructure/NetClaw.Infrastructure.csproj`
-  - `src/NetClaw.Infrastructure/Runtime/Agents/CopilotCodingAgentEngine.cs`
-  - `src/NetClaw.Infrastructure/Runtime/Agents/CopilotSdkAbstractions.cs`
-  - `src/NetClaw.Infrastructure/Runtime/Agents/NetClawAgentWorkspaceBuilder.cs`
+  - `src/FireLakeLabs.NetClaw.Application/Scheduling/TaskSchedulerService.cs`
+  - `src/FireLakeLabs.NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs`
+  - `src/FireLakeLabs.NetClaw.Host/Services/SchedulerWorker.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Configuration/AgentRuntimeOptions.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/FireLakeLabs.NetClaw.Infrastructure.csproj`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Runtime/Agents/CopilotCodingAgentEngine.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Runtime/Agents/CopilotSdkAbstractions.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Runtime/Agents/NetClawAgentWorkspaceBuilder.cs`
 - Tests:
-  - `tests/NetClaw.Application.Tests/Scheduling/TaskSchedulerServiceTests.cs`
-  - `tests/NetClaw.Infrastructure.Tests/Configuration/OptionsTests.cs`
-  - `tests/NetClaw.Infrastructure.Tests/Runtime/AgentRuntimeServicesTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Application.Tests/Scheduling/TaskSchedulerServiceTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/Configuration/OptionsTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/Runtime/AgentRuntimeServicesTests.cs`
 
 ## Unit Tests And Integration Tests Added
 
@@ -38,8 +38,8 @@
 
 ## Verification Performed
 
-- `dotnet test tests/NetClaw.Application.Tests/NetClaw.Application.Tests.csproj`
-- `dotnet test NetClaw.slnx`
+- `dotnet test tests/FireLakeLabs.NetClaw.Application.Tests/FireLakeLabs.NetClaw.Application.Tests.csproj`
+- `dotnet test FireLakeLabs.NetClaw.slnx`
 
 Result: 91 xUnit tests passed across the solution.
 

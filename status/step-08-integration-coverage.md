@@ -10,7 +10,7 @@
 ## Files And Projects Affected
 
 - Tests:
-  - `tests/NetClaw.IntegrationTests/EndToEndIntegrationTests.cs`
+  - `tests/FireLakeLabs.NetClaw.IntegrationTests/EndToEndIntegrationTests.cs`
 
 ## Unit Tests And Integration Tests Added
 
@@ -21,8 +21,8 @@
 
 ## Verification Performed
 
-- `dotnet build tests/NetClaw.IntegrationTests/NetClaw.IntegrationTests.csproj`
-- `dotnet test tests/NetClaw.IntegrationTests/NetClaw.IntegrationTests.csproj`
+- `dotnet build tests/FireLakeLabs.NetClaw.IntegrationTests/FireLakeLabs.NetClaw.IntegrationTests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.IntegrationTests/FireLakeLabs.NetClaw.IntegrationTests.csproj`
 
 Result: 4 xUnit integration tests passed.
 

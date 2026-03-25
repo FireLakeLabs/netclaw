@@ -14,10 +14,10 @@ REQUIRE_TRIGGER="${NETCLAW_REQUIRE_TRIGGER:-false}"
 export NETCLAW_PROJECT_ROOT="$PROJECT_ROOT"
 
 # Initialize project directory and config if needed
-dotnet run --project "$SCRIPT_DIR/src/NetClaw.Setup" -- --step init
+dotnet run --project "$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Setup" -- --step init
 
 register_args=(
-	dotnet run --project "$SCRIPT_DIR/src/NetClaw.Setup" -- --step register
+	dotnet run --project "$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Setup" -- --step register
 	--jid "$CHAT_JID"
 	--name "$CHAT_NAME"
 	--trigger "$AGENT_TRIGGER"
@@ -47,5 +47,5 @@ printf '=== END ===\n'
 
 exec env \
 	NetClaw__Channels__Terminal__Enabled=true \
-	dotnet run --project "$SCRIPT_DIR/src/NetClaw.Host" "$@"
+	dotnet run --project "$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Host" "$@"
 	

@@ -11,11 +11,11 @@
 ## Files And Projects Affected
 
 - Production:
-  - `src/NetClaw.Application/Execution/GroupExecutionQueue.cs`
-  - `src/NetClaw.Infrastructure/Runtime/Agents/CopilotCodingAgentEngine.cs`
+  - `src/FireLakeLabs.NetClaw.Application/Execution/GroupExecutionQueue.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Runtime/Agents/CopilotCodingAgentEngine.cs`
 - Tests:
-  - `tests/NetClaw.Application.Tests/Execution/GroupExecutionQueueTests.cs`
-  - `tests/NetClaw.Infrastructure.Tests/Runtime/AgentRuntimeServicesTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Application.Tests/Execution/GroupExecutionQueueTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/Runtime/AgentRuntimeServicesTests.cs`
 
 ## Unit Tests And Integration Tests Added
 
@@ -27,8 +27,8 @@
 
 ## Verification Performed
 
-- `dotnet test tests/NetClaw.Application.Tests/NetClaw.Application.Tests.csproj`
-- `dotnet test tests/NetClaw.Infrastructure.Tests/NetClaw.Infrastructure.Tests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.Application.Tests/FireLakeLabs.NetClaw.Application.Tests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FireLakeLabs.NetClaw.Infrastructure.Tests.csproj`
 - `dotnet test`
 
 Result: 113 xUnit tests passed across the solution.

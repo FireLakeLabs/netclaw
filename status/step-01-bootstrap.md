@@ -2,23 +2,23 @@
 
 ## Changes Made
 
-- Created the root .NET 10 solution file `NetClaw.slnx`.
+- Created the root .NET 10 solution file `FireLakeLabs.NetClaw.slnx`.
 - Created the production projects under `src/`:
-  - `NetClaw.Domain`
-  - `NetClaw.Application`
-  - `NetClaw.Infrastructure`
-  - `NetClaw.Host`
-  - `NetClaw.Setup`
+  - `FireLakeLabs.NetClaw.Domain`
+  - `FireLakeLabs.NetClaw.Application`
+  - `FireLakeLabs.NetClaw.Infrastructure`
+  - `FireLakeLabs.NetClaw.Host`
+  - `FireLakeLabs.NetClaw.Setup`
 - Created the xUnit test projects under `tests/`:
-  - `NetClaw.Domain.Tests`
-  - `NetClaw.Application.Tests`
-  - `NetClaw.Infrastructure.Tests`
-  - `NetClaw.Host.Tests`
-  - `NetClaw.Setup.Tests`
-  - `NetClaw.IntegrationTests`
+  - `FireLakeLabs.NetClaw.Domain.Tests`
+  - `FireLakeLabs.NetClaw.Application.Tests`
+  - `FireLakeLabs.NetClaw.Infrastructure.Tests`
+  - `FireLakeLabs.NetClaw.Host.Tests`
+  - `FireLakeLabs.NetClaw.Setup.Tests`
+  - `FireLakeLabs.NetClaw.IntegrationTests`
 - Added the initial project reference graph so application, infrastructure, host, setup, and tests are wired together.
 - Added `Directory.Build.props` to centralize shared build settings for the repository.
-- Replaced template executable code in `NetClaw.Host` and `NetClaw.Setup` with minimal, testable entry points.
+- Replaced template executable code in `FireLakeLabs.NetClaw.Host` and `FireLakeLabs.NetClaw.Setup` with minimal, testable entry points.
 - Removed template placeholder files from the production and test projects.
 - Added assembly marker types to the Domain, Application, and Infrastructure projects to support initial smoke tests.
 - Updated `README.md` with the repository layout and bootstrap conventions.
@@ -27,42 +27,42 @@
 
 - Root:
   - `Directory.Build.props`
-  - `NetClaw.slnx`
+  - `FireLakeLabs.NetClaw.slnx`
   - `README.md`
 - Production projects:
-  - `src/NetClaw.Domain`
-  - `src/NetClaw.Application`
-  - `src/NetClaw.Infrastructure`
-  - `src/NetClaw.Host`
-  - `src/NetClaw.Setup`
+  - `src/FireLakeLabs.NetClaw.Domain`
+  - `src/FireLakeLabs.NetClaw.Application`
+  - `src/FireLakeLabs.NetClaw.Infrastructure`
+  - `src/FireLakeLabs.NetClaw.Host`
+  - `src/FireLakeLabs.NetClaw.Setup`
 - Test projects:
-  - `tests/NetClaw.Domain.Tests`
-  - `tests/NetClaw.Application.Tests`
-  - `tests/NetClaw.Infrastructure.Tests`
-  - `tests/NetClaw.Host.Tests`
-  - `tests/NetClaw.Setup.Tests`
-  - `tests/NetClaw.IntegrationTests`
+  - `tests/FireLakeLabs.NetClaw.Domain.Tests`
+  - `tests/FireLakeLabs.NetClaw.Application.Tests`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests`
+  - `tests/FireLakeLabs.NetClaw.Host.Tests`
+  - `tests/FireLakeLabs.NetClaw.Setup.Tests`
+  - `tests/FireLakeLabs.NetClaw.IntegrationTests`
 
 ## Unit Tests And Integration Tests Added
 
-- `tests/NetClaw.Domain.Tests/AssemblySmokeTests.cs`
-  - Verifies the domain assembly marker resolves from `NetClaw.Domain`.
-- `tests/NetClaw.Application.Tests/AssemblySmokeTests.cs`
-  - Verifies the application assembly marker resolves from `NetClaw.Application`.
-- `tests/NetClaw.Infrastructure.Tests/AssemblySmokeTests.cs`
-  - Verifies the infrastructure assembly marker resolves from `NetClaw.Infrastructure`.
-- `tests/NetClaw.Host.Tests/ProgramTests.cs`
-  - Verifies `NetClaw.Host.Program.CreateHostBuilder` builds, starts, and stops a host successfully.
-- `tests/NetClaw.Setup.Tests/ProgramTests.cs`
-  - Verifies `NetClaw.Setup.Program.Main` returns a success exit code.
-- `tests/NetClaw.IntegrationTests/BootstrapCompositionTests.cs`
+- `tests/FireLakeLabs.NetClaw.Domain.Tests/AssemblySmokeTests.cs`
+  - Verifies the domain assembly marker resolves from `FireLakeLabs.NetClaw.Domain`.
+- `tests/FireLakeLabs.NetClaw.Application.Tests/AssemblySmokeTests.cs`
+  - Verifies the application assembly marker resolves from `FireLakeLabs.NetClaw.Application`.
+- `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/AssemblySmokeTests.cs`
+  - Verifies the infrastructure assembly marker resolves from `FireLakeLabs.NetClaw.Infrastructure`.
+- `tests/FireLakeLabs.NetClaw.Host.Tests/ProgramTests.cs`
+  - Verifies `FireLakeLabs.NetClaw.Host.Program.CreateHostBuilder` builds, starts, and stops a host successfully.
+- `tests/FireLakeLabs.NetClaw.Setup.Tests/ProgramTests.cs`
+  - Verifies `FireLakeLabs.NetClaw.Setup.Program.Main` returns a success exit code.
+- `tests/FireLakeLabs.NetClaw.IntegrationTests/BootstrapCompositionTests.cs`
   - Verifies the bootstrap solution exposes the expected assemblies across Domain, Application, Infrastructure, Host, and Setup.
 
 ## Verification Performed
 
-- `dotnet restore NetClaw.slnx`
-- `dotnet build NetClaw.slnx`
-- `dotnet test NetClaw.slnx --no-build`
+- `dotnet restore FireLakeLabs.NetClaw.slnx`
+- `dotnet build FireLakeLabs.NetClaw.slnx`
+- `dotnet test FireLakeLabs.NetClaw.slnx --no-build`
 
 All projects built successfully and all bootstrap xUnit tests passed.
 

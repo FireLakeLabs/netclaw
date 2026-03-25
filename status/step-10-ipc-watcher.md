@@ -12,20 +12,20 @@
 ## Files And Projects Affected
 
 - Production:
-  - `src/NetClaw.Domain/Contracts/Services/ServiceContracts.cs`
-  - `src/NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs`
-  - `src/NetClaw.Host/Services/IpcWatcherWorker.cs`
-  - `src/NetClaw.Infrastructure/Configuration/IpcWatcherOptions.cs`
-  - `src/NetClaw.Infrastructure/FileSystem/IFileSystem.cs`
-  - `src/NetClaw.Infrastructure/FileSystem/PhysicalFileSystem.cs`
-  - `src/NetClaw.Infrastructure/Ipc/FileSystemIpcWatcher.cs`
+  - `src/FireLakeLabs.NetClaw.Domain/Contracts/Services/ServiceContracts.cs`
+  - `src/FireLakeLabs.NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs`
+  - `src/FireLakeLabs.NetClaw.Host/Services/IpcWatcherWorker.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Configuration/IpcWatcherOptions.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/FileSystem/IFileSystem.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/FileSystem/PhysicalFileSystem.cs`
+  - `src/FireLakeLabs.NetClaw.Infrastructure/Ipc/FileSystemIpcWatcher.cs`
 - Tests:
-  - `tests/NetClaw.Host.Tests/ProgramTests.cs`
-  - `tests/NetClaw.Infrastructure.Tests/AssemblySmokeTests.cs`
-  - `tests/NetClaw.Infrastructure.Tests/Configuration/OptionsTests.cs`
-  - `tests/NetClaw.Infrastructure.Tests/FileSystem/PhysicalFileSystemTests.cs`
-  - `tests/NetClaw.Infrastructure.Tests/Ipc/FileSystemIpcWatcherTests.cs`
-  - `tests/NetClaw.IntegrationTests/EndToEndIntegrationTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Host.Tests/ProgramTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/AssemblySmokeTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/Configuration/OptionsTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FileSystem/PhysicalFileSystemTests.cs`
+  - `tests/FireLakeLabs.NetClaw.Infrastructure.Tests/Ipc/FileSystemIpcWatcherTests.cs`
+  - `tests/FireLakeLabs.NetClaw.IntegrationTests/EndToEndIntegrationTests.cs`
 
 ## Unit Tests And Integration Tests Added
 
@@ -44,10 +44,10 @@
 
 ## Verification Performed
 
-- `dotnet test tests/NetClaw.Infrastructure.Tests/NetClaw.Infrastructure.Tests.csproj`
-- `dotnet test tests/NetClaw.Host.Tests/NetClaw.Host.Tests.csproj`
-- `dotnet test tests/NetClaw.IntegrationTests/NetClaw.IntegrationTests.csproj`
-- `dotnet test NetClaw.slnx`
+- `dotnet test tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FireLakeLabs.NetClaw.Infrastructure.Tests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.Host.Tests/FireLakeLabs.NetClaw.Host.Tests.csproj`
+- `dotnet test tests/FireLakeLabs.NetClaw.IntegrationTests/FireLakeLabs.NetClaw.IntegrationTests.csproj`
+- `dotnet test FireLakeLabs.NetClaw.slnx`
 
 Result: 97 xUnit tests passed across the solution.
 
