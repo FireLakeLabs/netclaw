@@ -1,4 +1,6 @@
 using FireLakeLabs.NetClaw.Dashboard.Models;
+using FireLakeLabs.NetClaw.Domain.Contracts.Persistence;
+using FireLakeLabs.NetClaw.Domain.Entities;
 using FireLakeLabs.NetClaw.Domain.ValueObjects;
 
 namespace FireLakeLabs.NetClaw.Dashboard.Services;
@@ -8,8 +10,10 @@ public sealed class WorkspaceFileService
     private const long MaxFileSizeBytes = 1024 * 1024;
     private readonly string groupsDirectory;
     private readonly string dataDirectory;
+    private readonly string chatsDirectory;
+    private readonly IGroupRepository groupRepository;
 
-    public WorkspaceFileService(string groupsDirectory, string dataDirectory)
+    public WorkspaceFileService(string groupsDirectory, string dataDirectory, IGroupRepository groupRepository)
     {
         if (string.IsNullOrWhiteSpace(groupsDirectory))
         {
@@ -23,6 +27,8 @@ public sealed class WorkspaceFileService
 
         this.groupsDirectory = Path.GetFullPath(groupsDirectory);
         this.dataDirectory = Path.GetFullPath(dataDirectory);
+        this.chatsDirectory = Path.GetFullPath(Path.Combine(dataDirectory, "chats"));
+        this.groupRepository = groupRepository;
     }
 
     public IReadOnlyList<WorkspaceTreeEntryDto> GetTree(GroupFolder groupFolder)
@@ -51,6 +57,12 @@ public sealed class WorkspaceFileService
             roots.Add(BuildTreeEntry(new DirectoryInfo(fullSessionDir), "sessions", "sessions", fullSessionDir));
         }
 
+        string? chatDir = ResolveChatDirectoryForGroup(groupFolder);
+        if (chatDir is not null && Directory.Exists(chatDir))
+        {
+            roots.Add(BuildTreeEntry(new DirectoryInfo(chatDir), "conversations", "conversations", chatDir));
+        }
+
         return roots;
     }
 
@@ -67,7 +79,7 @@ public sealed class WorkspaceFileService
             return null;
         }
 
-        RejectReparsePoints(fullPath, groupsDirectory, dataDirectory);
+        RejectReparsePoints(fullPath, groupsDirectory, dataDirectory, chatsDirectory);
         return fullPath;
     }
 
@@ -156,14 +168,35 @@ public sealed class WorkspaceFileService
         return path;
     }
 
+    private string? ResolveChatDirectoryForGroup(GroupFolder groupFolder)
+    {
+        IReadOnlyDictionary<ChatJid, RegisteredGroup> groups = groupRepository.GetAllAsync().GetAwaiter().GetResult();
+        string? jidValue = groups
+            .Where(kvp => kvp.Value.Folder == groupFolder)
+            .Select(kvp => kvp.Key.Value)
+            .FirstOrDefault();
+
+        if (string.IsNullOrEmpty(jidValue))
+        {
+            return null;
+        }
+
+        string chatDir = Path.GetFullPath(Path.Combine(chatsDirectory, jidValue));
+        ValidateWithinBase(chatsDirectory, chatDir);
+        return chatDir;
+    }
+
     private string ResolveFilePath(GroupFolder groupFolder, string relativePath)
     {
         string groupDir = ResolveGroupDirectory(groupFolder);
         string workspaceDir = Path.GetFullPath(Path.Combine(dataDirectory, "agent-workspaces", groupFolder.Value));
         string sessionDir = Path.GetFullPath(Path.Combine(dataDirectory, "sessions", groupFolder.Value));
+        string? chatDir = relativePath.StartsWith("conversations/", StringComparison.Ordinal)
+            ? ResolveChatDirectoryForGroup(groupFolder)
+            : null;
 
-        // Strip root prefix (e.g. "groups/...", "workspace/...", "sessions/...") and resolve against the matching base.
-        (string baseDir, string innerPath) = StripRootPrefix(relativePath, groupDir, workspaceDir, sessionDir);
+        // Strip root prefix (e.g. "groups/...", "workspace/...", "sessions/...", "conversations/...") and resolve against the matching base.
+        (string baseDir, string innerPath) = StripRootPrefix(relativePath, groupDir, workspaceDir, sessionDir, chatDir);
 
         string fullPath = Path.GetFullPath(Path.Combine(baseDir, innerPath));
         if (IsWithinBase(baseDir, fullPath))
@@ -174,7 +207,7 @@ public sealed class WorkspaceFileService
         throw new WorkspacePathTraversalException("Path escapes allowed workspace directories.");
     }
 
-    private static (string BaseDir, string InnerPath) StripRootPrefix(string relativePath, string groupDir, string workspaceDir, string sessionDir)
+    private static (string BaseDir, string InnerPath) StripRootPrefix(string relativePath, string groupDir, string workspaceDir, string sessionDir, string? chatDir)
     {
         if (relativePath.StartsWith("groups/", StringComparison.Ordinal))
         {
@@ -189,6 +222,11 @@ public sealed class WorkspaceFileService
         if (relativePath.StartsWith("sessions/", StringComparison.Ordinal))
         {
             return (sessionDir, relativePath["sessions/".Length..]);
+        }
+
+        if (relativePath.StartsWith("conversations/", StringComparison.Ordinal) && chatDir is not null)
+        {
+            return (chatDir, relativePath["conversations/".Length..]);
         }
 
         // Legacy/fallback: try each base directory in order.

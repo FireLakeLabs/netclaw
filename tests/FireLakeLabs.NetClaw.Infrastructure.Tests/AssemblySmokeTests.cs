@@ -11,13 +11,13 @@ public sealed class AssemblySmokeTests
     }
 
     [Fact]
-    public void InfrastructureAssembly_ExposesSqlitePersistenceTypes()
+    public void InfrastructureAssembly_ExposesFilePersistenceTypes()
     {
         Type[] types =
         [
-            typeof(FireLakeLabs.NetClaw.Infrastructure.Persistence.Sqlite.SqliteConnectionFactory),
-            typeof(FireLakeLabs.NetClaw.Infrastructure.Persistence.Sqlite.SqliteSchemaInitializer),
-            typeof(FireLakeLabs.NetClaw.Infrastructure.Persistence.Sqlite.SqliteMessageRepository),
+            typeof(FireLakeLabs.NetClaw.Infrastructure.Persistence.FileSystem.FileStoragePaths),
+            typeof(FireLakeLabs.NetClaw.Infrastructure.Persistence.FileSystem.FileMessageRepository),
+            typeof(FireLakeLabs.NetClaw.Infrastructure.Persistence.FileSystem.FileGroupRepository),
             typeof(FireLakeLabs.NetClaw.Infrastructure.Ipc.FileSystemIpcWatcher),
             typeof(FireLakeLabs.NetClaw.Infrastructure.Runtime.Agents.CopilotCodingAgentEngine),
             typeof(FireLakeLabs.NetClaw.Infrastructure.Runtime.Agents.NetClawAgentRuntime)

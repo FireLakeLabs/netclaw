@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Threading.Channels;
 using FireLakeLabs.NetClaw.Application.Execution;
+using FireLakeLabs.NetClaw.Dashboard;
 using FireLakeLabs.NetClaw.Domain.Contracts.Channels;
 using FireLakeLabs.NetClaw.Domain.Contracts.Containers;
 using FireLakeLabs.NetClaw.Domain.Contracts.Ipc;
@@ -9,10 +10,13 @@ using FireLakeLabs.NetClaw.Domain.Contracts.Services;
 using FireLakeLabs.NetClaw.Domain.Entities;
 using FireLakeLabs.NetClaw.Domain.Enums;
 using FireLakeLabs.NetClaw.Domain.ValueObjects;
+using FireLakeLabs.NetClaw.Host;
+using FireLakeLabs.NetClaw.Host.Configuration;
 using FireLakeLabs.NetClaw.Infrastructure.Channels;
-using FireLakeLabs.NetClaw.Infrastructure.Persistence.Sqlite;
+using FireLakeLabs.NetClaw.Infrastructure.Configuration;
 using FireLakeLabs.NetClaw.Setup;
-using Microsoft.Data.Sqlite;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -22,6 +26,7 @@ namespace FireLakeLabs.NetClaw.IntegrationTests;
 
 public sealed class EndToEndIntegrationTests
 {
+
     [Fact]
     public async Task SetupRegistration_IsVisibleThroughHostRepositories()
     {
@@ -52,6 +57,58 @@ public sealed class EndToEndIntegrationTests
             Assert.Equal("team", group.Folder.Value);
 
             await host.StopAsync();
+        }
+        finally
+        {
+            DeleteTemporaryPath(projectRoot);
+            DeleteTemporaryPath(homeDirectory);
+        }
+    }
+
+    [Fact]
+    public async Task SetupInitGeneratedConfig_DrivesDashboardAgainstConfiguredProjectRoot()
+    {
+        string projectRoot = CreateTemporaryPath();
+        string homeDirectory = CreateTemporaryPath();
+
+        try
+        {
+            SetupRunner runner = CreateRunner(projectRoot, homeDirectory);
+
+            SetupResult init = await runner.RunAsync(SetupCommand.Parse([
+                "--step", "init"
+            ]));
+            SetupResult registration = await runner.RunAsync(SetupCommand.Parse([
+                "--step", "register",
+                "--jid", "team@jid",
+                "--name", "Team",
+                "--trigger", "@Andy",
+                "--folder", "team"
+            ]));
+
+            Assert.Equal(0, init.ExitCode);
+            Assert.Equal(0, registration.ExitCode);
+            Assert.Contains(projectRoot, await File.ReadAllTextAsync(Path.Combine(projectRoot, "appsettings.json")), StringComparison.Ordinal);
+
+            await using WebApplication app = await CreateDashboardAppFromGeneratedConfigAsync(projectRoot);
+            try
+            {
+                HttpClient client = app.GetTestClient();
+
+                string groupsJson = await client.GetStringAsync("/api/groups");
+                string workspaceJson = await client.GetStringAsync("/api/workspace/team/tree");
+
+                Assert.Contains("\"jid\":\"team@jid\"", groupsJson, StringComparison.Ordinal);
+                Assert.Contains("\"folder\":\"team\"", groupsJson, StringComparison.Ordinal);
+                Assert.Contains("\"name\":\"groups\"", workspaceJson, StringComparison.Ordinal);
+                Assert.Contains("\"relativePath\":\"groups\"", workspaceJson, StringComparison.Ordinal);
+                Assert.True(Directory.Exists(Path.Combine(projectRoot, "data", "ipc")));
+                Assert.True(Directory.Exists(Path.Combine(projectRoot, "data", "events")));
+            }
+            finally
+            {
+                await app.StopAsync();
+            }
         }
         finally
         {
@@ -99,13 +156,8 @@ public sealed class EndToEndIntegrationTests
             Assert.NotNull(updatedTask);
             Assert.Equal(FireLakeLabs.NetClaw.Domain.Enums.TaskStatus.Completed, updatedTask.Status);
 
-            SqliteConnectionFactory connectionFactory = host.Services.GetRequiredService<SqliteConnectionFactory>();
-            await using SqliteConnection connection = connectionFactory.OpenConnection();
-            await using SqliteCommand command = connection.CreateCommand();
-            command.CommandText = "SELECT COUNT(*) FROM task_run_logs;";
-            long logCount = (long)(await command.ExecuteScalarAsync())!;
-
-            Assert.Equal(1L, logCount);
+            IReadOnlyList<TaskRunLog> runLogs = await taskRepository.GetRunLogsAsync(createdTasks[0].Id, 10);
+            Assert.Single(runLogs);
 
             await host.StopAsync();
         }
@@ -500,6 +552,32 @@ public sealed class EndToEndIntegrationTests
         return builder.Build();
     }
 
+    private static async Task<WebApplication> CreateDashboardAppFromGeneratedConfigAsync(string projectRoot)
+    {
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Configuration.AddJsonFile(Path.Combine(projectRoot, "appsettings.json"), optional: false, reloadOnChange: false);
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["NetClaw:Channels:Slack:Enabled"] = "false",
+            ["NetClaw:Channels:Terminal:Enabled"] = "false",
+            ["NetClaw:Channels:ReferenceFile:Enabled"] = "false",
+            ["NetClaw:Dashboard:Enabled"] = "true",
+            ["NetClaw:CredentialProxy:Port"] = GetFreePort().ToString()
+        });
+
+        builder.Services.AddNetClawHostServices(builder.Configuration, builder.Environment);
+
+        HostPathOptions hostPathOptions = HostPathOptions.Create(builder.Configuration, builder.Environment);
+        StorageOptions storageOptions = StorageOptions.Create(hostPathOptions.ProjectRoot);
+        builder.Services.AddNetClawDashboard(storageOptions.GroupsDirectory, storageOptions.DataDirectory);
+
+        WebApplication app = builder.Build();
+        app.MapNetClawDashboard();
+        await app.StartAsync();
+        return app;
+    }
+
     private static SetupRunner CreateRunner(string projectRoot, string homeDirectory)
     {
         return new SetupRunner(
@@ -507,6 +585,15 @@ public sealed class EndToEndIntegrationTests
             new FireLakeLabs.NetClaw.Infrastructure.FileSystem.PhysicalFileSystem(),
             new FireLakeLabs.NetClaw.Infrastructure.Runtime.ProcessCommandRunner(),
             new FireLakeLabs.NetClaw.Infrastructure.Runtime.PlatformDetectionService());
+    }
+
+    private static int GetFreePort()
+    {
+        System.Net.Sockets.TcpListener listener = new(System.Net.IPAddress.Loopback, 0);
+        listener.Start();
+        int port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+        listener.Stop();
+        return port;
     }
 
     private static string CreateTemporaryPath()

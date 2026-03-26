@@ -1,6 +1,7 @@
 using FireLakeLabs.NetClaw.Application.Observability;
 using FireLakeLabs.NetClaw.Dashboard.Hubs;
 using FireLakeLabs.NetClaw.Dashboard.Services;
+using FireLakeLabs.NetClaw.Domain.Contracts.Persistence;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
@@ -14,7 +15,7 @@ public static class DashboardServiceExtensions
     {
         services.AddSignalR();
         services.AddSingleton<DashboardStateService>();
-        services.AddSingleton(new WorkspaceFileService(groupsDirectory, dataDirectory));
+        services.AddSingleton(sp => new WorkspaceFileService(groupsDirectory, dataDirectory, sp.GetRequiredService<IGroupRepository>()));
         services.AddSingleton<DashboardBroadcastService>();
         services.AddSingleton<IMessageNotifier>(sp => sp.GetRequiredService<DashboardBroadcastService>());
         services.AddHostedService(sp => sp.GetRequiredService<DashboardBroadcastService>());
