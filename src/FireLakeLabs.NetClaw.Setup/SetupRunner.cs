@@ -64,7 +64,7 @@ public sealed class SetupRunner
         bool configCreated = false;
         if (!fileSystem.FileExists(paths.AppSettingsPath))
         {
-            string exampleContent = GetDefaultAppSettingsContent();
+            string exampleContent = GetDefaultAppSettingsContent(paths.ProjectRoot);
             await fileSystem.WriteAllTextAsync(paths.AppSettingsPath, exampleContent, cancellationToken);
             configCreated = true;
         }
@@ -79,15 +79,14 @@ public sealed class SetupRunner
         });
     }
 
-    private static string GetDefaultAppSettingsContent()
+    private static string GetDefaultAppSettingsContent(string projectRoot)
     {
-        string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        string root = Path.Combine(home, ".netclaw");
+        string serializedProjectRoot = JsonSerializer.Serialize(projectRoot);
 
         return $$"""
             {
               "NetClaw": {
-                "ProjectRoot": "{{root}}",
+                "ProjectRoot": {{serializedProjectRoot}},
                 "Assistant": {
                   "Name": "Andy",
                   "HasOwnNumber": false

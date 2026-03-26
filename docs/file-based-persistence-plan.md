@@ -835,6 +835,360 @@ This section maps each critique point to how it was resolved in this revision.
 
 **Resolution**: Field renamed to `trigger` (§4.5). The sample now uses a non-empty disabled-trigger sentinel, and the domain validation note explicitly states that serialized triggers must always be non-empty to satisfy the current constructor. Domain round-trip test added to test strategy (§10).
 
+---
+
+## Validation Runbook
+
+This runbook assumes the migration has been implemented and is ready for validation. It is designed to be executed in order, with each stage producing a clear pass/fail decision before moving on.
+
+### Preconditions
+
+1. Work from the repository root:
+  ```bash
+  cd /home/aaron/projects/netclaw
+  ```
+2. Use a temporary project root for any setup/host/manual validation so local user data is not touched:
+  ```bash
+  export NETCLAW_PROJECT_ROOT="$(mktemp -d /tmp/netclaw-persistence-XXXXXX)"
+  echo "$NETCLAW_PROJECT_ROOT"
+  ```
+3. If setup/host commands rely on `HOME`, consider isolating that too during manual validation:
+  ```bash
+  export HOME="$NETCLAW_PROJECT_ROOT/home"
+  mkdir -p "$HOME"
+  ```
+
+**Pass criteria**
+- The repository builds and tests under the current SDK.
+- A temp root exists and is writable.
+
+**Fail criteria**
+- `dotnet` cannot run, the SDK is missing, or temp-root creation fails.
+
+### Stage 1: Full Automated Baseline
+
+Run the full suite once to detect any broad regression:
+
+```bash
+dotnet test
+```
+
+**Expected result**
+- Exit code `0`
+- All test projects pass
+- No persistence-related startup exceptions, missing-path errors, or DI registration failures
+
+**Pass criteria**
+- Full suite green
+
+**Fail criteria**
+- Any failing test
+- Any host/setup/dashboard test reporting missing SQLite or missing file-store paths
+
+### Stage 2: Project-by-Project Isolation
+
+Run each major project separately so failures are localized quickly.
+
+```bash
+dotnet test tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FireLakeLabs.NetClaw.Infrastructure.Tests.csproj
+dotnet test tests/FireLakeLabs.NetClaw.Application.Tests/FireLakeLabs.NetClaw.Application.Tests.csproj
+dotnet test tests/FireLakeLabs.NetClaw.Host.Tests/FireLakeLabs.NetClaw.Host.Tests.csproj
+dotnet test tests/FireLakeLabs.NetClaw.Setup.Tests/FireLakeLabs.NetClaw.Setup.Tests.csproj
+dotnet test tests/FireLakeLabs.NetClaw.IntegrationTests/FireLakeLabs.NetClaw.IntegrationTests.csproj
+```
+
+**Expected result**
+- Each command exits with `0`
+- Failures, if any, are isolated to one subsystem instead of the full suite
+
+**Pass criteria**
+- All five commands pass independently
+
+**Fail criteria**
+- Any project fails or hangs
+
+### Stage 3: Focused Repository Validation
+
+Run or confirm the presence of tests covering each file-backed repository and utility:
+
+```bash
+dotnet test tests/FireLakeLabs.NetClaw.Infrastructure.Tests/FireLakeLabs.NetClaw.Infrastructure.Tests.csproj --filter "FileMessageRepositoryTests|FileGroupRepositoryTests|FileSessionRepositoryTests|FileTaskRepositoryTests|FileAttachmentRepositoryTests|FileRouterStateRepositoryTests|FileAgentEventRepositoryTests|FileAtomicWriterTests|JsonlFileReaderTests|PersistentCounterTests"
+```
+
+**Expected result**
+- Exit code `0`
+- Coverage of the following behaviors:
+  - `messages.jsonl` append and readback
+  - `metadata.json` atomic rewrite behavior
+  - `groups.json` and `chat-groups.json` correctness
+  - `session.json` read/write behavior
+  - `config.json` + `runs.jsonl` behavior for tasks
+  - attachment metadata lookup by message and by file ID
+  - router-state persistence in `state.json`
+  - event ID allocation and persistence in `data/events/next-id.txt`
+  - tolerant JSONL reads for partial trailing lines
+
+**Pass criteria**
+- All targeted repository/utility tests pass
+
+**Fail criteria**
+- Any repository test fails
+- Any utility test indicates corruption, duplicate IDs, or unreadable JSONL after partial write simulation
+
+### Stage 4: Host Initialization Validation
+
+Validate that the host creates the expected file-store layout in a temp root and does not rely on SQLite.
+
+Run the host tests:
+
+```bash
+dotnet test tests/FireLakeLabs.NetClaw.Host.Tests/FireLakeLabs.NetClaw.Host.Tests.csproj --filter "ProgramTests|ChannelWorkerTests"
+```
+
+If manual verification is needed, start the host against the temp root and inspect the filesystem.
+
+```bash
+find "$NETCLAW_PROJECT_ROOT" -maxdepth 3 | sort
+```
+
+**Expected result**
+- The host creates at least:
+  - `data/chats`
+  - `data/tasks`
+  - `data/events`
+  - `data/ipc`
+  - `data/sessions`
+  - `data/agent-workspaces`
+  - `groups`
+- No `data/netclaw.db` dependency is required for startup
+
+**Pass criteria**
+- Host starts or host tests pass without SQLite initialization
+- Expected directories exist under the temp root
+
+**Fail criteria**
+- Host startup tries to open or initialize SQLite
+- Any expected directory is missing
+
+### Stage 5: Setup CLI Validation
+
+Validate that setup now initializes and verifies the file-based store instead of database state.
+
+Run setup tests:
+
+```bash
+dotnet test tests/FireLakeLabs.NetClaw.Setup.Tests/FireLakeLabs.NetClaw.Setup.Tests.csproj
+```
+
+If manual validation is needed, run setup commands against the temp root.
+
+Example pattern:
+
+```bash
+dotnet run --project src/FireLakeLabs.NetClaw.Setup -- --step init
+dotnet run --project src/FireLakeLabs.NetClaw.Setup -- --step register --jid main@netclaw --name Main --trigger __disabled__ --folder main --is-main --no-trigger-required
+dotnet run --project src/FireLakeLabs.NetClaw.Setup -- --step verify
+```
+
+Inspect the resulting files:
+
+```bash
+find "$NETCLAW_PROJECT_ROOT" -maxdepth 3 | sort
+```
+
+**Expected result**
+- `init` creates the directory skeleton for file persistence
+- `register` creates or updates `data/groups.json` and `data/chat-groups.json`
+- `verify` reports file-store health, not database health
+
+**Pass criteria**
+- Setup tests pass
+- Manual commands succeed without referencing schema initialization or `DATABASE_EXISTS`
+
+**Fail criteria**
+- Setup still expects `DatabasePath`
+- `verify` still reports SQLite-specific health checks
+
+### Stage 6: Integration Validation
+
+Run end-to-end tests that cross setup, host, and persistence boundaries.
+
+```bash
+dotnet test tests/FireLakeLabs.NetClaw.IntegrationTests/FireLakeLabs.NetClaw.IntegrationTests.csproj
+```
+
+**Expected result**
+- Registered groups created through setup are visible through host repositories
+- Task lifecycle persists through file-backed repositories
+- Host composition remains valid with file-based persistence
+
+**Pass criteria**
+- Integration tests pass end to end
+
+**Fail criteria**
+- Any break between setup output, host startup, and repository reads
+
+### Stage 7: Dashboard/API Validation
+
+Validate file-backed read paths exposed through the dashboard and HTTP APIs.
+
+Automated coverage should come from dashboard/service tests if present. Manual/API validation should check:
+
+1. Recent activity:
+  - `GET /api/activity/recent?limit=10`
+2. Chat list:
+  - `GET /api/messages/chats`
+3. Chat history:
+  - `GET /api/messages/chats/{jid}?limit=50`
+4. Task runs:
+  - `GET /api/tasks/{id}/runs?limit=50`
+5. Attachment serving:
+  - `GET /api/files/{fileId}`
+6. Workspace tree:
+  - `GET /api/workspace/{groupFolder}/tree`
+
+**Expected result**
+- Activity API returns events from JSONL-backed event storage
+- Chat APIs return data backed by `data/chats/{jid}`
+- Task run API returns data from `runs.jsonl`
+- Attachment API resolves `FileAttachment.LocalPath` correctly
+- Workspace tree includes `groups/`, `workspace/`, `sessions/`, and `conversations/` if that root was added
+
+**Pass criteria**
+- All endpoints return valid data with expected shapes
+- Dashboard renders without duplicate-key issues caused by non-unique event IDs
+
+**Fail criteria**
+- Missing chat history, empty task runs despite executed tasks, broken file download, or duplicate/unstable event identity in UI
+
+### Stage 8: Manual Message and Attachment Flow
+
+Use one or more channels to ingest real data and validate file persistence on disk.
+
+Suggested scenarios:
+1. Send a plain text message
+2. Send a message with one attachment
+3. Send a burst of messages quickly
+
+Inspect the file store:
+
+```bash
+find "$NETCLAW_PROJECT_ROOT/data/chats" -maxdepth 3 | sort
+```
+
+Check specific files:
+
+```bash
+find "$NETCLAW_PROJECT_ROOT/data/chats" -name metadata.json -o -name messages.jsonl -o -path '*/attachments/*.json' | sort
+```
+
+**Expected result**
+- Each active chat gets a directory under `data/chats`
+- `metadata.json` reflects the latest message time and known channel metadata
+- `messages.jsonl` appends one line per stored message
+- attachment metadata files appear under the chat attachment directory
+- binary files remain under `data/files/...`
+- staged copies appear in `groups/{folder}/.uploads` when needed for agent access
+
+**Pass criteria**
+- Disk layout matches the model
+- Dashboard/API reflects the same data visible on disk
+
+**Fail criteria**
+- Attachment metadata exists without binary file, binary exists without metadata, or chat history diverges between disk and API
+
+### Stage 9: Scheduler and Event Flow Validation
+
+Create at least one scheduled task and verify config, run log, and activity event behavior.
+
+Suggested flow:
+1. Create a once task due soon
+2. Wait for execution
+3. Query task runs and activity
+4. Inspect on-disk files
+
+Inspect task files:
+
+```bash
+find "$NETCLAW_PROJECT_ROOT/data/tasks" -maxdepth 3 | sort
+```
+
+Inspect event files:
+
+```bash
+find "$NETCLAW_PROJECT_ROOT/data/events" -maxdepth 3 | sort
+```
+
+**Expected result**
+- `data/tasks/{taskId}/config.json` exists
+- `data/tasks/{taskId}/runs.jsonl` contains a new line for execution
+- `data/events/{group}/{date}.jsonl` contains related activity
+- `/api/tasks/{id}/runs` returns the same run log the file shows
+
+**Pass criteria**
+- A scheduled task runs exactly as expected and writes both task and event persistence artifacts
+
+**Fail criteria**
+- Missing run logs, duplicate runs, or events not visible through the API
+
+### Stage 10: Restart and Durability Validation
+
+Validate that the system tolerates restart and partial-write scenarios acceptably.
+
+Suggested checks:
+1. Start host
+2. Ingest messages and/or events
+3. Stop host
+4. Restart host
+5. Re-query APIs and re-inspect disk
+
+If feasible, simulate interruption during heavy ingest and verify recovery.
+
+**Expected result**
+- Metadata files remain parseable
+- JSONL readers tolerate a partial final line if one exists
+- Event IDs remain unique and monotonic after restart
+- No orphaned temp files remain after restart
+
+**Pass criteria**
+- Restart preserves valid state and the host resumes cleanly
+
+**Fail criteria**
+- Restart produces unreadable metadata/config, duplicate event IDs, or hard failures on partial JSONL files
+
+### Stage 11: Security and Traversal Validation
+
+Validate that workspace browsing still rejects invalid paths and unsafe filesystem constructs.
+
+Suggested checks:
+1. Request workspace files using traversal-like paths such as `../...`
+2. If feasible in the temp root, create a symlink under a browsable directory and verify it is rejected
+
+**Expected result**
+- Workspace and raw-file endpoints reject escaping paths
+- Symlink/reparse-point traversal remains blocked
+
+**Pass criteria**
+- Traversal attempts fail safely
+
+**Fail criteria**
+- Any workspace endpoint exposes files outside allowed roots
+
+### Final Acceptance Checklist
+
+The migration is considered validated when all of the following are true:
+
+1. `dotnet test` passes from the repository root.
+2. Infrastructure, application, host, setup, and integration test projects all pass independently.
+3. Setup `init`, `register`, and `verify` succeed against a temp root without SQLite.
+4. Host startup creates the expected file-store layout and owner-only permissions.
+5. Dashboard/API successfully returns activity, chat history, task runs, workspace tree data, and attachments.
+6. On-disk artifacts under `data/chats`, `data/tasks`, `data/events`, `data/files`, and `groups/*/.uploads` match the API-visible state.
+7. Restart testing confirms parseable recovery and stable event IDs.
+8. Traversal/security checks confirm no workspace escape.
+
+If any one of these fails, the migration is not complete.
+
 ### HIGH: Setup CLI still assumes SQLite
 
 **Critique**: The document scope included setup CLI changes, but the execution plan did not cover `SetupRunner`, `SetupPaths`, or SQLite-based status output and schema initialization.
