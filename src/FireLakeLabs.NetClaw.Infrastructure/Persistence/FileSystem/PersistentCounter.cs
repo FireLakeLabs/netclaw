@@ -7,11 +7,8 @@ namespace FireLakeLabs.NetClaw.Infrastructure.Persistence.FileSystem;
 /// </summary>
 internal sealed class PersistentCounter
 {
-    private const int FlushInterval = 100;
-
     private readonly string _counterFilePath;
     private long _current;
-    private int _sinceLastFlush;
 
     private PersistentCounter(string counterFilePath, long initialValue)
     {
@@ -52,20 +49,11 @@ internal sealed class PersistentCounter
 
     /// <summary>
     /// Allocates the next ID. Thread-safe via <see cref="Interlocked.Increment"/>.
-    /// Periodically flushes the high-water mark to disk.
+    /// Callers are responsible for calling <see cref="FlushAsync"/> at safe checkpoints.
     /// </summary>
     public long Next()
     {
-        long id = Interlocked.Increment(ref _current);
-
-        int flushCount = Interlocked.Increment(ref _sinceLastFlush);
-        if (flushCount >= FlushInterval)
-        {
-            Interlocked.Exchange(ref _sinceLastFlush, 0);
-            _ = FlushAsync();
-        }
-
-        return id;
+        return Interlocked.Increment(ref _current);
     }
 
     /// <summary>

@@ -36,19 +36,39 @@ public sealed class FileStoragePaths
     public string EventCounterFilePath { get; }
 
     public string ChatDirectory(string chatJid) =>
-        Path.Combine(ChatsDirectory, chatJid);
+        Path.Combine(ChatsDirectory, ValidateChatJid(chatJid));
 
     public string MessagesFilePath(string chatJid) =>
-        Path.Combine(ChatsDirectory, chatJid, "messages.jsonl");
+        Path.Combine(ChatsDirectory, ValidateChatJid(chatJid), "messages.jsonl");
 
     public string ChatMetadataFilePath(string chatJid) =>
-        Path.Combine(ChatsDirectory, chatJid, "metadata.json");
+        Path.Combine(ChatsDirectory, ValidateChatJid(chatJid), "metadata.json");
 
     public string AttachmentsDirectory(string chatJid) =>
-        Path.Combine(ChatsDirectory, chatJid, "attachments");
+        Path.Combine(ChatsDirectory, ValidateChatJid(chatJid), "attachments");
 
     public string AttachmentFilePath(string chatJid, string fileId) =>
-        Path.Combine(ChatsDirectory, chatJid, "attachments", fileId + ".json");
+        Path.Combine(ChatsDirectory, ValidateChatJid(chatJid), "attachments", fileId + ".json");
+
+    private static string ValidateChatJid(string chatJid)
+    {
+        if (string.IsNullOrWhiteSpace(chatJid))
+        {
+            throw new ArgumentException("chatJid must not be empty.", nameof(chatJid));
+        }
+
+        if (Path.IsPathRooted(chatJid)
+            || chatJid.Contains(Path.DirectorySeparatorChar)
+            || chatJid.Contains(Path.AltDirectorySeparatorChar)
+            || chatJid == ".."
+            || chatJid.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+            || chatJid.StartsWith(".." + Path.AltDirectorySeparatorChar, StringComparison.Ordinal))
+        {
+            throw new ArgumentException($"chatJid contains disallowed path characters: {chatJid}", nameof(chatJid));
+        }
+
+        return chatJid;
+    }
 
     public string TaskDirectory(string taskId) =>
         Path.Combine(TasksDirectory, taskId);

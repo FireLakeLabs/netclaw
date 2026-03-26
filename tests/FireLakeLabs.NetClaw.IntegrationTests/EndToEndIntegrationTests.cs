@@ -26,7 +26,6 @@ namespace FireLakeLabs.NetClaw.IntegrationTests;
 
 public sealed class EndToEndIntegrationTests
 {
-    private static int _nextProxyPort = 15000;
 
     [Fact]
     public async Task SetupRegistration_IsVisibleThroughHostRepositories()
@@ -564,7 +563,7 @@ public sealed class EndToEndIntegrationTests
             ["NetClaw:Channels:Terminal:Enabled"] = "false",
             ["NetClaw:Channels:ReferenceFile:Enabled"] = "false",
             ["NetClaw:Dashboard:Enabled"] = "true",
-            ["NetClaw:CredentialProxy:Port"] = Interlocked.Increment(ref _nextProxyPort).ToString()
+            ["NetClaw:CredentialProxy:Port"] = GetFreePort().ToString()
         });
 
         builder.Services.AddNetClawHostServices(builder.Configuration, builder.Environment);
@@ -586,6 +585,15 @@ public sealed class EndToEndIntegrationTests
             new FireLakeLabs.NetClaw.Infrastructure.FileSystem.PhysicalFileSystem(),
             new FireLakeLabs.NetClaw.Infrastructure.Runtime.ProcessCommandRunner(),
             new FireLakeLabs.NetClaw.Infrastructure.Runtime.PlatformDetectionService());
+    }
+
+    private static int GetFreePort()
+    {
+        System.Net.Sockets.TcpListener listener = new(System.Net.IPAddress.Loopback, 0);
+        listener.Start();
+        int port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
+        listener.Stop();
+        return port;
     }
 
     private static string CreateTemporaryPath()

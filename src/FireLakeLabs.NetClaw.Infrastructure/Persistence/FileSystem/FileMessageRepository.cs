@@ -63,11 +63,12 @@ public sealed class FileMessageRepository : IMessageRepository
                 cancellationToken);
 
             // Atomic-write metadata.json.
+            // Use stable fallbacks for new metadata; StoreChatMetadataAsync sets the real name/channel.
             ChatMetadataRecord metadataRecord = new(
                 jid,
-                GetOrDefaultChatName(message),
+                jid,            // stable default: JID until StoreChatMetadataAsync provides real name
                 message.Timestamp,
-                message.ChatJid.Value, // channel unknown at this layer; use jid as fallback
+                string.Empty,   // channel unknown at this layer
                 false);
 
             // Preserve existing metadata if present (don't overwrite known name/channel/isGroup).
@@ -148,7 +149,9 @@ public sealed class FileMessageRepository : IMessageRepository
             }
         }
 
-        return seen.Values.ToList();
+        List<StoredMessage> deduped = seen.Values.ToList();
+        deduped.Sort(static (a, b) => a.Timestamp.CompareTo(b.Timestamp));
+        return deduped;
     }
 
     public async Task<IReadOnlyList<StoredMessage>> GetChatHistoryAsync(ChatJid chatJid, int limit, DateTimeOffset? since = null, CancellationToken cancellationToken = default)
@@ -187,6 +190,7 @@ public sealed class FileMessageRepository : IMessageRepository
             }
         }
 
+        chats.Sort(static (a, b) => b.LastMessageTime.CompareTo(a.LastMessageTime));
         return Task.FromResult<IReadOnlyList<ChatInfo>>(chats);
     }
 

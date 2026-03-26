@@ -13,6 +13,7 @@ public sealed class FileRouterStateRepository : IRouterStateRepository
 {
     private readonly string _stateFilePath;
     private readonly ConcurrentDictionary<string, string> _cache = new(StringComparer.Ordinal);
+    private readonly SemaphoreSlim _writeLock = new(1, 1);
 
     public FileRouterStateRepository(FileStoragePaths paths)
     {
@@ -37,8 +38,16 @@ public sealed class FileRouterStateRepository : IRouterStateRepository
 
     public async Task SetAsync(RouterStateEntry entry, CancellationToken cancellationToken = default)
     {
-        _cache[entry.Key] = entry.Value;
-        await FlushAsync(cancellationToken);
+        await _writeLock.WaitAsync(cancellationToken);
+        try
+        {
+            _cache[entry.Key] = entry.Value;
+            await FlushAsync(cancellationToken);
+        }
+        finally
+        {
+            _writeLock.Release();
+        }
     }
 
     private void Load()
