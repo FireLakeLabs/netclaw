@@ -79,14 +79,21 @@ public sealed class FileMessageRepository : IMessageRepository
                 ChatMetadataRecord? existing_meta = JsonSerializer.Deserialize<ChatMetadataRecord>(existing, FileSystemJsonOptions.Config);
                 if (existing_meta is not null)
                 {
-                    metadataRecord = existing_meta with { LastMessageTime = message.Timestamp };
+                    // Only advance LastMessageTime — never move it backwards for out-of-order ingestion.
+                    DateTimeOffset maxTime = message.Timestamp > existing_meta.LastMessageTime
+                        ? message.Timestamp
+                        : existing_meta.LastMessageTime;
+                    metadataRecord = existing_meta with { LastMessageTime = maxTime };
                 }
             }
 
             await FileAtomicWriter.WriteJsonAsync(metaPath, metadataRecord, FileSystemJsonOptions.Config, cancellationToken);
 
-            // Update in-memory caches.
-            _latestTimestamps[jid] = message.Timestamp;
+            // Update in-memory caches — only advance the timestamp, never move it backwards.
+            _latestTimestamps.AddOrUpdate(
+                jid,
+                message.Timestamp,
+                (_, existing) => message.Timestamp > existing ? message.Timestamp : existing);
             recentIds.Add(message.Id);
             if (recentIds.Count > RecentIdWindowSize * 2)
             {
@@ -158,7 +165,7 @@ public sealed class FileMessageRepository : IMessageRepository
     {
         IReadOnlyList<MessageRecord> records = await JsonlFileReader.ReadFilteredAsync<MessageRecord>(
             _paths.MessagesFilePath(chatJid.Value),
-            r => since is null || r.Timestamp >= since,
+            r => since is null || r.Timestamp > since,
             FileSystemJsonOptions.Jsonl,
             cancellationToken);
 
