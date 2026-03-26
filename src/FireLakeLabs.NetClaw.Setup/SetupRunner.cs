@@ -2,8 +2,9 @@ using System.Text;
 using System.Text.Json;
 using FireLakeLabs.NetClaw.Domain.Entities;
 using FireLakeLabs.NetClaw.Domain.ValueObjects;
+using FireLakeLabs.NetClaw.Infrastructure.Configuration;
 using FireLakeLabs.NetClaw.Infrastructure.FileSystem;
-using FireLakeLabs.NetClaw.Infrastructure.Persistence.Sqlite;
+using FireLakeLabs.NetClaw.Infrastructure.Persistence.FileSystem;
 using FireLakeLabs.NetClaw.Infrastructure.Runtime;
 
 namespace FireLakeLabs.NetClaw.Setup;
@@ -56,6 +57,9 @@ public sealed class SetupRunner
         fileSystem.CreateDirectory(paths.StoreDirectory);
         fileSystem.CreateDirectory(paths.GroupsDirectory);
         fileSystem.CreateDirectory(paths.LogsDirectory);
+        fileSystem.CreateDirectory(paths.ChatsDirectory);
+        fileSystem.CreateDirectory(Path.Combine(paths.DataDirectory, "tasks"));
+        fileSystem.CreateDirectory(Path.Combine(paths.DataDirectory, "events"));
 
         bool configCreated = false;
         if (!fileSystem.FileExists(paths.AppSettingsPath))
@@ -65,15 +69,13 @@ public sealed class SetupRunner
             configCreated = true;
         }
 
-        await EnsureSchemaAsync(cancellationToken);
-
         return new SetupResult("init", 0, new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["STATUS"] = "initialized",
             ["PROJECT_ROOT"] = paths.ProjectRoot,
             ["APPSETTINGS_PATH"] = paths.AppSettingsPath,
             ["APPSETTINGS_CREATED"] = configCreated.ToString().ToLowerInvariant(),
-            ["DATABASE_PATH"] = paths.DatabasePath
+            ["GROUPS_FILE"] = paths.GroupsFilePath
         });
     }
 
@@ -153,7 +155,7 @@ public sealed class SetupRunner
             ["IS_ROOT"] = platform.IsRoot.ToString().ToLowerInvariant(),
             ["HOME"] = platform.HomeDirectory,
             ["PROJECT_ROOT"] = paths.ProjectRoot,
-            ["DATABASE_EXISTS"] = fileSystem.FileExists(paths.DatabasePath).ToString().ToLowerInvariant(),
+            ["GROUPS_FILE_EXISTS"] = fileSystem.FileExists(paths.GroupsFilePath).ToString().ToLowerInvariant(),
             ["ALLOWLIST_EXISTS"] = fileSystem.FileExists(paths.MountAllowlistPath).ToString().ToLowerInvariant(),
             ["DOCKER_AVAILABLE"] = dockerAvailable.ToString().ToLowerInvariant()
         };
@@ -173,7 +175,7 @@ public sealed class SetupRunner
             return CreateFailure("register", "ERROR", "The register step requires --jid, --name, --trigger, and --folder.");
         }
 
-        await EnsureSchemaAsync(cancellationToken);
+        fileSystem.CreateDirectory(paths.DataDirectory);
 
         string groupDirectory = Path.Combine(paths.GroupsDirectory, folder);
         string logsDirectory = Path.Combine(groupDirectory, "logs");
@@ -181,7 +183,7 @@ public sealed class SetupRunner
         fileSystem.CreateDirectory(groupDirectory);
         fileSystem.CreateDirectory(logsDirectory);
 
-        SqliteGroupRepository repository = CreateGroupRepository();
+        FileGroupRepository repository = CreateGroupRepository();
         RegisteredGroup group = new(
             name,
             new GroupFolder(folder),
@@ -271,9 +273,9 @@ public sealed class SetupRunner
 
     private async Task<SetupResult> RunVerifyAsync(CancellationToken cancellationToken)
     {
-        bool databaseExists = fileSystem.FileExists(paths.DatabasePath);
+        bool groupsFileExists = fileSystem.FileExists(paths.GroupsFilePath);
         int registeredGroupCount = 0;
-        if (databaseExists)
+        if (groupsFileExists)
         {
             registeredGroupCount = (await CreateGroupRepository().GetAllAsync(cancellationToken)).Count;
         }
@@ -290,7 +292,7 @@ public sealed class SetupRunner
 
         return new SetupResult("verify", 0, new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["DATABASE_EXISTS"] = databaseExists.ToString().ToLowerInvariant(),
+            ["GROUPS_FILE_EXISTS"] = groupsFileExists.ToString().ToLowerInvariant(),
             ["REGISTERED_GROUPS"] = registeredGroupCount.ToString(),
             ["ALLOWLIST_EXISTS"] = allowlistExists.ToString().ToLowerInvariant(),
             ["CREDENTIALS_CONFIGURED"] = credentialsConfigured.ToString().ToLowerInvariant(),
@@ -311,20 +313,7 @@ public sealed class SetupRunner
             || content.Contains("ANTHROPIC_API_KEY=", StringComparison.Ordinal);
     }
 
-    private async Task EnsureSchemaAsync(CancellationToken cancellationToken)
-    {
-        fileSystem.CreateDirectory(paths.ProjectRoot);
-        fileSystem.CreateDirectory(paths.StoreDirectory);
-        fileSystem.CreateDirectory(paths.GroupsDirectory);
-        fileSystem.CreateDirectory(paths.DataDirectory);
-
-        SqliteSchemaInitializer initializer = new(CreateConnectionFactory());
-        await initializer.InitializeAsync(cancellationToken);
-    }
-
-    private SqliteConnectionFactory CreateConnectionFactory() => new($"Data Source={paths.DatabasePath}");
-
-    private SqliteGroupRepository CreateGroupRepository() => new(CreateConnectionFactory());
+    private FileGroupRepository CreateGroupRepository() => new(new FileStoragePaths(StorageOptions.Create(paths.ProjectRoot)));
 
     private async Task<bool> IsCommandAvailableAsync(string commandName, CancellationToken cancellationToken)
     {

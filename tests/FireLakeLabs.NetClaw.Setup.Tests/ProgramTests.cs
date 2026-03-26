@@ -24,7 +24,7 @@ public sealed class ProgramTests
 
             Assert.Equal(0, result.ExitCode);
             Assert.True(Directory.Exists(Path.Combine(projectRoot, "groups", "team", "logs")));
-            Assert.True(File.Exists(Path.Combine(projectRoot, "data", "netclaw.db")));
+            Assert.True(File.Exists(Path.Combine(projectRoot, "data", "groups.json")));
         }
         finally
         {

@@ -10,9 +10,7 @@ using FireLakeLabs.NetClaw.Domain.Entities;
 using FireLakeLabs.NetClaw.Domain.Enums;
 using FireLakeLabs.NetClaw.Domain.ValueObjects;
 using FireLakeLabs.NetClaw.Infrastructure.Channels;
-using FireLakeLabs.NetClaw.Infrastructure.Persistence.Sqlite;
 using FireLakeLabs.NetClaw.Setup;
-using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -99,13 +97,8 @@ public sealed class EndToEndIntegrationTests
             Assert.NotNull(updatedTask);
             Assert.Equal(FireLakeLabs.NetClaw.Domain.Enums.TaskStatus.Completed, updatedTask.Status);
 
-            SqliteConnectionFactory connectionFactory = host.Services.GetRequiredService<SqliteConnectionFactory>();
-            await using SqliteConnection connection = connectionFactory.OpenConnection();
-            await using SqliteCommand command = connection.CreateCommand();
-            command.CommandText = "SELECT COUNT(*) FROM task_run_logs;";
-            long logCount = (long)(await command.ExecuteScalarAsync())!;
-
-            Assert.Equal(1L, logCount);
+            IReadOnlyList<TaskRunLog> runLogs = await taskRepository.GetRunLogsAsync(createdTasks[0].Id, 10);
+            Assert.Single(runLogs);
 
             await host.StopAsync();
         }

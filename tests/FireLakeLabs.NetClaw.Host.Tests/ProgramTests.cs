@@ -39,7 +39,8 @@ public sealed class ProgramTests
             Assert.True(Directory.Exists(Path.Combine(projectRoot, "store")));
             Assert.True(Directory.Exists(Path.Combine(projectRoot, "groups")));
             Assert.True(Directory.Exists(Path.Combine(projectRoot, "data", "ipc")));
-            Assert.True(File.Exists(Path.Combine(projectRoot, "data", "netclaw.db")));
+            Assert.True(Directory.Exists(Path.Combine(projectRoot, "data", "chats")));
+            Assert.True(Directory.Exists(Path.Combine(projectRoot, "data", "events")));
 
             await host.StopAsync();
         }

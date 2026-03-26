@@ -8,8 +8,6 @@ public sealed record HostPathOptions
 {
     public required string ProjectRoot { get; init; }
 
-    public required string DatabasePath { get; init; }
-
     public required string MountAllowlistPath { get; init; }
 
     public required string SenderAllowlistPath { get; init; }
@@ -23,14 +21,6 @@ public sealed record HostPathOptions
         if (string.IsNullOrWhiteSpace(projectRoot))
         {
             projectRoot = DefaultProjectRoot;
-        }
-
-        StorageOptions storageOptions = StorageOptions.Create(projectRoot);
-
-        string? databasePath = configuration["NetClaw:DatabasePath"];
-        if (string.IsNullOrWhiteSpace(databasePath))
-        {
-            databasePath = Path.Combine(storageOptions.DataDirectory, "netclaw.db");
         }
 
         string? mountAllowlistPath = configuration["NetClaw:MountAllowlistPath"];
@@ -48,7 +38,6 @@ public sealed record HostPathOptions
         HostPathOptions options = new()
         {
             ProjectRoot = Path.GetFullPath(projectRoot),
-            DatabasePath = Path.GetFullPath(databasePath),
             MountAllowlistPath = Path.GetFullPath(mountAllowlistPath),
             SenderAllowlistPath = Path.GetFullPath(senderAllowlistPath)
         };
@@ -62,11 +51,6 @@ public sealed record HostPathOptions
         if (string.IsNullOrWhiteSpace(ProjectRoot))
         {
             throw new InvalidOperationException("Project root is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(DatabasePath))
-        {
-            throw new InvalidOperationException("Database path is required.");
         }
 
         if (string.IsNullOrWhiteSpace(MountAllowlistPath))

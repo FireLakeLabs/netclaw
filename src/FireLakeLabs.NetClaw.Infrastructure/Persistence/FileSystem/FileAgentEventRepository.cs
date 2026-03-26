@@ -20,14 +20,23 @@ public sealed class FileAgentEventRepository : IAgentEventRepository
     private readonly PersistentCounter _idCounter;
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _groupLocks = new(StringComparer.Ordinal);
 
-    private FileAgentEventRepository(FileStoragePaths paths, PersistentCounter idCounter)
+    /// <summary>
+    /// Initializes the repository. The ID counter is initialized synchronously via
+    /// <c>GetAwaiter().GetResult()</c> — acceptable as a one-time startup cost.
+    /// </summary>
+    public FileAgentEventRepository(FileStoragePaths paths)
     {
         _paths = paths;
-        _idCounter = idCounter;
+        Directory.CreateDirectory(paths.EventsDirectory);
+
+        _idCounter = PersistentCounter.InitializeAsync(
+            paths.EventCounterFilePath,
+            () => ScanMaxExistingIdAsync(paths)).GetAwaiter().GetResult();
     }
 
     /// <summary>
-    /// Asynchronous factory — initializes the persistent ID counter before use.
+    /// Asynchronous factory for test scenarios that need async initialization.
+    /// Production code uses the constructor.
     /// </summary>
     public static async Task<FileAgentEventRepository> CreateAsync(FileStoragePaths paths, CancellationToken cancellationToken = default)
     {
@@ -39,6 +48,12 @@ public sealed class FileAgentEventRepository : IAgentEventRepository
             cancellationToken);
 
         return new FileAgentEventRepository(paths, counter);
+    }
+
+    private FileAgentEventRepository(FileStoragePaths paths, PersistentCounter idCounter)
+    {
+        _paths = paths;
+        _idCounter = idCounter;
     }
 
     public async Task StoreAsync(AgentActivityEvent activityEvent, CancellationToken cancellationToken = default)

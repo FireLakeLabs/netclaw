@@ -12,7 +12,11 @@ public sealed record SetupPaths
 
     public required string StoreDirectory { get; init; }
 
-    public required string DatabasePath { get; init; }
+    public required string StateFilePath { get; init; }
+
+    public required string GroupsFilePath { get; init; }
+
+    public required string ChatsDirectory { get; init; }
 
     public required string LogsDirectory { get; init; }
 
@@ -49,7 +53,9 @@ public sealed record SetupPaths
             GroupsDirectory = storageOptions.GroupsDirectory,
             DataDirectory = storageOptions.DataDirectory,
             StoreDirectory = storageOptions.StoreDirectory,
-            DatabasePath = Path.Combine(storageOptions.DataDirectory, "netclaw.db"),
+            StateFilePath = Path.Combine(storageOptions.DataDirectory, "state.json"),
+            GroupsFilePath = Path.Combine(storageOptions.DataDirectory, "groups.json"),
+            ChatsDirectory = Path.Combine(storageOptions.DataDirectory, "chats"),
             LogsDirectory = Path.Combine(projectRoot, "logs"),
             HomeDirectory = homeDirectory,
             UserConfigDirectory = projectRoot,

@@ -1,7 +1,6 @@
 using FireLakeLabs.NetClaw.Host.Configuration;
 using FireLakeLabs.NetClaw.Infrastructure.Configuration;
 using FireLakeLabs.NetClaw.Infrastructure.FileSystem;
-using FireLakeLabs.NetClaw.Infrastructure.Persistence.Sqlite;
 using FireLakeLabs.NetClaw.Infrastructure.Security;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -15,7 +14,6 @@ public sealed class HostInitializationService : IHostedService
     private readonly MountAllowlistLoader mountAllowlistLoader;
     private readonly SenderAllowlistService senderAllowlistService;
     private readonly HostPathOptions hostPathOptions;
-    private readonly SqliteSchemaInitializer schemaInitializer;
     private readonly StorageOptions storageOptions;
 
     public HostInitializationService(
@@ -24,7 +22,6 @@ public sealed class HostInitializationService : IHostedService
         IFileSystem fileSystem,
         MountAllowlistLoader mountAllowlistLoader,
         SenderAllowlistService senderAllowlistService,
-        SqliteSchemaInitializer schemaInitializer,
         ILogger<HostInitializationService> logger)
     {
         this.storageOptions = storageOptions;
@@ -32,7 +29,6 @@ public sealed class HostInitializationService : IHostedService
         this.fileSystem = fileSystem;
         this.mountAllowlistLoader = mountAllowlistLoader;
         this.senderAllowlistService = senderAllowlistService;
-        this.schemaInitializer = schemaInitializer;
         this.logger = logger;
     }
 
@@ -43,18 +39,14 @@ public sealed class HostInitializationService : IHostedService
         fileSystem.CreateDirectory(storageOptions.GroupsDirectory);
         fileSystem.CreateDirectory(storageOptions.DataDirectory);
         fileSystem.CreateDirectory(Path.Combine(storageOptions.DataDirectory, "ipc"));
-
-        string? databaseDirectory = Path.GetDirectoryName(hostPathOptions.DatabasePath);
-        if (!string.IsNullOrWhiteSpace(databaseDirectory))
-        {
-            fileSystem.CreateDirectory(databaseDirectory);
-        }
+        fileSystem.CreateDirectory(Path.Combine(storageOptions.DataDirectory, "chats"));
+        fileSystem.CreateDirectory(Path.Combine(storageOptions.DataDirectory, "tasks"));
+        fileSystem.CreateDirectory(Path.Combine(storageOptions.DataDirectory, "events"));
 
         RestrictSensitiveDirectories();
 
         await mountAllowlistLoader.LoadAsync(hostPathOptions.MountAllowlistPath, cancellationToken);
         await senderAllowlistService.LoadAsync(hostPathOptions.SenderAllowlistPath, cancellationToken);
-        await schemaInitializer.InitializeAsync(cancellationToken);
 
         logger.LogInformation("NetClaw host initialized at {ProjectRoot}", storageOptions.ProjectRoot);
     }
@@ -66,6 +58,9 @@ public sealed class HostInitializationService : IHostedService
         string ipcDirectory = Path.Combine(storageOptions.DataDirectory, "ipc");
         string sessionsDirectory = Path.Combine(storageOptions.DataDirectory, "sessions");
         string filesDirectory = Path.Combine(storageOptions.DataDirectory, "files");
+        string chatsDirectory = Path.Combine(storageOptions.DataDirectory, "chats");
+        string tasksDirectory = Path.Combine(storageOptions.DataDirectory, "tasks");
+        string eventsDirectory = Path.Combine(storageOptions.DataDirectory, "events");
 
         // Ensure all sensitive storage locations are restricted to the owner
         DirectoryPermissions.RestrictToOwner(storageOptions.ProjectRoot, logger);
@@ -75,11 +70,8 @@ public sealed class HostInitializationService : IHostedService
         DirectoryPermissions.RestrictToOwner(ipcDirectory, logger);
         DirectoryPermissions.RestrictToOwner(sessionsDirectory, logger);
         DirectoryPermissions.RestrictToOwner(filesDirectory, logger);
-
-        string? databaseDirectory = Path.GetDirectoryName(hostPathOptions.DatabasePath);
-        if (!string.IsNullOrWhiteSpace(databaseDirectory))
-        {
-            DirectoryPermissions.RestrictToOwner(databaseDirectory, logger);
-        }
+        DirectoryPermissions.RestrictToOwner(chatsDirectory, logger);
+        DirectoryPermissions.RestrictToOwner(tasksDirectory, logger);
+        DirectoryPermissions.RestrictToOwner(eventsDirectory, logger);
     }
 }
