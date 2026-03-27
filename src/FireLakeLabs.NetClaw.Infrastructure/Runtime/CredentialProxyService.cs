@@ -212,7 +212,10 @@ public sealed class CredentialProxyService : ICredentialProxyService
         }
         else
         {
-            string? token = agentOptions.CopilotGitHubToken ?? Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+            string? token = agentOptions.CopilotGitHubToken
+                ?? Environment.GetEnvironmentVariable("COPILOT_GITHUB_TOKEN")
+                ?? Environment.GetEnvironmentVariable("GH_TOKEN")
+                ?? Environment.GetEnvironmentVariable("GITHUB_TOKEN");
             if (!string.IsNullOrWhiteSpace(token))
             {
                 request.Headers.Remove("Authorization");
@@ -223,7 +226,10 @@ public sealed class CredentialProxyService : ICredentialProxyService
 
     private void WarnIfCopilotContainerAuthIsMissing()
     {
-        string? token = agentOptions.CopilotGitHubToken ?? Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+        string? token = agentOptions.CopilotGitHubToken
+            ?? Environment.GetEnvironmentVariable("COPILOT_GITHUB_TOKEN")
+            ?? Environment.GetEnvironmentVariable("GH_TOKEN")
+            ?? Environment.GetEnvironmentVariable("GITHUB_TOKEN");
         if (!string.IsNullOrWhiteSpace(token))
         {
             return;

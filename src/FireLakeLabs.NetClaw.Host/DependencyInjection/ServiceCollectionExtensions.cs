@@ -239,7 +239,7 @@ public static class ServiceCollectionExtensions
 
         string? configuredHost = configuration["NetClaw:CredentialProxy:Host"];
         string host = string.IsNullOrWhiteSpace(configuredHost)
-            ? GetDefaultCredentialProxyHost(platformInfo)
+            ? GetDefaultCredentialProxyHost()
             : configuredHost;
 
         return new CredentialProxyOptions
@@ -267,11 +267,9 @@ public static class ServiceCollectionExtensions
         };
     }
 
-    private static string GetDefaultCredentialProxyHost(PlatformInfo platformInfo)
+    private static string GetDefaultCredentialProxyHost()
     {
-        return platformInfo.Kind == PlatformKind.Linux && !platformInfo.UsesUserLoopbackForProxy
-            ? "0.0.0.0"
-            : "127.0.0.1";
+        return "127.0.0.1";
     }
 
     private static string GetDefaultHostGatewayName(string runtimeBinary, PlatformInfo platformInfo)

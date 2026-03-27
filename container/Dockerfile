@@ -42,6 +42,13 @@ RUN set -eux; \
     case "${TARGETARCH}" in \
         amd64) copilot_arch='x64' ;; \
         arm64) copilot_arch='arm64' ;; \
+        "") \
+            dpkg_arch="$(dpkg --print-architecture)"; \
+            case "${dpkg_arch}" in \
+                amd64) copilot_arch='x64' ;; \
+                arm64) copilot_arch='arm64' ;; \
+                *) echo "Unsupported Copilot architecture: ${dpkg_arch}" >&2; exit 1 ;; \
+            esac ;; \
         *) echo "Unsupported Copilot architecture: ${TARGETARCH}" >&2; exit 1 ;; \
     esac; \
     curl -fsSL -o /tmp/SHA256SUMS.txt "https://github.com/github/copilot-cli/releases/download/v${COPILOT_VERSION}/SHA256SUMS.txt"; \

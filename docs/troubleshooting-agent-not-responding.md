@@ -43,9 +43,9 @@ This repo currently defaults to Copilot as the provider. Replies can still fail 
 
 Relevant code:
 
-- [container/Dockerfile](container/Dockerfile#L37)
-- [src/FireLakeLabs.NetClaw.AgentRunner/CopilotAgentProvider.cs](src/FireLakeLabs.NetClaw.AgentRunner/CopilotAgentProvider.cs#L39)
-- [src/FireLakeLabs.NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs](src/FireLakeLabs.NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs#L269)
+- [container/Dockerfile](../container/Dockerfile#L37)
+- [src/FireLakeLabs.NetClaw.AgentRunner/CopilotAgentProvider.cs](../src/FireLakeLabs.NetClaw.AgentRunner/CopilotAgentProvider.cs#L39)
+- [src/FireLakeLabs.NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs](../src/FireLakeLabs.NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs#L269)
 
 What to look for:
 
@@ -67,12 +67,12 @@ The host mounts the group IPC directory directly at `/workspace/ipc`, and the wa
 
 Relevant code:
 
-- [docs/containerized-agent-execution.md](docs/containerized-agent-execution.md#L134)
-- [src/FireLakeLabs.NetClaw.Infrastructure/Runtime/Agents/ContainerizedAgentEngine.cs](src/FireLakeLabs.NetClaw.Infrastructure/Runtime/Agents/ContainerizedAgentEngine.cs#L259)
-- [src/FireLakeLabs.NetClaw.Infrastructure/Ipc/FileSystemIpcWatcher.cs](src/FireLakeLabs.NetClaw.Infrastructure/Ipc/FileSystemIpcWatcher.cs#L77)
-- [src/FireLakeLabs.NetClaw.AgentRunner/Program.cs](src/FireLakeLabs.NetClaw.AgentRunner/Program.cs#L53)
+- [docs/containerized-agent-execution.md](./containerized-agent-execution.md#L134)
+- [src/FireLakeLabs.NetClaw.Infrastructure/Runtime/Agents/ContainerizedAgentEngine.cs](../src/FireLakeLabs.NetClaw.Infrastructure/Runtime/Agents/ContainerizedAgentEngine.cs#L259)
+- [src/FireLakeLabs.NetClaw.Infrastructure/Ipc/FileSystemIpcWatcher.cs](../src/FireLakeLabs.NetClaw.Infrastructure/Ipc/FileSystemIpcWatcher.cs#L77)
+- [src/FireLakeLabs.NetClaw.AgentRunner/Program.cs](../src/FireLakeLabs.NetClaw.AgentRunner/Program.cs#L53)
 
-Current risk:
+If you're running an older image or stale published runner, watch for this mismatch:
 
 - the runner builds IPC output paths as `/workspace/ipc/<group>/messages` and `/workspace/ipc/<group>/tasks`
 - the host watcher expects the mounted group directory itself to contain `messages/` and `tasks/`
@@ -92,8 +92,8 @@ The message processor catches most non-cancellation exceptions and returns `fals
 
 Relevant code:
 
-- [src/FireLakeLabs.NetClaw.Application/Execution/GroupMessageProcessorService.cs](src/FireLakeLabs.NetClaw.Application/Execution/GroupMessageProcessorService.cs#L212)
-- [src/FireLakeLabs.NetClaw.Application/Execution/GroupExecutionQueue.cs](src/FireLakeLabs.NetClaw.Application/Execution/GroupExecutionQueue.cs#L242)
+- [src/FireLakeLabs.NetClaw.Application/Execution/GroupMessageProcessorService.cs](../src/FireLakeLabs.NetClaw.Application/Execution/GroupMessageProcessorService.cs#L212)
+- [src/FireLakeLabs.NetClaw.Application/Execution/GroupExecutionQueue.cs](../src/FireLakeLabs.NetClaw.Application/Execution/GroupExecutionQueue.cs#L242)
 
 What this means:
 
@@ -107,7 +107,7 @@ The file-based message repository filters out bot messages and also filters mess
 
 Relevant code:
 
-- [src/FireLakeLabs.NetClaw.Infrastructure/Persistence/FileSystem/FileMessageRepository.cs](src/FireLakeLabs.NetClaw.Infrastructure/Persistence/FileSystem/FileMessageRepository.cs#L131)
+- [src/FireLakeLabs.NetClaw.Infrastructure/Persistence/FileSystem/FileMessageRepository.cs](../src/FireLakeLabs.NetClaw.Infrastructure/Persistence/FileSystem/FileMessageRepository.cs#L131)
 
 This is usually correct, but it can bite you if users commonly send prompts in a form like:
 
@@ -127,9 +127,9 @@ NetClaw now uses file-based persistence for messages and router state.
 
 Relevant paths:
 
-- [src/FireLakeLabs.NetClaw.Infrastructure/Persistence/FileSystem/FileStoragePaths.cs](src/FireLakeLabs.NetClaw.Infrastructure/Persistence/FileSystem/FileStoragePaths.cs#L22)
-- [src/FireLakeLabs.NetClaw.Infrastructure/Persistence/FileSystem/FileStoragePaths.cs](src/FireLakeLabs.NetClaw.Infrastructure/Persistence/FileSystem/FileStoragePaths.cs#L42)
-- [src/FireLakeLabs.NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs](src/FireLakeLabs.NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs#L100)
+- [src/FireLakeLabs.NetClaw.Infrastructure/Persistence/FileSystem/FileStoragePaths.cs](../src/FireLakeLabs.NetClaw.Infrastructure/Persistence/FileSystem/FileStoragePaths.cs#L22)
+- [src/FireLakeLabs.NetClaw.Infrastructure/Persistence/FileSystem/FileStoragePaths.cs](../src/FireLakeLabs.NetClaw.Infrastructure/Persistence/FileSystem/FileStoragePaths.cs#L42)
+- [src/FireLakeLabs.NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs](../src/FireLakeLabs.NetClaw.Host/DependencyInjection/ServiceCollectionExtensions.cs#L100)
 
 Check whether the affected chat is receiving new lines under:
 
@@ -148,10 +148,10 @@ The dashboard API already exposes the most useful runtime views.
 
 Relevant endpoints:
 
-- recent activity: [src/FireLakeLabs.NetClaw.Dashboard/DashboardEndpoints.cs](src/FireLakeLabs.NetClaw.Dashboard/DashboardEndpoints.cs#L33)
-- live queue state: [src/FireLakeLabs.NetClaw.Dashboard/DashboardEndpoints.cs](src/FireLakeLabs.NetClaw.Dashboard/DashboardEndpoints.cs#L56)
-- system health: [src/FireLakeLabs.NetClaw.Dashboard/DashboardEndpoints.cs](src/FireLakeLabs.NetClaw.Dashboard/DashboardEndpoints.cs#L195)
-- router state: [src/FireLakeLabs.NetClaw.Dashboard/DashboardEndpoints.cs](src/FireLakeLabs.NetClaw.Dashboard/DashboardEndpoints.cs#L212)
+- recent activity: [src/FireLakeLabs.NetClaw.Dashboard/DashboardEndpoints.cs](../src/FireLakeLabs.NetClaw.Dashboard/DashboardEndpoints.cs#L33)
+- live queue state: [src/FireLakeLabs.NetClaw.Dashboard/DashboardEndpoints.cs](../src/FireLakeLabs.NetClaw.Dashboard/DashboardEndpoints.cs#L56)
+- system health: [src/FireLakeLabs.NetClaw.Dashboard/DashboardEndpoints.cs](../src/FireLakeLabs.NetClaw.Dashboard/DashboardEndpoints.cs#L195)
+- router state: [src/FireLakeLabs.NetClaw.Dashboard/DashboardEndpoints.cs](../src/FireLakeLabs.NetClaw.Dashboard/DashboardEndpoints.cs#L212)
 
 You want to answer:
 
@@ -172,11 +172,11 @@ The message loop and message processor both depend on router state.
 
 Relevant code:
 
-- [src/FireLakeLabs.NetClaw.Application/Execution/InboundMessagePollingService.cs](src/FireLakeLabs.NetClaw.Application/Execution/InboundMessagePollingService.cs#L53)
-- [src/FireLakeLabs.NetClaw.Application/Execution/InboundMessagePollingService.cs](src/FireLakeLabs.NetClaw.Application/Execution/InboundMessagePollingService.cs#L76)
-- [src/FireLakeLabs.NetClaw.Application/Execution/InboundMessagePollingService.cs](src/FireLakeLabs.NetClaw.Application/Execution/InboundMessagePollingService.cs#L87)
-- [src/FireLakeLabs.NetClaw.Application/Execution/GroupMessageProcessorService.cs](src/FireLakeLabs.NetClaw.Application/Execution/GroupMessageProcessorService.cs#L174)
-- [src/FireLakeLabs.NetClaw.Application/Execution/GroupMessageProcessorService.cs](src/FireLakeLabs.NetClaw.Application/Execution/GroupMessageProcessorService.cs#L197)
+- [src/FireLakeLabs.NetClaw.Application/Execution/InboundMessagePollingService.cs](../src/FireLakeLabs.NetClaw.Application/Execution/InboundMessagePollingService.cs#L53)
+- [src/FireLakeLabs.NetClaw.Application/Execution/InboundMessagePollingService.cs](../src/FireLakeLabs.NetClaw.Application/Execution/InboundMessagePollingService.cs#L76)
+- [src/FireLakeLabs.NetClaw.Application/Execution/InboundMessagePollingService.cs](../src/FireLakeLabs.NetClaw.Application/Execution/InboundMessagePollingService.cs#L87)
+- [src/FireLakeLabs.NetClaw.Application/Execution/GroupMessageProcessorService.cs](../src/FireLakeLabs.NetClaw.Application/Execution/GroupMessageProcessorService.cs#L174)
+- [src/FireLakeLabs.NetClaw.Application/Execution/GroupMessageProcessorService.cs](../src/FireLakeLabs.NetClaw.Application/Execution/GroupMessageProcessorService.cs#L197)
 
 Focus on two keys:
 
@@ -195,9 +195,9 @@ If you are using the default provider, prove the image can actually run that pro
 
 Relevant code:
 
-- [container/Dockerfile](container/Dockerfile#L37)
-- [src/FireLakeLabs.NetClaw.AgentRunner/CopilotAgentProvider.cs](src/FireLakeLabs.NetClaw.AgentRunner/CopilotAgentProvider.cs#L39)
-- [src/FireLakeLabs.NetClaw.Infrastructure/Runtime/Agents/ContainerizedAgentEngine.cs](src/FireLakeLabs.NetClaw.Infrastructure/Runtime/Agents/ContainerizedAgentEngine.cs#L192)
+- [container/Dockerfile](../container/Dockerfile#L37)
+- [src/FireLakeLabs.NetClaw.AgentRunner/CopilotAgentProvider.cs](../src/FireLakeLabs.NetClaw.AgentRunner/CopilotAgentProvider.cs#L39)
+- [src/FireLakeLabs.NetClaw.Infrastructure/Runtime/Agents/ContainerizedAgentEngine.cs](../src/FireLakeLabs.NetClaw.Infrastructure/Runtime/Agents/ContainerizedAgentEngine.cs#L192)
 
 Checks:
 
@@ -222,10 +222,10 @@ For any workflow that uses tools, inspect IPC output paths.
 
 Relevant code:
 
-- [src/FireLakeLabs.NetClaw.AgentRunner/IpcToolWriter.cs](src/FireLakeLabs.NetClaw.AgentRunner/IpcToolWriter.cs)
-- [src/FireLakeLabs.NetClaw.AgentRunner/Program.cs](src/FireLakeLabs.NetClaw.AgentRunner/Program.cs#L53)
-- [src/FireLakeLabs.NetClaw.Infrastructure/Ipc/FileSystemIpcWatcher.cs](src/FireLakeLabs.NetClaw.Infrastructure/Ipc/FileSystemIpcWatcher.cs#L77)
-- [src/FireLakeLabs.NetClaw.Infrastructure/Ipc/FileSystemIpcWatcher.cs](src/FireLakeLabs.NetClaw.Infrastructure/Ipc/FileSystemIpcWatcher.cs#L117)
+- [src/FireLakeLabs.NetClaw.AgentRunner/IpcToolWriter.cs](../src/FireLakeLabs.NetClaw.AgentRunner/IpcToolWriter.cs)
+- [src/FireLakeLabs.NetClaw.AgentRunner/Program.cs](../src/FireLakeLabs.NetClaw.AgentRunner/Program.cs#L53)
+- [src/FireLakeLabs.NetClaw.Infrastructure/Ipc/FileSystemIpcWatcher.cs](../src/FireLakeLabs.NetClaw.Infrastructure/Ipc/FileSystemIpcWatcher.cs#L77)
+- [src/FireLakeLabs.NetClaw.Infrastructure/Ipc/FileSystemIpcWatcher.cs](../src/FireLakeLabs.NetClaw.Infrastructure/Ipc/FileSystemIpcWatcher.cs#L117)
 
 Check:
 
@@ -242,7 +242,7 @@ Interpretation:
 
 Relevant code:
 
-- [src/FireLakeLabs.NetClaw.Application/Execution/GroupExecutionQueue.cs](src/FireLakeLabs.NetClaw.Application/Execution/GroupExecutionQueue.cs#L242)
+- [src/FireLakeLabs.NetClaw.Application/Execution/GroupExecutionQueue.cs](../src/FireLakeLabs.NetClaw.Application/Execution/GroupExecutionQueue.cs#L242)
 
 Behavior:
 
@@ -255,8 +255,8 @@ This is useful because it tells you the system is not deadlocked. It is failing 
 
 Relevant code:
 
-- [src/FireLakeLabs.NetClaw.Infrastructure/Persistence/FileSystem/FileMessageRepository.cs](src/FireLakeLabs.NetClaw.Infrastructure/Persistence/FileSystem/FileMessageRepository.cs#L133)
-- [src/FireLakeLabs.NetClaw.Infrastructure/Persistence/FileSystem/FileMessageRepository.cs](src/FireLakeLabs.NetClaw.Infrastructure/Persistence/FileSystem/FileMessageRepository.cs#L138)
+- [src/FireLakeLabs.NetClaw.Infrastructure/Persistence/FileSystem/FileMessageRepository.cs](../src/FireLakeLabs.NetClaw.Infrastructure/Persistence/FileSystem/FileMessageRepository.cs#L133)
+- [src/FireLakeLabs.NetClaw.Infrastructure/Persistence/FileSystem/FileMessageRepository.cs](../src/FireLakeLabs.NetClaw.Infrastructure/Persistence/FileSystem/FileMessageRepository.cs#L138)
 
 Questions to ask:
 
@@ -303,7 +303,7 @@ If the agent stopped responding after the container migration, prioritize in thi
 
 ## Related Documents
 
-- [docs/containerized-agent-execution.md](docs/containerized-agent-execution.md)
-- [docs/container-test-plan.md](docs/container-test-plan.md)
-- [docs/file-based-persistence-plan.md](docs/file-based-persistence-plan.md)
-- [docs/user-guide.md](docs/user-guide.md)
+- [docs/containerized-agent-execution.md](./containerized-agent-execution.md)
+- [docs/container-test-plan.md](./container-test-plan.md)
+- [docs/file-based-persistence-plan.md](./file-based-persistence-plan.md)
+- [docs/user-guide.md](./user-guide.md)

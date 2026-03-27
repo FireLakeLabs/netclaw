@@ -48,9 +48,16 @@ public sealed class DockerContainerRuntime : IContainerRuntime
             return [];
         }
 
-        return platformInfo.Kind == PlatformKind.Linux && !platformInfo.IsWsl
-            ? ["--add-host=host.docker.internal:host-gateway"]
-            : [];
+        if (platformInfo.Kind == PlatformKind.Linux && !platformInfo.IsWsl)
+        {
+            string hostGatewayName = string.IsNullOrWhiteSpace(options.HostGatewayName)
+                ? "host.docker.internal"
+                : options.HostGatewayName;
+
+            return [$"--add-host={hostGatewayName}:host-gateway"];
+        }
+
+        return [];
     }
 
     public async Task StopContainerAsync(ContainerName containerName, CancellationToken cancellationToken = default)
