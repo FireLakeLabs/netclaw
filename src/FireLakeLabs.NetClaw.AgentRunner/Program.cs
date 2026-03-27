@@ -51,8 +51,8 @@ public static class Program
             };
 
             string ipcInputDir = "/workspace/ipc/input";
-            string ipcMessagesDir = Path.Combine("/workspace/ipc", input.GroupFolder.Value, "messages");
-            string ipcTasksDir = Path.Combine("/workspace/ipc", input.GroupFolder.Value, "tasks");
+            string ipcMessagesDir = Path.Combine("/workspace/ipc", "messages");
+            string ipcTasksDir = Path.Combine("/workspace/ipc", "tasks");
 
             Directory.CreateDirectory(ipcMessagesDir);
             Directory.CreateDirectory(ipcTasksDir);

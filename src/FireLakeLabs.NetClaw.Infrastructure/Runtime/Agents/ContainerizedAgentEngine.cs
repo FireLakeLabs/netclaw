@@ -158,7 +158,7 @@ public sealed class ContainerizedAgentEngine : ICodingAgentEngine, IInteractiveC
         Action<ContainerOutput> onOutput,
         CancellationToken cancellationToken)
     {
-        string arguments = BuildDockerRunArgs(provider, containerName, mounts);
+        string arguments = BuildContainerRunArgs(provider, containerName, mounts);
         string inputJson = JsonSerializer.Serialize(input, JsonOptions);
 
         logger.LogDebug("Starting container {ContainerName}: {Runtime} {Arguments}", containerName.Value, containerOptions.RuntimeBinary, arguments);
@@ -174,6 +174,8 @@ public sealed class ContainerizedAgentEngine : ICodingAgentEngine, IInteractiveC
             UseShellExecute = false,
             CreateNoWindow = true
         };
+
+        ApplyProviderEnvironment(process.StartInfo, provider);
 
         process.Start();
 
@@ -269,11 +271,16 @@ public sealed class ContainerizedAgentEngine : ICodingAgentEngine, IInteractiveC
         return mounts;
     }
 
-    private string BuildDockerRunArgs(AgentProviderKind provider, ContainerName containerName, IReadOnlyList<ContainerMount> mounts)
+    internal string BuildContainerRunArgs(AgentProviderKind provider, ContainerName containerName, IReadOnlyList<ContainerMount> mounts)
     {
         StringBuilder args = new();
         args.Append("run -i --rm ");
         args.Append($"--name {containerName.Value} ");
+
+        if (ShouldUseKeepIdUserNamespace())
+        {
+            args.Append("--userns keep-id ");
+        }
 
         string providerName = provider switch
         {
@@ -284,16 +291,15 @@ public sealed class ContainerizedAgentEngine : ICodingAgentEngine, IInteractiveC
         };
         args.Append($"-e NETCLAW_PROVIDER={providerName} ");
 
-        string proxyHost = containerOptions.HostGatewayName;
-        args.Append($"-e NETCLAW_CREDENTIAL_PROXY_URL=http://{proxyHost}:{proxyOptions.Port} ");
-
         if (provider == AgentProviderKind.ClaudeCode)
         {
+            string proxyHost = ResolveCredentialProxyHost();
+            args.Append($"-e NETCLAW_CREDENTIAL_PROXY_URL=http://{proxyHost}:{proxyOptions.Port} ");
             args.Append("-e ANTHROPIC_API_KEY=placeholder ");
         }
-        else
+        else if (provider == AgentProviderKind.Copilot)
         {
-            args.Append("-e COPILOT_TOKEN=placeholder ");
+            args.Append("-e COPILOT_GITHUB_TOKEN ");
         }
 
         string? timezone = Environment.GetEnvironmentVariable("TZ");
@@ -307,23 +313,6 @@ public sealed class ContainerizedAgentEngine : ICodingAgentEngine, IInteractiveC
             args.Append($"{gatewayArg} ");
         }
 
-        if (!platformInfo.IsRoot)
-        {
-            int uid = Environment.ProcessId;
-            try
-            {
-                string uidStr = File.ReadAllText("/proc/self/loginuid").Trim();
-                if (int.TryParse(uidStr, out int parsedUid) && parsedUid > 0 && parsedUid < 65534)
-                {
-                    uid = parsedUid;
-                }
-            }
-            catch
-            {
-                // Fall back to current process uid approach
-            }
-        }
-
         foreach (ContainerMount mount in mounts)
         {
             string roFlag = mount.IsReadOnly ? ":ro" : string.Empty;
@@ -333,6 +322,50 @@ public sealed class ContainerizedAgentEngine : ICodingAgentEngine, IInteractiveC
         args.Append(containerOptions.ImageName);
 
         return args.ToString().TrimEnd();
+    }
+
+    private string ResolveCredentialProxyHost()
+    {
+        if (!string.IsNullOrWhiteSpace(containerOptions.ProxyBindHostOverride))
+        {
+            return containerOptions.ProxyBindHostOverride;
+        }
+
+        if (platformInfo.UsesUserLoopbackForProxy)
+        {
+            return proxyOptions.Host;
+        }
+
+        return containerOptions.HostGatewayName;
+    }
+
+    private bool ShouldUseKeepIdUserNamespace()
+    {
+        if (platformInfo.IsRoot)
+        {
+            return false;
+        }
+
+        string runtimeName = Path.GetFileName(containerOptions.RuntimeBinary);
+        return runtimeName.Equals("podman", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void ApplyProviderEnvironment(ProcessStartInfo startInfo, AgentProviderKind provider)
+    {
+        if (provider != AgentProviderKind.Copilot)
+        {
+            return;
+        }
+
+        string? token = agentOptions.CopilotGitHubToken
+            ?? Environment.GetEnvironmentVariable("COPILOT_GITHUB_TOKEN")
+            ?? Environment.GetEnvironmentVariable("GH_TOKEN")
+            ?? Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+
+        if (!string.IsNullOrWhiteSpace(token))
+        {
+            startInfo.Environment["COPILOT_GITHUB_TOKEN"] = token;
+        }
     }
 
     private string EnsureIpcDirectory(GroupFolder groupFolder)

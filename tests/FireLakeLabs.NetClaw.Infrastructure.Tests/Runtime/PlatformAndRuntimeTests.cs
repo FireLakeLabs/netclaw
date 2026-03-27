@@ -34,6 +34,27 @@ public sealed class PlatformAndRuntimeTests
         Assert.Single(runtime.GetHostGatewayArguments());
     }
 
+    [Fact]
+    public async Task DockerContainerRuntime_PodmanSkipsDockerHostGatewayAlias()
+    {
+        FakeCommandRunner commandRunner = new();
+        DockerContainerRuntime runtime = new(
+            commandRunner,
+            new ContainerRuntimeOptions
+            {
+                RuntimeBinary = "podman",
+                HostGatewayName = "host.containers.internal"
+            },
+            new PlatformInfo(PlatformKind.Linux, IsWsl: false, HasSystemd: true, IsRoot: false, HomeDirectory: "/home/aaron"));
+
+        await runtime.EnsureRunningAsync();
+        await runtime.StopContainerAsync(new ContainerName("netclaw-test"));
+
+        Assert.Contains(commandRunner.Commands, command => command == "podman info");
+        Assert.Contains(commandRunner.Commands, command => command == "podman stop netclaw-test");
+        Assert.Empty(runtime.GetHostGatewayArguments());
+    }
+
     private sealed class FakeCommandRunner : ICommandRunner
     {
         public List<string> Commands { get; } = [];

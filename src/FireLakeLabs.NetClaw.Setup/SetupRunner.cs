@@ -91,14 +91,14 @@ public sealed class SetupRunner
                   "Name": "Andy",
                   "HasOwnNumber": false
                 },
-                "ContainerRuntime": {
-                  "RuntimeBinary": "docker",
-                  "HostGatewayName": "host.docker.internal"
-                },
+                                "ContainerRuntime": {
+                                    "RuntimeBinary": "podman",
+                                    "HostGatewayName": "host.containers.internal"
+                                },
                 "AgentRuntime": {
                   "DefaultProvider": "copilot",
                   "KeepContainerBoundary": true,
-                  "CopilotUseLoggedInUser": true,
+                  "CopilotUseLoggedInUser": false,
                   "CopilotModel": "gpt-5",
                   "CopilotReasoningEffort": "high",
                   "CopilotStreaming": true
@@ -132,8 +132,8 @@ public sealed class SetupRunner
                   "Port": 5080,
                   "BindAddress": "127.0.0.1"
                 },
-                "CredentialProxy": {
-                  "Host": "127.0.0.1",
+                                "CredentialProxy": {
+                                    "Host": "0.0.0.0",
                   "Port": 3001
                 }
               }
@@ -145,6 +145,7 @@ public sealed class SetupRunner
     {
         PlatformInfo platform = platformDetectionService.DetectCurrent();
         bool dockerAvailable = await IsCommandAvailableAsync("docker", cancellationToken);
+        bool podmanAvailable = await IsCommandAvailableAsync("podman", cancellationToken);
 
         Dictionary<string, string> status = new(StringComparer.Ordinal)
         {
@@ -156,7 +157,8 @@ public sealed class SetupRunner
             ["PROJECT_ROOT"] = paths.ProjectRoot,
             ["GROUPS_FILE_EXISTS"] = fileSystem.FileExists(paths.GroupsFilePath).ToString().ToLowerInvariant(),
             ["ALLOWLIST_EXISTS"] = fileSystem.FileExists(paths.MountAllowlistPath).ToString().ToLowerInvariant(),
-            ["DOCKER_AVAILABLE"] = dockerAvailable.ToString().ToLowerInvariant()
+            ["DOCKER_AVAILABLE"] = dockerAvailable.ToString().ToLowerInvariant(),
+            ["PODMAN_AVAILABLE"] = podmanAvailable.ToString().ToLowerInvariant()
         };
 
         return new SetupResult("environment", 0, status);

@@ -24,6 +24,9 @@ RUN dotnet publish src/FireLakeLabs.NetClaw.AgentRunner/FireLakeLabs.NetClaw.Age
 # --- Runtime image ---
 FROM mcr.microsoft.com/dotnet/runtime:10.0-preview AS runtime
 
+ARG COPILOT_VERSION=1.0.12
+ARG TARGETARCH
+
 # Install Node.js (for Claude Code CLI)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends curl ca-certificates && \
@@ -34,11 +37,29 @@ RUN apt-get update && \
 # Install Claude Code CLI globally
 RUN npm install -g @anthropic-ai/claude-code
 
-# Install Copilot CLI (placeholder — replace with actual package when available)
-# For now, create a stub script that returns an error if actually invoked without real CLI.
-# The stub drains stdin so the runner's stdin write does not cause a broken pipe.
-RUN printf '#!/bin/sh\ncat > /dev/null\necho "Copilot CLI not installed in this image" >&2\nexit 1\n' > /usr/local/bin/copilot && \
-    chmod +x /usr/local/bin/copilot
+# Install the standalone Copilot CLI binary from the official GitHub release.
+RUN set -eux; \
+    case "${TARGETARCH}" in \
+        amd64) copilot_arch='x64' ;; \
+        arm64) copilot_arch='arm64' ;; \
+        "") \
+            dpkg_arch="$(dpkg --print-architecture)"; \
+            case "${dpkg_arch}" in \
+                amd64) copilot_arch='x64' ;; \
+                arm64) copilot_arch='arm64' ;; \
+                *) echo "Unsupported Copilot architecture: ${dpkg_arch}" >&2; exit 1 ;; \
+            esac ;; \
+        *) echo "Unsupported Copilot architecture: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    curl -fsSL -o /tmp/SHA256SUMS.txt "https://github.com/github/copilot-cli/releases/download/v${COPILOT_VERSION}/SHA256SUMS.txt"; \
+    curl -fsSL -o /tmp/copilot.tar.gz "https://github.com/github/copilot-cli/releases/download/v${COPILOT_VERSION}/copilot-linux-${copilot_arch}.tar.gz"; \
+    expected_sha="$(awk '/ copilot-linux-'"${copilot_arch}"'\.tar\.gz$/ { print $1 }' /tmp/SHA256SUMS.txt)"; \
+    test -n "${expected_sha}"; \
+    printf '%s  %s\n' "${expected_sha}" /tmp/copilot.tar.gz | sha256sum -c -; \
+    mkdir -p /tmp/copilot-extract; \
+    tar -xzf /tmp/copilot.tar.gz -C /tmp/copilot-extract; \
+    install -m 0755 "$(find /tmp/copilot-extract -type f -name copilot -print -quit)" /usr/local/bin/copilot; \
+    rm -rf /tmp/copilot.tar.gz /tmp/SHA256SUMS.txt /tmp/copilot-extract
 
 # Create non-root user for container execution
 RUN useradd -m -s /bin/bash user

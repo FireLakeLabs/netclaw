@@ -11,34 +11,17 @@ public sealed class CopilotAgentProvider : IAgentProvider
 {
     public async Task<ContainerOutput> ExecuteAsync(AgentRunnerContext context, Action<ContainerOutput> onStreamOutput, CancellationToken cancellationToken)
     {
-        string model = Environment.GetEnvironmentVariable("NETCLAW_COPILOT_MODEL") ?? "gpt-5";
+        string? model = Environment.GetEnvironmentVariable("NETCLAW_COPILOT_MODEL");
         string workingDir = "/workspace/group";
         string sessionDir = Environment.GetEnvironmentVariable("NETCLAW_SESSION_DIR") ?? "/home/user/.copilot";
 
         Directory.CreateDirectory(sessionDir);
 
-        string prompt = context.Input.Prompt;
-
-        StringBuilder argsBuilder = new();
-        argsBuilder.Append("--print ");
-        argsBuilder.Append($"--model {model} ");
-
-        if (context.Input.SessionId is { } sessionId)
-        {
-            argsBuilder.Append($"--session-id {sessionId.Value} ");
-        }
-
         string? reasoning = Environment.GetEnvironmentVariable("NETCLAW_COPILOT_REASONING_EFFORT");
-        if (!string.IsNullOrWhiteSpace(reasoning))
-        {
-            argsBuilder.Append($"--reasoning-effort {reasoning} ");
-        }
 
         ProcessStartInfo startInfo = new()
         {
             FileName = "copilot",
-            Arguments = argsBuilder.ToString().Trim(),
-            RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
@@ -50,18 +33,43 @@ public sealed class CopilotAgentProvider : IAgentProvider
             }
         };
 
+        startInfo.ArgumentList.Add("--prompt");
+        startInfo.ArgumentList.Add(context.Input.Prompt);
+        if (!string.IsNullOrWhiteSpace(model))
+        {
+            startInfo.ArgumentList.Add("--model");
+            startInfo.ArgumentList.Add(model);
+        }
+        startInfo.ArgumentList.Add("--allow-all");
+        startInfo.ArgumentList.Add("--silent");
+        startInfo.ArgumentList.Add("--stream");
+        startInfo.ArgumentList.Add("off");
+        startInfo.ArgumentList.Add("--no-ask-user");
+
+        if (context.Input.SessionId is { } sessionId)
+        {
+            startInfo.ArgumentList.Add($"--resume={sessionId.Value}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(reasoning))
+        {
+            startInfo.ArgumentList.Add("--reasoning-effort");
+            startInfo.ArgumentList.Add(reasoning);
+        }
+
         string? proxyUrl = Environment.GetEnvironmentVariable("NETCLAW_CREDENTIAL_PROXY_URL");
         if (!string.IsNullOrWhiteSpace(proxyUrl))
         {
             startInfo.Environment["COPILOT_CLI_URL"] = proxyUrl;
         }
 
+        CopyIfPresent("COPILOT_GITHUB_TOKEN");
+        CopyIfPresent("GH_TOKEN");
+        CopyIfPresent("GITHUB_TOKEN");
+
         using Process process = new() { StartInfo = startInfo };
 
         process.Start();
-
-        await process.StandardInput.WriteLineAsync(prompt);
-        process.StandardInput.Close();
 
         StringBuilder outputBuilder = new();
         StringBuilder errorBuilder = new();
@@ -107,5 +115,14 @@ public sealed class CopilotAgentProvider : IAgentProvider
             string.IsNullOrWhiteSpace(result) ? null : result,
             newSessionId,
             null);
+
+        void CopyIfPresent(string name)
+        {
+            string? value = Environment.GetEnvironmentVariable(name);
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                startInfo.Environment[name] = value;
+            }
+        }
     }
 }
