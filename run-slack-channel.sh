@@ -3,6 +3,18 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DOTNET_BIN="${DOTNET_BIN:-}"
+
+if [[ -z "$DOTNET_BIN" ]]; then
+	if command -v dotnet >/dev/null 2>&1; then
+		DOTNET_BIN="$(command -v dotnet)"
+	elif [[ -x "$HOME/.dotnet/dotnet" ]]; then
+		DOTNET_BIN="$HOME/.dotnet/dotnet"
+	else
+		echo "Unable to locate dotnet. Set DOTNET_BIN or add dotnet to PATH." >&2
+		exit 1
+	fi
+fi
 
 PROJECT_ROOT="${NETCLAW_PROJECT_ROOT:-$HOME/.netclaw}"
 CHAT_JID="${NETCLAW_CHAT_JID:-}"
@@ -31,10 +43,10 @@ fi
 export NETCLAW_PROJECT_ROOT="$PROJECT_ROOT"
 
 # Initialize project directory and config if needed
-dotnet run --project "$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Setup" -- --step init
+"$DOTNET_BIN" run --project "$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Setup" -- --step init
 
 register_args=(
-	dotnet run --project "$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Setup" -- --step register
+	"$DOTNET_BIN" run --project "$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Setup" -- --step register
 	--jid "$CHAT_JID"
 	--name "$CHAT_NAME"
 	--trigger "$AGENT_TRIGGER"
@@ -65,5 +77,5 @@ exec env \
 	NetClaw__Channels__Slack__Enabled=true \
 	NetClaw__Channels__Slack__BotToken="$SLACK_BOT_TOKEN" \
 	NetClaw__Channels__Slack__AppToken="$SLACK_APP_TOKEN" \
-	dotnet run --project "$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Host" "$@"
+	"$DOTNET_BIN" run --project "$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Host" "$@"
 	

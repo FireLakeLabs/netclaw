@@ -64,7 +64,7 @@ $CONTAINER_RUNTIME run --rm --entrypoint /bin/bash netclaw-agent:latest -c "
 
 **Expected:**
 - `dotnet`, `node`, `claude` found in PATH.
-- `copilot` found in PATH (stub script).
+- `copilot` found in PATH (real CLI binary).
 - `FireLakeLabs.NetClaw.AgentRunner.dll` exists in `/app/`.
 - `user` account exists (non-root UID).
 
@@ -85,7 +85,7 @@ $CONTAINER_RUNTIME run --rm --entrypoint /bin/bash netclaw-agent:latest -c "
 
 ### 2.1 Copilot provider — happy path
 
-**Preconditions:** Copilot path exists in the image (currently a stub script, not the real CLI). This test validates runner dispatch behavior.
+**Preconditions:** `GITHUB_TOKEN` is set on the host or `NetClaw:AgentRuntime:CopilotGitHubToken` is configured so the credential proxy can inject it.
 
 **Steps:**
 ```bash
@@ -93,7 +93,7 @@ echo '{"prompt":"Say hello","sessionId":null,"groupFolder":"test","chatJid":"ter
   $CONTAINER_RUNTIME run -i --rm -e NETCLAW_PROVIDER=copilot netclaw-agent:latest
 ```
 
-**Expected:** The runner reads stdin, selects the Copilot provider, and attempts to spawn `copilot --print`. With the current stub CLI, expect a JSONL error line on stdout with `status: "error"` and exit code 1. The exact error text may vary (for example, `Copilot CLI not installed in this image` or `Broken pipe`).
+**Expected:** The runner reads stdin, selects the Copilot provider, starts the real `copilot` CLI, and emits a JSONL success line on stdout with a non-empty `result`. Exit code 0.
 
 ### 2.2 Claude Code provider — happy path
 

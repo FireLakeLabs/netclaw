@@ -43,6 +43,11 @@ public sealed class DockerContainerRuntime : IContainerRuntime
 
     public IReadOnlyList<string> GetHostGatewayArguments()
     {
+        if (IsPodman())
+        {
+            return [];
+        }
+
         return platformInfo.Kind == PlatformKind.Linux && !platformInfo.IsWsl
             ? ["--add-host=host.docker.internal:host-gateway"]
             : [];
@@ -51,5 +56,11 @@ public sealed class DockerContainerRuntime : IContainerRuntime
     public async Task StopContainerAsync(ContainerName containerName, CancellationToken cancellationToken = default)
     {
         await commandRunner.RunAsync(options.RuntimeBinary, $"stop {containerName.Value}", cancellationToken);
+    }
+
+    private bool IsPodman()
+    {
+        string runtimeName = Path.GetFileName(options.RuntimeBinary);
+        return runtimeName.Equals("podman", StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -161,6 +161,63 @@ public sealed class ContainerizedAgentEngineTests : IDisposable
     }
 
     [Fact]
+    public void BuildContainerRunArgs_Copilot_ForwardsTokenEnvironmentVariable()
+    {
+        ContainerizedAgentEngine engine = CreateEngine(
+            containerOptions: new ContainerRuntimeOptions
+            {
+                ImageName = "netclaw-agent:test",
+                HostGatewayName = "host.containers.internal"
+            });
+
+        string args = engine.BuildContainerRunArgs(
+            AgentProviderKind.Copilot,
+            new ContainerName("netclaw-copilot-team"),
+            []);
+
+        Assert.Contains("-e COPILOT_GITHUB_TOKEN", args);
+    }
+
+    [Fact]
+    public void BuildContainerRunArgs_PodmanRootless_UsesKeepIdUserNamespace()
+    {
+        ContainerizedAgentEngine engine = CreateEngine(
+            containerOptions: new ContainerRuntimeOptions
+            {
+                RuntimeBinary = "podman",
+                ImageName = "netclaw-agent:test",
+                HostGatewayName = "host.containers.internal"
+            },
+            platformInfo: new PlatformInfo(PlatformKind.Linux, IsWsl: false, HasSystemd: true, IsRoot: false, HomeDirectory: "/home/user"));
+
+        string args = engine.BuildContainerRunArgs(
+            AgentProviderKind.Copilot,
+            new ContainerName("netclaw-copilot-team"),
+            []);
+
+        Assert.Contains("--userns keep-id", args);
+    }
+
+    [Fact]
+    public void BuildContainerRunArgs_Claude_UsesProxyBindHostOverrideWhenConfigured()
+    {
+        ContainerizedAgentEngine engine = CreateEngine(
+            containerOptions: new ContainerRuntimeOptions
+            {
+                ImageName = "netclaw-agent:test",
+                HostGatewayName = "host.containers.internal",
+                ProxyBindHostOverride = "10.88.0.1"
+            });
+
+        string args = engine.BuildContainerRunArgs(
+            AgentProviderKind.ClaudeCode,
+            new ContainerName("netclaw-claude-team"),
+            []);
+
+        Assert.Contains("NETCLAW_CREDENTIAL_PROXY_URL=http://10.88.0.1:3001", args);
+    }
+
+    [Fact]
     public void CredentialProxyOptions_ValidatesNewFields()
     {
         CredentialProxyOptions options = new()
@@ -180,17 +237,21 @@ public sealed class ContainerizedAgentEngineTests : IDisposable
         Assert.Throws<InvalidOperationException>(() => options.Validate());
     }
 
-    private ContainerizedAgentEngine CreateEngine(string defaultProvider = "copilot")
+    private ContainerizedAgentEngine CreateEngine(
+        string defaultProvider = "copilot",
+        ContainerRuntimeOptions? containerOptions = null,
+        IContainerRuntime? containerRuntime = null,
+        PlatformInfo? platformInfo = null)
     {
         return new ContainerizedAgentEngine(
-            new FakeContainerRuntime(),
-            new ContainerRuntimeOptions { ImageName = "netclaw-agent:test" },
+            containerRuntime ?? new FakeContainerRuntime(),
+            containerOptions ?? new ContainerRuntimeOptions { ImageName = "netclaw-agent:test" },
             new CredentialProxyOptions(),
             new AgentRuntimeOptions { DefaultProvider = defaultProvider, CopilotConfigDirectory = "/tmp/config" },
             storageOptions,
             groupPathResolver,
             fileSystem,
-            new PlatformInfo(PlatformKind.Linux, IsWsl: false, HasSystemd: true, IsRoot: false, HomeDirectory: "/home/user"),
+            platformInfo ?? new PlatformInfo(PlatformKind.Linux, IsWsl: false, HasSystemd: true, IsRoot: false, HomeDirectory: "/home/user"),
             NullLogger<ContainerizedAgentEngine>.Instance);
     }
 

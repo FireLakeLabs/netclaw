@@ -37,8 +37,10 @@ public sealed class CredentialProxyService : ICredentialProxyService
 
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
+        WarnIfCopilotContainerAuthIsMissing();
+
         listener = new HttpListener();
-        listener.Prefixes.Add($"http://{options.Host}:{options.Port}/");
+        listener.Prefixes.Add($"http://{GetListenerHost(options.Host)}:{options.Port}/");
         listener.Start();
         cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         listenTask = AcceptLoopAsync(cts.Token);
@@ -219,6 +221,24 @@ public sealed class CredentialProxyService : ICredentialProxyService
         }
     }
 
+    private void WarnIfCopilotContainerAuthIsMissing()
+    {
+        string? token = agentOptions.CopilotGitHubToken ?? Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+        if (!string.IsNullOrWhiteSpace(token))
+        {
+            return;
+        }
+
+        if (agentOptions.GetDefaultProvider() != FireLakeLabs.NetClaw.Domain.Enums.AgentProviderKind.Copilot
+            || !agentOptions.KeepContainerBoundary)
+        {
+            return;
+        }
+
+        logger.LogWarning(
+            "Containerized Copilot requires a host token. Set NetClaw:AgentRuntime:CopilotGitHubToken, COPILOT_GITHUB_TOKEN, GH_TOKEN, or GITHUB_TOKEN on the host. CopilotUseLoggedInUser is not supported in the current containerized CLI path.");
+    }
+
     private static bool IsClaude(HttpListenerRequest request)
     {
         string? path = request.Url?.AbsolutePath;
@@ -230,5 +250,15 @@ public sealed class CredentialProxyService : ICredentialProxyService
 
         string? apiKeyHeader = request.Headers["x-api-key"];
         return !string.IsNullOrWhiteSpace(apiKeyHeader);
+    }
+
+    private static string GetListenerHost(string host)
+    {
+        if (host == "0.0.0.0" || host == "::" || host == "[::]")
+        {
+            return "+";
+        }
+
+        return host;
     }
 }

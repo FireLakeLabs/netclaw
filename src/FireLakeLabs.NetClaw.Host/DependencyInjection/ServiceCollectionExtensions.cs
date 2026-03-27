@@ -35,6 +35,7 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddNetClawHostServices(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
     {
+        PlatformInfo platformInfo = new PlatformDetectionService().DetectCurrent();
         HostPathOptions hostPathOptions = HostPathOptions.Create(configuration, environment);
         StorageOptions storageOptions = StorageOptions.Create(hostPathOptions.ProjectRoot);
         storageOptions.Validate();
@@ -42,11 +43,11 @@ public static class ServiceCollectionExtensions
         AssistantIdentityOptions assistantIdentityOptions = CreateAssistantIdentityOptions(configuration);
         assistantIdentityOptions.Validate();
 
-        CredentialProxyOptions credentialProxyOptions = CreateCredentialProxyOptions(configuration);
-        credentialProxyOptions.Validate();
-
-        ContainerRuntimeOptions containerRuntimeOptions = CreateContainerRuntimeOptions(configuration);
+        ContainerRuntimeOptions containerRuntimeOptions = CreateContainerRuntimeOptions(configuration, platformInfo);
         containerRuntimeOptions.Validate();
+
+        CredentialProxyOptions credentialProxyOptions = CreateCredentialProxyOptions(configuration, platformInfo);
+        credentialProxyOptions.Validate();
 
         AgentRuntimeOptions agentRuntimeOptions = CreateAgentRuntimeOptions(configuration, hostPathOptions);
         agentRuntimeOptions.Validate();
@@ -94,7 +95,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ISenderAuthorizationService>(serviceProvider => serviceProvider.GetRequiredService<SenderAllowlistService>());
         services.AddSingleton<ICommandRunner, ProcessCommandRunner>();
         services.AddSingleton<PlatformDetectionService>();
-        services.AddSingleton(static serviceProvider => serviceProvider.GetRequiredService<PlatformDetectionService>().DetectCurrent());
+        services.AddSingleton(platformInfo);
         services.AddSingleton<FileStoragePaths>(serviceProvider => new FileStoragePaths(serviceProvider.GetRequiredService<StorageOptions>()));
 
         services.AddSingleton<IMessageRepository, FileMessageRepository>();
@@ -228,7 +229,7 @@ public static class ServiceCollectionExtensions
         };
     }
 
-    private static CredentialProxyOptions CreateCredentialProxyOptions(IConfiguration configuration)
+    private static CredentialProxyOptions CreateCredentialProxyOptions(IConfiguration configuration, PlatformInfo platformInfo)
     {
         int port = 3001;
         if (int.TryParse(configuration["NetClaw:CredentialProxy:Port"], out int configuredPort))
@@ -236,9 +237,14 @@ public static class ServiceCollectionExtensions
             port = configuredPort;
         }
 
+        string? configuredHost = configuration["NetClaw:CredentialProxy:Host"];
+        string host = string.IsNullOrWhiteSpace(configuredHost)
+            ? GetDefaultCredentialProxyHost(platformInfo)
+            : configuredHost;
+
         return new CredentialProxyOptions
         {
-            Host = configuration["NetClaw:CredentialProxy:Host"] ?? "127.0.0.1",
+            Host = host,
             Port = port,
             CopilotUpstreamUrl = configuration["NetClaw:CredentialProxy:CopilotUpstreamUrl"] ?? "https://api.githubcopilot.com",
             ClaudeUpstreamUrl = configuration["NetClaw:CredentialProxy:ClaudeUpstreamUrl"] ?? "https://api.anthropic.com",
@@ -246,14 +252,39 @@ public static class ServiceCollectionExtensions
         };
     }
 
-    private static ContainerRuntimeOptions CreateContainerRuntimeOptions(IConfiguration configuration)
+    private static ContainerRuntimeOptions CreateContainerRuntimeOptions(IConfiguration configuration, PlatformInfo platformInfo)
     {
+        string runtimeBinary = configuration["NetClaw:ContainerRuntime:RuntimeBinary"] ?? "docker";
+        string? configuredGatewayName = configuration["NetClaw:ContainerRuntime:HostGatewayName"];
+
         return new ContainerRuntimeOptions
         {
-            RuntimeBinary = configuration["NetClaw:ContainerRuntime:RuntimeBinary"] ?? "docker",
-            HostGatewayName = configuration["NetClaw:ContainerRuntime:HostGatewayName"] ?? "host.docker.internal",
+            RuntimeBinary = runtimeBinary,
+            HostGatewayName = string.IsNullOrWhiteSpace(configuredGatewayName)
+                ? GetDefaultHostGatewayName(runtimeBinary, platformInfo)
+                : configuredGatewayName,
             ProxyBindHostOverride = configuration["NetClaw:ContainerRuntime:ProxyBindHostOverride"] ?? string.Empty
         };
+    }
+
+    private static string GetDefaultCredentialProxyHost(PlatformInfo platformInfo)
+    {
+        return platformInfo.Kind == PlatformKind.Linux && !platformInfo.UsesUserLoopbackForProxy
+            ? "0.0.0.0"
+            : "127.0.0.1";
+    }
+
+    private static string GetDefaultHostGatewayName(string runtimeBinary, PlatformInfo platformInfo)
+    {
+        string runtimeName = Path.GetFileName(runtimeBinary);
+        if (runtimeName.Equals("podman", StringComparison.OrdinalIgnoreCase)
+            && platformInfo.Kind == PlatformKind.Linux
+            && !platformInfo.IsWsl)
+        {
+            return "host.containers.internal";
+        }
+
+        return "host.docker.internal";
     }
 
     private static AgentRuntimeOptions CreateAgentRuntimeOptions(IConfiguration configuration, HostPathOptions hostPathOptions)

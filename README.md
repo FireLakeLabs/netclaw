@@ -98,6 +98,7 @@ dotnet test tests/FireLakeLabs.NetClaw.Application.Tests/FireLakeLabs.NetClaw.Ap
 - [ROADMAP.md](ROADMAP.md)
 - [docs/architecture.md](docs/architecture.md)
 - [docs/containerized-agent-execution.md](docs/containerized-agent-execution.md)
+- [docs/troubleshooting-agent-not-responding.md](docs/troubleshooting-agent-not-responding.md)
 - [docs/user-guide.md](docs/user-guide.md)
 - [docs/coding-standards.md](docs/coding-standards.md)
 
