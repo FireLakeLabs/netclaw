@@ -3,6 +3,7 @@
 run_host_with_cleanup() {
 	local host_pid=0
 	local host_pgid=""
+	local new_session=0
 	local interrupted=0
 
 	kill_descendants() {
@@ -27,7 +28,7 @@ run_host_with_cleanup() {
 	signal_process_group() {
 		local signal="$1"
 
-		if [[ -z "$host_pgid" ]]; then
+		if [[ "$new_session" -eq 0 ]] || [[ -z "$host_pgid" ]]; then
 			return
 		fi
 
@@ -69,6 +70,7 @@ run_host_with_cleanup() {
 
 	if command -v setsid >/dev/null 2>&1; then
 		setsid "$@" &
+		new_session=1
 	else
 		"$@" &
 	fi
@@ -77,8 +79,18 @@ run_host_with_cleanup() {
 	host_pgid="$(ps -o pgid= -p "$host_pid" | tr -d ' ' || true)"
 
 	set +e
-	wait "$host_pid"
-	local exit_code=$?
+	local exit_code
+	while :; do
+		wait "$host_pid"
+		exit_code=$?
+
+		# If wait was interrupted by SIGINT (130) but the host is still alive,
+		# keep waiting so that a second Ctrl+C can escalate to KILL and we
+		# don't return before the process group is actually gone.
+		if [[ "$exit_code" -ne 130 ]] || ! kill -0 "$host_pid" 2>/dev/null; then
+			break
+		fi
+	done
 	set -e
 
 	trap - INT TERM EXIT
