@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text;
 using System.Text.RegularExpressions;
 using FireLakeLabs.NetClaw.Domain.Contracts.Agents;
 using FireLakeLabs.NetClaw.Domain.Contracts.Containers;
@@ -116,11 +115,11 @@ If BOOTSTRAP.md exists, follow it first.
         List<InstructionPart> parts = [];
 
         string? resolvedName = await ParseAgentNameAsync(sourceWorkspaceDirectory, cancellationToken);
-        string identityName = resolvedName ?? "an assistant";
+        string identityName = resolvedName ?? assistantIdentityOptions.Name ?? "an assistant";
         parts.Add(new InstructionPart(
             "NETCLAW_IDENTITY_PREAMBLE.md",
             WrapWithHeader(
-                "identity-preamble",
+                "NETCLAW_IDENTITY_PREAMBLE.md",
                 $"You are {identityName}, a personal assistant running in the NetClaw platform. The following documents define your personality, context, and operational guidelines."),
             isGenerated: true,
             IsCore: true));
@@ -384,7 +383,7 @@ If BOOTSTRAP.md exists, follow it first.
             return;
         }
 
-        memoryPart.Content = memoryPart.Content[overflow..];
+        memoryPart.Content = memoryPart.Content[..^overflow];
     }
 
     private async Task MaterializeInstructionsAsync(

@@ -381,7 +381,7 @@ public sealed class EndToEndIntegrationTests
         string homeDirectory = CreateTemporaryPath();
         FakeAgentRuntime fakeRuntime = new();
         ControlledTextReader input = new();
-        StringWriter output = new();
+        SignalledStringWriter output = new("assistant> assistant reply");
 
         try
         {
@@ -422,7 +422,7 @@ public sealed class EndToEndIntegrationTests
 
             input.Enqueue("@assistant terminal test");
             await fakeRuntime.Completion.Task.WaitAsync(TimeSpan.FromSeconds(5));
-            await Task.Delay(500);
+            await output.Written.WaitAsync(TimeSpan.FromSeconds(5));
 
             Assert.Contains("you> ", output.ToString(), StringComparison.Ordinal);
             Assert.DoesNotContain("you> assistant>", output.ToString(), StringComparison.Ordinal);
@@ -500,7 +500,7 @@ public sealed class EndToEndIntegrationTests
                         null))));
 
             await fakeRuntime.Completion.Task.WaitAsync(TimeSpan.FromSeconds(5));
-            await Task.Delay(500);
+            await slackClient.ReplyUpdated.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
             Assert.Single(slackClient.PostedMessages);
             Assert.Equal("Evaluating...", slackClient.PostedMessages[0].Text);
@@ -732,6 +732,37 @@ public sealed class EndToEndIntegrationTests
         }
     }
 
+    private sealed class SignalledStringWriter : StringWriter
+    {
+        private readonly string expectedContent;
+        private readonly TaskCompletionSource<bool> written = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public SignalledStringWriter(string expectedContent)
+        {
+            this.expectedContent = expectedContent;
+        }
+
+        public Task Written => written.Task;
+
+        public override void Write(string? value)
+        {
+            base.Write(value);
+            if (GetStringBuilder().ToString().Contains(expectedContent, StringComparison.Ordinal))
+            {
+                written.TrySetResult(true);
+            }
+        }
+
+        public override void WriteLine(string? value)
+        {
+            base.WriteLine(value);
+            if (GetStringBuilder().ToString().Contains(expectedContent, StringComparison.Ordinal))
+            {
+                written.TrySetResult(true);
+            }
+        }
+    }
+
     private sealed class FakeSlackSocketModeClient : ISlackSocketModeClient
     {
         private int messageSequence;
@@ -752,6 +783,8 @@ public sealed class EndToEndIntegrationTests
         public List<(string ConversationId, string Text, string? ThreadTs, string Ts)> PostedMessages { get; } = [];
 
         public List<(string ConversationId, string Ts, string Text)> UpdatedMessages { get; } = [];
+
+        public TaskCompletionSource<bool> ReplyUpdated { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public List<(string ConversationId, string Ts)> DeletedMessages { get; } = [];
 
@@ -774,6 +807,7 @@ public sealed class EndToEndIntegrationTests
         public Task UpdateMessageAsync(string conversationId, string ts, string text, CancellationToken cancellationToken = default)
         {
             UpdatedMessages.Add((conversationId, ts, text));
+            ReplyUpdated.TrySetResult(true);
             return Task.CompletedTask;
         }
 
