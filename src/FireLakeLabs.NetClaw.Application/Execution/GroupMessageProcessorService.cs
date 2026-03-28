@@ -125,7 +125,7 @@ public sealed class GroupMessageProcessorService
                 await SetTypingAsync(channel, groupJid, isTyping: true, cancellationToken);
 
                 await using IInteractiveContainerSession interactiveSession = await agentRuntime.StartInteractiveSessionAsync(
-                    new ContainerInput(prompt, null, group.Folder, groupJid, group.IsMain, false, assistantName),
+                    new ContainerInput(prompt, null, group.Folder, groupJid, group.IsMain, false, assistantName, ResolveSessionScope(channel)),
                     async (streamEvent, ct) =>
                     {
                         agentEventSink.Record(streamEvent, group.Folder, groupJid, isScheduledTask: false, taskId: null);
@@ -247,6 +247,19 @@ public sealed class GroupMessageProcessorService
         catch
         {
         }
+    }
+
+    private static SessionScope ResolveSessionScope(IChannel? channel)
+    {
+        string channelName = channel?.Name.Value ?? string.Empty;
+
+        return channelName switch
+        {
+            "terminal" => SessionScope.Private,
+            "reference-file" => SessionScope.Private,
+            "slack" => SessionScope.Group,
+            _ => SessionScope.Group
+        };
     }
 
     private async Task<IReadOnlyList<StoredMessage>> EnrichWithAttachmentsAsync(IReadOnlyList<StoredMessage> messages, ChatJid chatJid, CancellationToken cancellationToken)

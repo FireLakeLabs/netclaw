@@ -18,13 +18,20 @@ public sealed class ProgramTests
                 "--step", "register",
                 "--jid", "group@jid",
                 "--name", "Team",
-                "--trigger", "@Andy",
+                "--trigger", "@assistant",
                 "--folder", "team"
             ]));
 
             Assert.Equal(0, result.ExitCode);
             Assert.True(Directory.Exists(Path.Combine(projectRoot, "groups", "team", "logs")));
+            Assert.True(Directory.Exists(Path.Combine(projectRoot, "groups", "team", "memory")));
             Assert.True(File.Exists(Path.Combine(projectRoot, "data", "groups.json")));
+            Assert.True(File.Exists(Path.Combine(projectRoot, "groups", "team", "SOUL.md")));
+            Assert.True(File.Exists(Path.Combine(projectRoot, "groups", "team", "IDENTITY.md")));
+            Assert.True(File.Exists(Path.Combine(projectRoot, "groups", "team", "USER.md")));
+            Assert.True(File.Exists(Path.Combine(projectRoot, "groups", "team", "AGENTS.md")));
+            Assert.True(File.Exists(Path.Combine(projectRoot, "groups", "team", "TOOLS.md")));
+            Assert.True(File.Exists(Path.Combine(projectRoot, "groups", "team", "BOOTSTRAP.md")));
         }
         finally
         {
@@ -99,7 +106,7 @@ public sealed class ProgramTests
                 "--step", "register",
                 "--jid", "group@jid",
                 "--name", "Team",
-                "--trigger", "@Andy",
+                "--trigger", "@assistant",
                 "--folder", "team"
             ]));
             await runner.RunAsync(SetupCommand.Parse(["--step", "mounts", "--empty"]));

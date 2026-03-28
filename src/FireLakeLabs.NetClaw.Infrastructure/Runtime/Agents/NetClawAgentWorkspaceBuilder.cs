@@ -1,7 +1,10 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
 using FireLakeLabs.NetClaw.Domain.Contracts.Agents;
 using FireLakeLabs.NetClaw.Domain.Contracts.Containers;
 using FireLakeLabs.NetClaw.Domain.Contracts.Services;
 using FireLakeLabs.NetClaw.Domain.Entities;
+using FireLakeLabs.NetClaw.Domain.Enums;
 using FireLakeLabs.NetClaw.Infrastructure.Configuration;
 using FireLakeLabs.NetClaw.Infrastructure.FileSystem;
 using FireLakeLabs.NetClaw.Infrastructure.Paths;
@@ -10,28 +13,88 @@ namespace FireLakeLabs.NetClaw.Infrastructure.Runtime.Agents;
 
 public sealed class NetClawAgentWorkspaceBuilder : IAgentWorkspaceBuilder
 {
+    private const int HeaderWidth = 55;
+    private const int TotalInjectedCharsMax = 30000;
+    private const int SoulMaxChars = 4000;
+    private const int IdentityMaxChars = 1000;
+    private const int UserMaxChars = 2000;
+    private const int AgentsMaxChars = 8000;
+    private const int ToolsMaxChars = 4000;
+    private const int MemoryMaxChars = 8000;
+    private const int DailyMemoryMaxChars = 4000;
+    private const int BootstrapMaxChars = 2000;
+    private const int RuntimeMaxChars = 6000;
+
+    private const string DefaultSoul = """
+# SOUL.md - Who You Are
+
+*You're not a chatbot. You're becoming someone.*
+
+## Core Truths
+
+Be genuinely helpful. Be resourceful before asking. Earn trust with competence.
+
+## Boundaries
+
+- Private things stay private.
+- Ask before external actions.
+- Be careful in group chats.
+
+## Continuity
+
+Workspace files are your memory across sessions.
+""";
+
+    private const string DefaultAgents = """
+# AGENTS.md - How You Operate
+
+This workspace is home. Treat it that way.
+
+## First Run
+
+If BOOTSTRAP.md exists, follow it first.
+
+## Memory
+
+- Daily notes: memory/YYYY-MM-DD.md
+- Long-term: MEMORY.md
+
+## Safety
+
+- Don't exfiltrate private data.
+- Don't run destructive commands without asking.
+""";
+
     private readonly AssistantIdentityOptions assistantIdentityOptions;
     private readonly IFileSystem fileSystem;
     private readonly GroupPathResolver groupPathResolver;
+    private readonly MessageLoopOptions messageLoopOptions;
     private readonly StorageOptions storageOptions;
 
     public NetClawAgentWorkspaceBuilder(
         GroupPathResolver groupPathResolver,
         StorageOptions storageOptions,
+        MessageLoopOptions messageLoopOptions,
         IFileSystem fileSystem,
         AssistantIdentityOptions assistantIdentityOptions)
     {
         this.groupPathResolver = groupPathResolver;
         this.storageOptions = storageOptions;
+        this.messageLoopOptions = messageLoopOptions;
         this.fileSystem = fileSystem;
         this.assistantIdentityOptions = assistantIdentityOptions;
     }
 
-    public async Task<AgentWorkspaceContext> BuildAsync(RegisteredGroup group, ContainerInput input, CancellationToken cancellationToken = default)
+    public async Task<AgentWorkspaceContext> BuildAsync(
+        RegisteredGroup group,
+        ContainerInput input,
+        SessionScope sessionScope = SessionScope.Group,
+        CancellationToken cancellationToken = default)
     {
         string workingDirectory = groupPathResolver.ResolveGroupDirectory(group.Folder);
         string sessionDirectory = groupPathResolver.ResolveGroupSessionDirectory(group.Folder);
         string workspaceDirectory = groupPathResolver.ResolveGroupAgentWorkspaceDirectory(group.Folder);
+        string sourceWorkspaceDirectory = groupPathResolver.ResolveGroupDirectory(group.Folder);
 
         fileSystem.CreateDirectory(workingDirectory);
         fileSystem.CreateDirectory(sessionDirectory);
@@ -44,40 +107,79 @@ public sealed class NetClawAgentWorkspaceBuilder : IAgentWorkspaceBuilder
             additionalDirectories.Add(fileSystem.GetFullPath(globalDirectory));
         }
 
-        string assistantName = input.AssistantName ?? assistantIdentityOptions.Name;
-        string instructions = string.Join(
-            Environment.NewLine,
-            [
-                "# AGENTS.md",
-                string.Empty,
-                $"You are operating inside the NetClaw workspace for group '{group.Name}'.",
-                $"Assistant name: {assistantName}",
-                $"Group folder: {group.Folder.Value}",
-                $"Main group: {(group.IsMain ? "yes" : "no")}",
-                string.Empty,
-                "Prioritize safe file operations, preserve existing project structure, and route all external actions through NetClaw-owned tools when available.",
-                "Treat this file as the provider-neutral instruction surface.",
-                string.Empty,
-                "## Sending files back",
-                "When the user asks you to produce, create, or modify a file and send it back, you MUST include a file tag in your text response on its own line:",
-                string.Empty,
-                "  <file path=\"relative/path/to/file\" />",
-                string.Empty,
-                "Or with a description: <file path=\"relative/path/to/file\">description</file>",
-                "The path must be relative to the workspace root. Only reference files that actually exist on disk after you have created or modified them.",
-                "Multiple file tags are allowed in a single response. Without this tag, the file will NOT be delivered to the user.",
-                "Do NOT wrap the file tag in a code block or backticks — it must appear as raw text.",
-            ]);
+        string timezone = string.IsNullOrWhiteSpace(messageLoopOptions.Timezone)
+            ? "UTC"
+            : messageLoopOptions.Timezone;
+        DateTimeOffset now = ResolveNow(timezone);
+
+        List<InstructionPart> parts = [];
+
+        string? resolvedName = await ParseAgentNameAsync(sourceWorkspaceDirectory, cancellationToken);
+        string identityName = resolvedName ?? assistantIdentityOptions.Name ?? "an assistant";
+        parts.Add(new InstructionPart(
+            "NETCLAW_IDENTITY_PREAMBLE.md",
+            WrapWithHeader(
+                "NETCLAW_IDENTITY_PREAMBLE.md",
+                $"You are {identityName}, a personal assistant running in the NetClaw platform. The following documents define your personality, context, and operational guidelines."),
+            isGenerated: true,
+            IsCore: true));
+
+        if (sessionScope != SessionScope.Subagent)
+        {
+            await TryAddExistingFileAsync(parts, sourceWorkspaceDirectory, "BOOTSTRAP.md", BootstrapMaxChars, cancellationToken);
+        }
+
+        await AddRequiredFileOrDefaultAsync(parts, sourceWorkspaceDirectory, "SOUL.md", SoulMaxChars, DefaultSoul, cancellationToken);
+
+        if (sessionScope is SessionScope.Private or SessionScope.Group)
+        {
+            await TryAddExistingFileAsync(parts, sourceWorkspaceDirectory, "IDENTITY.md", IdentityMaxChars, cancellationToken);
+            if (sessionScope == SessionScope.Private)
+            {
+                await TryAddExistingFileAsync(parts, sourceWorkspaceDirectory, "USER.md", UserMaxChars, cancellationToken);
+            }
+
+            await AddRequiredFileOrDefaultAsync(parts, sourceWorkspaceDirectory, "AGENTS.md", AgentsMaxChars, DefaultAgents, cancellationToken);
+            await TryAddExistingFileAsync(parts, sourceWorkspaceDirectory, "TOOLS.md", ToolsMaxChars, cancellationToken);
+        }
+        else
+        {
+            await TryAddExistingFileAsync(parts, sourceWorkspaceDirectory, "IDENTITY.md", IdentityMaxChars, cancellationToken);
+        }
+
+        if (sessionScope == SessionScope.Private)
+        {
+            await TryAddExistingFileAsync(parts, sourceWorkspaceDirectory, "MEMORY.md", MemoryMaxChars, cancellationToken);
+
+            string memoryDirectory = Path.Combine(sourceWorkspaceDirectory, "memory");
+            string today = now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            string yesterday = now.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+            await TryAddExistingFileAsync(parts, memoryDirectory, $"{today}.md", DailyMemoryMaxChars, cancellationToken, $"memory/{today}.md", isDailyMemory: true);
+            await TryAddExistingFileAsync(parts, memoryDirectory, $"{yesterday}.md", DailyMemoryMaxChars, cancellationToken, $"memory/{yesterday}.md", isDailyMemory: true);
+        }
+
+        string runtimeContent = GenerateRuntimeContext(group, sourceWorkspaceDirectory, now, timezone);
+        parts.Add(new InstructionPart(
+            "NETCLAW_RUNTIME.md",
+            WrapWithHeader("NETCLAW_RUNTIME.md", Truncate(runtimeContent, RuntimeMaxChars)),
+            isGenerated: true,
+            IsCore: true));
+
+        ApplyTotalCap(parts, TotalInjectedCharsMax);
 
         AgentInstructionSet instructionSet = new(
-            [new AgentInstructionDocument("AGENTS.md", instructions, true)],
+            parts
+                .Where(static p => !string.IsNullOrWhiteSpace(p.Content))
+                .Select(static p => new AgentInstructionDocument(p.RelativePath, p.Content, p.IsGenerated))
+                .ToArray(),
             RuntimeAppendix: input.IsScheduledTask
                 ? "This execution originated from a scheduled task."
                 : "This execution originated from an interactive group flow.");
 
         await MaterializeInstructionsAsync(workingDirectory, workspaceDirectory, instructionSet, cancellationToken);
 
-        AgentWorkspaceContext context = new(
+        return new AgentWorkspaceContext(
             group.Folder,
             workingDirectory,
             sessionDirectory,
@@ -85,8 +187,203 @@ public sealed class NetClawAgentWorkspaceBuilder : IAgentWorkspaceBuilder
             group.IsMain,
             additionalDirectories,
             instructionSet);
+    }
 
-        return context;
+    private async Task AddRequiredFileOrDefaultAsync(
+        List<InstructionPart> parts,
+        string rootDirectory,
+        string fileName,
+        int maxChars,
+        string fallback,
+        CancellationToken cancellationToken)
+    {
+        string path = Path.Combine(rootDirectory, fileName);
+        if (fileSystem.FileExists(path))
+        {
+            string content = await fileSystem.ReadAllTextAsync(path, cancellationToken);
+            parts.Add(new InstructionPart(fileName, WrapWithHeader(fileName, Truncate(content, maxChars)), isGenerated: false, IsCore: true));
+            return;
+        }
+
+        parts.Add(new InstructionPart(fileName, WrapWithHeader(fileName, Truncate(fallback, maxChars)), isGenerated: true, IsCore: true));
+    }
+
+    private async Task TryAddExistingFileAsync(
+        List<InstructionPart> parts,
+        string rootDirectory,
+        string fileName,
+        int maxChars,
+        CancellationToken cancellationToken,
+        string? relativePath = null,
+        bool isDailyMemory = false)
+    {
+        string path = Path.Combine(rootDirectory, fileName);
+        if (!fileSystem.FileExists(path))
+        {
+            return;
+        }
+
+        string content = await fileSystem.ReadAllTextAsync(path, cancellationToken);
+        string name = relativePath ?? fileName;
+        parts.Add(new InstructionPart(name, WrapWithHeader(name, Truncate(content, maxChars)), isGenerated: false, IsDailyMemory: isDailyMemory));
+    }
+
+    private async Task<string?> ParseAgentNameAsync(string workspaceDirectory, CancellationToken cancellationToken)
+    {
+        string identityPath = Path.Combine(workspaceDirectory, "IDENTITY.md");
+        if (!fileSystem.FileExists(identityPath))
+        {
+            return null;
+        }
+
+        string content = await fileSystem.ReadAllTextAsync(identityPath, cancellationToken);
+        Match match = Regex.Match(content, @"^\s*-?\s*\*\*Name:\*\*\s*(.*)$", RegexOptions.Multiline);
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        string candidate = match.Groups[1].Value.Trim();
+        candidate = StripWrapping(candidate);
+
+        if (string.IsNullOrWhiteSpace(candidate))
+        {
+            return null;
+        }
+
+        string normalized = candidate.Trim().ToLowerInvariant();
+        if (normalized is "pick something you like"
+            or "tbd"
+            or "todo"
+            or "(none)"
+            or "none"
+            or "n/a"
+            or "...")
+        {
+            return null;
+        }
+
+        return candidate;
+    }
+
+    private static string StripWrapping(string value)
+    {
+        string result = value.Trim();
+
+        if (result.StartsWith("*(", StringComparison.Ordinal) && result.EndsWith(")*", StringComparison.Ordinal) && result.Length > 4)
+        {
+            result = result[2..^2].Trim();
+        }
+
+        if (result.Length >= 2)
+        {
+            if ((result[0] == '"' && result[^1] == '"')
+                || (result[0] == '\'' && result[^1] == '\'')
+                || (result[0] == '`' && result[^1] == '`')
+                || (result[0] == '(' && result[^1] == ')'))
+            {
+                result = result[1..^1].Trim();
+            }
+        }
+
+        return result;
+    }
+
+    private static DateTimeOffset ResolveNow(string timezone)
+    {
+        try
+        {
+            TimeZoneInfo zone = TimeZoneInfo.FindSystemTimeZoneById(timezone);
+            return TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, zone);
+        }
+        catch
+        {
+            return DateTimeOffset.UtcNow;
+        }
+    }
+
+    private static string GenerateRuntimeContext(RegisteredGroup group, string workspaceDirectory, DateTimeOffset now, string timezone)
+    {
+        return string.Join(
+            Environment.NewLine,
+            [
+                "# NetClaw Runtime Context",
+                string.Empty,
+                "## Workspace",
+                $"You're working in the {group.Name} workspace. Your workspace directory is: {workspaceDirectory}",
+                string.Empty,
+                "## Current Time",
+                $"{now:yyyy-MM-dd HH:mm:ss zzz} ({timezone})",
+                string.Empty,
+                "## Available Tools",
+                "You have access to tools for scheduling, group management, and messaging.",
+                string.Empty,
+                "## File Operations",
+                "When referencing file content, use file tags: <file path=\"relative/path\"/>.",
+                "Paths are relative to the workspace root.",
+                string.Empty,
+                "## Memory File Conventions",
+                "- Daily logs: memory/YYYY-MM-DD.md",
+                "- Long-term memory: MEMORY.md",
+                "- Create/update these files directly when useful"
+            ]);
+    }
+
+    private static string WrapWithHeader(string filename, string content)
+    {
+        int padLength = Math.Max(0, HeaderWidth - filename.Length - 8);
+        string header = "====== " + filename + " " + new string('=', padLength);
+        return header + Environment.NewLine + content;
+    }
+
+    private static string Truncate(string content, int maxChars)
+    {
+        if (string.IsNullOrEmpty(content) || content.Length <= maxChars)
+        {
+            return content;
+        }
+
+        return content[..maxChars];
+    }
+
+    private static void ApplyTotalCap(List<InstructionPart> parts, int maxChars)
+    {
+        int total = parts.Sum(static p => p.Content.Length);
+        if (total <= maxChars)
+        {
+            return;
+        }
+
+        foreach (InstructionPart dailyPart in parts.Where(static p => p.IsDailyMemory).OrderBy(static p => p.RelativePath, StringComparer.Ordinal))
+        {
+            if (total <= maxChars)
+            {
+                return;
+            }
+
+            total -= dailyPart.Content.Length;
+            dailyPart.Content = string.Empty;
+        }
+
+        if (total <= maxChars)
+        {
+            return;
+        }
+
+        InstructionPart? memoryPart = parts.FirstOrDefault(static p => p.RelativePath == "MEMORY.md");
+        if (memoryPart is null || string.IsNullOrEmpty(memoryPart.Content))
+        {
+            return;
+        }
+
+        int overflow = total - maxChars;
+        if (overflow >= memoryPart.Content.Length)
+        {
+            memoryPart.Content = string.Empty;
+            return;
+        }
+
+        memoryPart.Content = memoryPart.Content[..^overflow];
     }
 
     private async Task MaterializeInstructionsAsync(
@@ -97,6 +394,11 @@ public sealed class NetClawAgentWorkspaceBuilder : IAgentWorkspaceBuilder
     {
         foreach (AgentInstructionDocument document in instructionSet.Documents)
         {
+            if (!document.IsGenerated)
+            {
+                continue;
+            }
+
             string workingPath = ResolveDocumentPath(workingDirectory, document.RelativePath);
             string workspacePath = ResolveDocumentPath(workspaceDirectory, document.RelativePath);
 
@@ -112,11 +414,7 @@ public sealed class NetClawAgentWorkspaceBuilder : IAgentWorkspaceBuilder
                 fileSystem.CreateDirectory(workspaceParent);
             }
 
-            if (document.IsGenerated || !fileSystem.FileExists(workingPath))
-            {
-                await fileSystem.WriteAllTextAsync(workingPath, document.Content, cancellationToken);
-            }
-
+            await fileSystem.WriteAllTextAsync(workingPath, document.Content, cancellationToken);
             await fileSystem.WriteAllTextAsync(workspacePath, document.Content, cancellationToken);
         }
     }
@@ -133,5 +431,27 @@ public sealed class NetClawAgentWorkspaceBuilder : IAgentWorkspaceBuilder
         }
 
         return fullPath;
+    }
+
+    private sealed class InstructionPart
+    {
+        public InstructionPart(string relativePath, string content, bool isGenerated, bool IsCore = false, bool IsDailyMemory = false)
+        {
+            RelativePath = relativePath;
+            Content = content;
+            IsGenerated = isGenerated;
+            this.IsCore = IsCore;
+            this.IsDailyMemory = IsDailyMemory;
+        }
+
+        public string RelativePath { get; }
+
+        public string Content { get; set; }
+
+        public bool IsGenerated { get; }
+
+        public bool IsCore { get; }
+
+        public bool IsDailyMemory { get; }
     }
 }

@@ -20,7 +20,7 @@ public sealed class IpcCommandProcessorTests
         await processor.ProcessAsync(
             new GroupFolder("main"),
             isMainGroup: true,
-            new IpcRegisterGroupCommand(new ChatJid("group@jid"), "Team", new GroupFolder("team"), "@Andy", RequiresTrigger: true, IsMain: false, ContainerConfig: null));
+            new IpcRegisterGroupCommand(new ChatJid("group@jid"), "Team", new GroupFolder("team"), "@assistant", RequiresTrigger: true, IsMain: false, ContainerConfig: null));
 
         Assert.Single(groupRepository.Groups);
     }
@@ -35,7 +35,7 @@ public sealed class IpcCommandProcessorTests
         await processor.ProcessAsync(
             new GroupFolder("team"),
             isMainGroup: false,
-            new IpcRegisterGroupCommand(new ChatJid("group@jid"), "Team", new GroupFolder("team"), "@Andy", RequiresTrigger: true, IsMain: false, ContainerConfig: null));
+            new IpcRegisterGroupCommand(new ChatJid("group@jid"), "Team", new GroupFolder("team"), "@assistant", RequiresTrigger: true, IsMain: false, ContainerConfig: null));
 
         Assert.Empty(groupRepository.Groups);
     }
@@ -45,7 +45,7 @@ public sealed class IpcCommandProcessorTests
     {
         InMemoryGroupRepository groupRepository = new(new Dictionary<ChatJid, RegisteredGroup>
         {
-            [new ChatJid("team@jid")] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow)
+            [new ChatJid("team@jid")] = new RegisteredGroup("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow)
         });
         InMemoryTaskRepository taskRepository = new();
         IpcCommandProcessor processor = new(groupRepository, taskRepository, (_, _, _) => Task.CompletedTask);
@@ -65,7 +65,7 @@ public sealed class IpcCommandProcessorTests
         List<string> messages = [];
         InMemoryGroupRepository groupRepository = new(new Dictionary<ChatJid, RegisteredGroup>
         {
-            [new ChatJid("team@jid")] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow)
+            [new ChatJid("team@jid")] = new RegisteredGroup("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow)
         });
         IpcCommandProcessor processor = new(groupRepository, new InMemoryTaskRepository(), (jid, text, _) =>
         {

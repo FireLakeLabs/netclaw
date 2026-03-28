@@ -57,7 +57,7 @@ public sealed class FileSystemIpcWatcherTests
                 fileSystem,
                 new InMemoryGroupRepository(new Dictionary<ChatJid, RegisteredGroup>
                 {
-                    [new ChatJid("team@jid")] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow)
+                    [new ChatJid("team@jid")] = new RegisteredGroup("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow)
                 }),
                 processor,
                 NullLogger<FileSystemIpcWatcher>.Instance);
@@ -101,7 +101,7 @@ public sealed class FileSystemIpcWatcherTests
                   "jid": "child@jid",
                   "name": "Child",
                   "folder": "child",
-                  "trigger": "@Andy",
+                  "trigger": "@assistant",
                   "requires_trigger": true,
                   "is_main": false,
                   "containerConfig": {
@@ -123,7 +123,7 @@ public sealed class FileSystemIpcWatcherTests
                 fileSystem,
                 new InMemoryGroupRepository(new Dictionary<ChatJid, RegisteredGroup>
                 {
-                    [new ChatJid("main@jid")] = new RegisteredGroup("Main", new GroupFolder("main"), "@Andy", DateTimeOffset.UtcNow, isMain: true)
+                    [new ChatJid("main@jid")] = new RegisteredGroup("Main", new GroupFolder("main"), "@assistant", DateTimeOffset.UtcNow, isMain: true)
                 }),
                 processor,
                 NullLogger<FileSystemIpcWatcher>.Instance);

@@ -64,7 +64,7 @@ Register a chat:
 dotnet run --project src/FireLakeLabs.NetClaw.Setup -- --step register \
   --jid team@jid \
   --name Team \
-  --trigger @Andy \
+  --trigger @assistant \
   --folder team \
   --no-trigger-required
 ```

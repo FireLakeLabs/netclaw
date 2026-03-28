@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+echo "Running format verification..."
+dotnet format FireLakeLabs.NetClaw.slnx --verify-no-changes --no-restore

@@ -1,0 +1,87 @@
+Let me dig into all of this systematically. I'll start by fetching the OpenClaw reference docs, your NetClaw repo, and the issue.Now let me fetch the NetClaw issue and repo:Now let me look at the current NetClaw codebase to understand what exists today:Let me also grab the OpenClaw onboarding reference since you want to include that:Let me check the source where "Andy" lives:Alright, I've now read through all eight OpenClaw template docs, the default AGENTS.md, the onboarding wizard reference, your issue #30, and the NetClaw repo. Here's my honest assessment.
+
+---
+
+**Short answer: Issue #30 is on the right track and gets the core diagnosis right, but it has meaningful gaps relative to what OpenClaw actually does. It will get you partway there but won't replicate the experience you're after without amendments.**
+
+Let me break this down.
+
+## What the issue gets right
+
+The diagnosis is spot-on: NetClaw's personality problem is a prompt problem. The only thing injected today is operational plumbing — workspace paths, file-tag syntax, tool registration. There's zero identity, zero personality, zero user context. The fix of loading multiple layered files from the workspace, personality before operations, user-editable over auto-generated — that's exactly the right architectural move.
+
+The proposed load order (SOUL → USER → MEMORY → AGENTS), the disk-first-with-fallback-defaults pattern, the `isGenerated` distinction to protect user files from overwriting — all good. The provider-neutrality note is also important and correct.
+
+## The gaps
+
+Here's where the issue diverges from what OpenClaw actually does, roughly in order of importance:
+
+**1. IDENTITY.md is completely missing.**
+
+OpenClaw separates SOUL.md (values, behavioral philosophy) from IDENTITY.md (concrete metadata: name, creature type, vibe descriptor, emoji, avatar). Your issue's proposed SOUL.md default conflates both — it bakes personality style guidance directly into the soul file but has no structured place for the agent's actual identity facts. This matters because IDENTITY.md is where the agent's *name* lives. Which leads directly to...
+
+**2. The "Andy" problem isn't just a cosmetic fix.**
+
+Your README shows `--trigger @Andy` in the setup example, so Andy is likely a hardcoded default in the setup CLI or configuration somewhere. But the deeper issue is: in OpenClaw, the agent *doesn't have a name until onboarding happens*. The name emerges from the BOOTSTRAP conversation and lands in IDENTITY.md. If you just remove "Andy" and hardcode a different name, you've moved the problem, not solved it. The name should either come from IDENTITY.md (populated during onboarding) or the system should operate without a hardcoded agent name until the user sets one. The trigger word (`@whatever`) is separate from the agent's personality name and should be decoupled.
+
+**3. Onboarding (BOOTSTRAP.md) isn't a "nice to have" — it's the mechanism that makes everything else work.**
+
+You already said you want to include this, and you're right to. In OpenClaw, BOOTSTRAP.md is the thing that populates IDENTITY.md and USER.md on first run. Without it, you're asking users to manually create and edit markdown files before the agent feels like a person. That's a developer-facing workflow, not a user-facing one. The OpenClaw onboarding flow is deliberately natural and conversational: the agent says something like "Hey, I just came online. Who am I? Who are you?" and then the two of them figure out identity, vibe, name, and user preferences together. Then the agent writes the files and deletes BOOTSTRAP.md. First-run detection is simple: if BOOTSTRAP.md exists in the workspace, run it. When it's done, delete it.
+
+**4. Daily memory logs are missing.**
+
+The issue mentions MEMORY.md but doesn't mention OpenClaw's dual-layer memory system. OpenClaw uses `memory/YYYY-MM-DD.md` for raw daily logs (what happened today) alongside MEMORY.md for curated long-term memory (distilled insights the agent promotes from the daily logs). Your issue only has the curated layer. Without daily logs, the agent has no scratchpad for the current session's context, and no raw material to curate from.
+
+**5. Session startup protocol is underspecified.**
+
+OpenClaw's AGENTS.md contains an explicit, ordered startup checklist that the agent is told to execute silently at the beginning of every session: read SOUL.md, read USER.md, read today + yesterday's daily memory files, read MEMORY.md. The instruction is direct: "Don't ask permission. Just do it." Your issue describes loading these files in the workspace builder (infrastructure layer), but doesn't specify that the *agent itself* should be instructed to do this as a behavioral directive in the operational AGENTS.md. Both layers matter — the infrastructure loads the files into context, and the behavioral instruction tells the agent what to prioritize and how to orient itself.
+
+**6. The proposed SOUL.md default template reads more like a style guide than a soul.**
+
+OpenClaw's SOUL.md is philosophical and spare. It talks about core truths, boundaries, vibe, and continuity in broad strokes. Your proposed default is more prescriptive — it reads like communication guidelines. That's fine content, but it belongs more in the AGENTS.md behavioral section. The soul file should feel like values the agent internalizes, not rules it follows. Compare OpenClaw's "Be the assistant you'd actually want to talk to" with your proposal's "Use natural conversational language. Contractions are fine." The first one shapes character; the second one is a formatting directive.
+
+**7. Agent self-modification of files isn't mentioned.**
+
+OpenClaw explicitly tells the agent that workspace files are living documents it should evolve. The SOUL.md template ends with "This file is yours to evolve. As you learn who you are, update it." The IDENTITY.md says "This isn't just metadata. It's the start of figuring out who you are." The AGENTS.md says to update memory files, update SOUL.md, document mistakes. Your issue treats the files as read-only configuration that the infrastructure loads. The agent also needs to be told it *can and should* write to these files (with appropriate guardrails — tell the user if you change SOUL.md).
+
+**8. Context isolation for multi-group scenarios is absent.**
+
+OpenClaw's AGENTS.md specifies that MEMORY.md should NOT be loaded in shared contexts (group chats, Discord, sessions with other people) — only in the main/direct session. This is a security concern: the curated memory contains personal context that shouldn't leak to a group workspace. Since NetClaw supports multiple groups and Slack channels, this matters. The issue doesn't address which files load in which group context.
+
+**9. TOOLS.md and HEARTBEAT.md aren't included.**
+
+TOOLS.md (environment-specific notes like SSH hosts, device names, preferences) may be relevant depending on how NetClaw's tool surface evolves. HEARTBEAT.md probably maps less directly to NetClaw's architecture since you're using polling rather than OpenClaw's daemon model, but the concept of configurable periodic background tasks could still be useful.
+
+## What I'd suggest for the revised issue
+
+Restructure the issue into these work items:
+
+**Phase 1 — Identity layer (the personality fix):**
+- Add SOUL.md with a default template closer to OpenClaw's philosophical tone
+- Add IDENTITY.md with the structured fields (name, creature, vibe, emoji)
+- Add USER.md with user context fields
+- Load all three in the workspace builder before operational AGENTS.md
+- Rewrite AGENTS.md tone as proposed (but include the session startup protocol as a behavioral directive, not just an infrastructure concern)
+- Remove the hardcoded "Andy" default — agent name comes from IDENTITY.md or is absent until onboarding
+
+**Phase 2 — Onboarding (the first-run experience):**
+- Add BOOTSTRAP.md template
+- On first workspace creation, seed BOOTSTRAP.md alongside the default SOUL.md
+- When the agent detects BOOTSTRAP.md, it runs the onboarding conversation to populate IDENTITY.md and USER.md, reviews SOUL.md with the user, then deletes BOOTSTRAP.md
+- This is what makes the whole system feel alive instead of feeling like config files
+
+**Phase 3 — Memory (continuity across sessions):**
+- Add MEMORY.md support (curated, long-term, agent-writable)
+- Add daily log convention: `memory/YYYY-MM-DD.md`
+- Add behavioral instructions for the agent to maintain both layers
+- Add context isolation rules (MEMORY.md loads in direct sessions only, not group channels)
+
+**Phase 4 — Operational polish:**
+- Move file-tag instructions out of AGENTS.md prime real estate (as proposed)
+- Add TOOLS.md for environment-specific notes
+- Add agent self-modification instructions (the agent can update its own files, but should tell the user when it changes SOUL.md)
+- Consider a `bootstrapMaxChars` or similar cap on total injected content
+
+The "Andy" fix should happen in Phase 1 as part of the identity layer work. Grep the codebase for anywhere "Andy" appears as a default — it's likely in setup CLI defaults and possibly in configuration seeding.
+
+That's my honest read. The issue is a solid foundation and the thinking is right, but it needs IDENTITY.md, onboarding, daily memory logs, the session startup behavioral directive, and the agent self-modification concept to actually deliver the OpenClaw-like experience rather than just a better-formatted system prompt.

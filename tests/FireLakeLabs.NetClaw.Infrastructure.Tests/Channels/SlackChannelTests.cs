@@ -39,7 +39,7 @@ public sealed class SlackChannelTests
                 Enabled = true,
                 BotToken = "xoxb-test",
                 AppToken = "xapp-test",
-                MentionReplacement = "@Andy",
+                MentionReplacement = "@assistant",
                 WorkingIndicatorText = "Evaluating..."
             },
             client,
@@ -67,7 +67,7 @@ public sealed class SlackChannelTests
         Assert.Equal("general", metadata[0].Name);
         Assert.True(metadata[0].IsGroup);
         Assert.Single(messages);
-        Assert.Equal("@Andy hello", messages[0].Message.Content);
+        Assert.Equal("@assistant hello", messages[0].Message.Content);
         Assert.True(channel.Owns(new ChatJid("C12345")));
 
         await channel.DisconnectAsync();

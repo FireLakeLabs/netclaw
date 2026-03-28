@@ -27,7 +27,7 @@ public sealed class ContainerExecutionService : IContainerExecutionService
         Func<ContainerStreamEvent, CancellationToken, Task>? onStreamEvent = null,
         CancellationToken cancellationToken = default)
     {
-        AgentWorkspaceContext workspace = await workspaceBuilder.BuildAsync(request.Group, request.Input, cancellationToken);
+        AgentWorkspaceContext workspace = await workspaceBuilder.BuildAsync(request.Group, request.Input, request.Input.SessionScope, cancellationToken);
         IReadOnlyList<AgentToolDefinition> tools = toolRegistry.GetTools(request.Group, request.Input);
 
         AgentExecutionRequest agentRequest = new(

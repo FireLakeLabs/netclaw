@@ -11,7 +11,7 @@ public sealed class RegisteredGroupTests
         RegisteredGroup group = new(
             name: "Main",
             folder: new GroupFolder("main"),
-            trigger: "@Andy",
+            trigger: "@assistant",
             addedAt: DateTimeOffset.UtcNow,
             requiresTrigger: true,
             isMain: true);
@@ -24,14 +24,14 @@ public sealed class RegisteredGroupTests
     public void Constructor_RejectsBlankName()
     {
         Assert.Throws<ArgumentException>(
-            () => new RegisteredGroup(" ", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow));
+            () => new RegisteredGroup(" ", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow));
     }
 
     [Fact]
     public void Constructor_PreservesContainerConfiguration()
     {
         ContainerConfig containerConfig = new([new AdditionalMount("/tmp")], TimeSpan.FromMinutes(5));
-        RegisteredGroup group = new("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow, containerConfig);
+        RegisteredGroup group = new("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow, containerConfig);
 
         Assert.Equal(containerConfig, group.ContainerConfig);
     }

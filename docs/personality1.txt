@@ -1,0 +1,57 @@
+My assessment: **not yet**. Issue #30 will make NetClaw less flat, but by itself it will not reproduce what makes OpenClaw feel like “someone” instead of a tool wrapper. The direction is good; the scope is too small and a couple of the proposed mechanics point the wrong way. ([GitHub][1])
+
+What OpenClaw is actually doing is more layered than “add a SOUL file.” Its runtime builds a system prompt for every run, injects a fixed set of workspace files under project context, and treats the workspace as the agent’s home and memory source. The documented injected set is `AGENTS.md`, `SOUL.md`, `TOOLS.md`, `IDENTITY.md`, `USER.md`, `HEARTBEAT.md`, `BOOTSTRAP.md` for brand-new workspaces, and optional `MEMORY.md`; subagents get a smaller subset. OpenClaw also has a first-run bootstrap ritual that seeds files, asks the user who the agent is and who the human is, writes identity and preferences, and then deletes `BOOTSTRAP.md` so it only runs once. ([OpenClaw][2])
+
+So the honest answer to “will this change accomplish what I want?” is **no, not fully**. The honest answer to “are we on the right path?” is **yes**. Adding `SOUL.md`, `USER.md`, and multi-document loading is a real step forward, and NetClaw’s current implementation really is just a single generated `AGENTS.md` concatenated into the system message today, with the assistant name coming from config and the prompt assembled in document order. That means your proposed change would have visible impact. But it would still miss several parts of the OpenClaw pattern. ([GitHub][3])
+
+The biggest gap is that your issue leaves **onboarding/bootstrap as optional future work**, while OpenClaw treats first-run identity formation as core, not garnish. Its bootstrap flow is not just decorative; it is how the agent stops being a canned default and starts being *this* assistant for *this* user. If you want NetClaw to feel less generic, I would not defer onboarding. I would make it part of this change. ([GitHub][1])
+
+Second, you are missing **`IDENTITY.md`**. OpenClaw separates “who am I?” from “how do I behave?” `IDENTITY.md` carries name, creature/type, vibe, emoji, avatar; `SOUL.md` carries tone, boundaries, continuity, and behavioral philosophy. Keeping those separate is useful. It avoids stuffing the assistant’s name and self-concept into the same file as style rules, and it gives you a clean place to kill “Andy” permanently. ([OpenClaw][4])
+
+Third, you are also missing **`TOOLS.md`**. That file is easy to underestimate, but it is part of the OpenClaw pattern: reusable behavior lives in shared skills/instructions, while environment-specific notes live in a local file. In your issue you suggest moving file-tag instructions into `TOOLS.md` or a separate document; that instinct is good. Right now NetClaw’s generated `AGENTS.md` spends a lot of its prime real estate on file-tag syntax, and OpenClaw explicitly keeps local operational specifics separate from broader persona docs. ([GitHub][1])
+
+Fourth, the **memory model in the issue is too thin**. OpenClaw uses two layers: daily notes under `memory/YYYY-MM-DD.md` and curated long-term memory in `MEMORY.md`. Your issue adds only `MEMORY.md`. That will help continuity, but it will not replicate the “wake up fresh, recover recent context, then fall back to durable memory” pattern. If you want the OpenClaw feel, you need both layers. ([OpenClaw][5])
+
+Fifth, the issue as written appears to **load `MEMORY.md` unconditionally**, and that is a problem. OpenClaw’s own instructions say long-term memory is for the main private session and should not be loaded in shared/group contexts. There is also an OpenClaw bug report showing how unconditional injection of owner context can leak private information to non-owner senders on public channels. NetClaw already knows whether a group is main or not, so you should use that. I would treat `MEMORY.md` and probably most of `USER.md` as private-by-default, not universal context. ([OpenClaw][5])
+
+Sixth, I do **not** think you should keep `AGENTS.md` as an auto-generated file if your goal is specifically to replicate the OpenClaw model. In OpenClaw, `AGENTS.md` is the workspace’s operating doctrine. In NetClaw today, `AGENTS.md` is generated boilerplate and overwritten. That means the most important “how I operate” document is still host-owned, not user-owned. My recommendation is to split this in two: keep a generated internal file such as `_netclaw/OPERATIONS.md` or `NETCLAW.generated.md` for platform mechanics, and make `AGENTS.md` user-editable and persistent. That would be much closer to OpenClaw’s design and would give you a cleaner boundary between persona, user preference, and runtime plumbing. ([OpenClaw][5])
+
+Seventh, your issue snippet uses **`workingDirectory` as the source of truth** for `SOUL.md`, `USER.md`, and `MEMORY.md`. I would reconsider that. NetClaw’s builder already distinguishes `workingDirectory`, `sessionDirectory`, and `workspaceDirectory`, and OpenClaw’s docs are pretty explicit that the workspace is the agent’s home and memory source. If you want OpenClaw-like semantics, the editable identity/memory files should live under the agent workspace, and anything mirrored elsewhere should be a runtime convenience, not the authoritative copy. ([GitHub][3])
+
+Eighth, I would avoid copying OpenClaw’s **literal startup mechanics** too closely. OpenClaw’s public docs are coherent, but its live behavior shows rough edges: bootstrap files can be redundantly re-read even when already injected, `HEARTBEAT.md` has been loaded on every message even though it is rarely needed, current date handling has caused startup confusion, and one provider path had bootstrap injection inconsistencies. That argues for copying the principles, not the exact behavior. In NetClaw, I would have the runtime itself decide what startup context to attach, rather than telling the model “go read these files” and hoping it does that efficiently. ([GitHub][6])
+
+So here is the path I would take instead.
+
+1. **Make this a workspace-context overhaul, not just a SOUL feature.**
+   Add first-class support for `AGENTS.md`, `SOUL.md`, `IDENTITY.md`, `USER.md`, `TOOLS.md`, optional `HEARTBEAT.md`, `BOOTSTRAP.md`, `MEMORY.md`, and daily memory files under `memory/`. Keep bootstrap file size caps and total injected-size caps from the start. OpenClaw does this because these files consume context on every run; without caps, memory grows until personality turns into token tax. ([OpenClaw][2])
+
+2. **Do onboarding now, not later.**
+   On first workspace creation, seed `BOOTSTRAP.md`, `IDENTITY.md`, `USER.md`, `SOUL.md`, and `TOOLS.md`. The first reply path should be an onboarding ritual that writes the files, then deletes `BOOTSTRAP.md`. That is closer to OpenClaw’s “birth certificate” model and solves the “Andy” problem at the right layer. ([OpenClaw][7])
+
+3. **Split user-owned instructions from generated internals.**
+   Do not overwrite `SOUL.md`, `USER.md`, `IDENTITY.md`, `TOOLS.md`, or `AGENTS.md` once they exist. Put generated runtime mechanics in a separate file. Your current builder already materializes generated docs and overwrites them when `IsGenerated` is true; that is fine for an internal file, but I would not use that mechanism for the main behavioral docs. ([GitHub][3])
+
+4. **Scope memory and user context by session type.**
+   Main/private session: inject or expose `USER.md`, `MEMORY.md`, and allow daily memory loading. Group/public/non-owner contexts: heavily restrict or omit those files. Subagent contexts: keep a smaller set. OpenClaw’s docs and bugs are a pretty good warning here. ([OpenClaw][5])
+
+5. **Let the runtime assemble startup context explicitly.**
+   For example: inject persona files directly, compute today/yesterday using the configured timezone, and attach the daily memory snippets or a resolved startup appendix on first turn. That is better than relying on the model to discover the date and decide what to read. ([GitHub][8])
+
+6. **Keep the system prompt scaffold small but intentional.**
+   OpenClaw’s system prompt is system-owned and structured; the injected docs are only one section of it. NetClaw does not need all of OpenClaw’s machinery, but it should at least have a stable scaffold for tool rules, privacy/external-action rules, workspace location, current time/timezone, and the injected workspace docs. A one-line identity preamble helps, but it is not the main event. ([OpenClaw][2])
+
+On “Andy”: yes, it should go. Right now it is hardcoded as the default assistant name in `AssistantIdentityOptions`, repeated in the sample config, used in Slack mention replacement, and shown in the README registration example. That means even if you improve the prompt, the system still starts from a baked-in identity you do not actually want. I would remove the default entirely if you can, or fall back to something neutral like `assistant` until onboarding or setup assigns a name. Also make mention replacement and default trigger derive from the configured assistant name instead of duplicating a separate hardcoded string. ([GitHub][9])
+
+So the shortest honest conclusion is this: **issue #30 is a good starter, but it is not enough to get you the OpenClaw effect.** It will improve tone. It will not yet give you the identity formation, memory discipline, privacy boundaries, or workspace ownership model that make OpenClaw feel the way it does. If you want NetClaw to actually inherit the OpenClaw principles, I would expand this into a broader “workspace identity and memory system” change and include onboarding in the same effort. ([GitHub][1])
+
+If useful, I can turn this into a revised implementation plan or a rewritten GitHub issue with acceptance criteria and test cases.
+
+[1]: https://github.com/FireLakeLabs/netclaw/issues/30 "https://github.com/FireLakeLabs/netclaw/issues/30"
+[2]: https://docs.openclaw.ai/concepts/system-prompt "https://docs.openclaw.ai/concepts/system-prompt"
+[3]: https://github.com/FireLakeLabs/netclaw/blob/main/src/FireLakeLabs.NetClaw.Infrastructure/Runtime/Agents/NetClawAgentWorkspaceBuilder.cs "https://github.com/FireLakeLabs/netclaw/blob/main/src/FireLakeLabs.NetClaw.Infrastructure/Runtime/Agents/NetClawAgentWorkspaceBuilder.cs"
+[4]: https://docs.openclaw.ai/reference/templates/IDENTITY "https://docs.openclaw.ai/reference/templates/IDENTITY"
+[5]: https://docs.openclaw.ai/reference/templates/AGENTS "https://docs.openclaw.ai/reference/templates/AGENTS"
+[6]: https://github.com/openclaw/openclaw/issues/13968 "https://github.com/openclaw/openclaw/issues/13968"
+[7]: https://docs.openclaw.ai/reference/templates/BOOTSTRAP "https://docs.openclaw.ai/reference/templates/BOOTSTRAP"
+[8]: https://github.com/openclaw/openclaw/issues/31893 "https://github.com/openclaw/openclaw/issues/31893"
+[9]: https://raw.githubusercontent.com/FireLakeLabs/netclaw/refs/heads/main/src/FireLakeLabs.NetClaw.Infrastructure/Configuration/AssistantIdentityOptions.cs "https://raw.githubusercontent.com/FireLakeLabs/netclaw/refs/heads/main/src/FireLakeLabs.NetClaw.Infrastructure/Configuration/AssistantIdentityOptions.cs"

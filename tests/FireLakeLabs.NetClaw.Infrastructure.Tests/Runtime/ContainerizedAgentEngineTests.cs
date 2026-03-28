@@ -53,12 +53,12 @@ public sealed class ContainerizedAgentEngineTests : IDisposable
     public void BuildMounts_IncludesGroupAndSessionAndIpcDirectories()
     {
         ContainerizedAgentEngine engine = CreateEngine();
-        RegisteredGroup group = new("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow);
+        RegisteredGroup group = new("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow);
 
         AgentExecutionRequest request = new(
             AgentProviderKind.Copilot,
             group,
-            new ContainerInput("Prompt", null, new GroupFolder("team"), new ChatJid("team@jid"), false, false, "Andy"),
+            new ContainerInput("Prompt", null, new GroupFolder("team"), new ChatJid("team@jid"), false, false, "assistant"),
             new AgentWorkspaceContext(group.Folder, "/workspace/group", "/workspace/sessions/team", "/workspace/runtime/team", false, [], new AgentInstructionSet([])),
             null,
             []);
@@ -77,12 +77,12 @@ public sealed class ContainerizedAgentEngineTests : IDisposable
         Directory.CreateDirectory(globalDir);
 
         ContainerizedAgentEngine engine = CreateEngine();
-        RegisteredGroup group = new("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow);
+        RegisteredGroup group = new("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow);
 
         AgentExecutionRequest request = new(
             AgentProviderKind.Copilot,
             group,
-            new ContainerInput("Prompt", null, new GroupFolder("team"), new ChatJid("team@jid"), false, false, "Andy"),
+            new ContainerInput("Prompt", null, new GroupFolder("team"), new ChatJid("team@jid"), false, false, "assistant"),
             new AgentWorkspaceContext(group.Folder, "/workspace/group", "/workspace/sessions/team", "/workspace/runtime/team", false, [], new AgentInstructionSet([])),
             null,
             []);
@@ -96,12 +96,12 @@ public sealed class ContainerizedAgentEngineTests : IDisposable
     public void BuildMounts_MainGroup_IncludesProjectReadOnly()
     {
         ContainerizedAgentEngine engine = CreateEngine();
-        RegisteredGroup group = new("Main", new GroupFolder("main"), "@Andy", DateTimeOffset.UtcNow, isMain: true);
+        RegisteredGroup group = new("Main", new GroupFolder("main"), "@assistant", DateTimeOffset.UtcNow, isMain: true);
 
         AgentExecutionRequest request = new(
             AgentProviderKind.Copilot,
             group,
-            new ContainerInput("Prompt", null, new GroupFolder("main"), new ChatJid("main@jid"), true, false, "Andy"),
+            new ContainerInput("Prompt", null, new GroupFolder("main"), new ChatJid("main@jid"), true, false, "assistant"),
             new AgentWorkspaceContext(group.Folder, "/workspace/group", "/workspace/sessions/main", "/workspace/runtime/main", true, [], new AgentInstructionSet([])),
             null,
             []);
@@ -116,12 +116,12 @@ public sealed class ContainerizedAgentEngineTests : IDisposable
     public void BuildMounts_ClaudeCode_UsesClaudeSessionPath()
     {
         ContainerizedAgentEngine engine = CreateEngine(defaultProvider: "claude-code");
-        RegisteredGroup group = new("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow);
+        RegisteredGroup group = new("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow);
 
         AgentExecutionRequest request = new(
             AgentProviderKind.ClaudeCode,
             group,
-            new ContainerInput("Prompt", null, new GroupFolder("team"), new ChatJid("team@jid"), false, false, "Andy"),
+            new ContainerInput("Prompt", null, new GroupFolder("team"), new ChatJid("team@jid"), false, false, "assistant"),
             new AgentWorkspaceContext(group.Folder, "/workspace/group", "/workspace/sessions/team", "/workspace/runtime/team", false, [], new AgentInstructionSet([])),
             null,
             []);
