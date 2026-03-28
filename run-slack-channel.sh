@@ -3,6 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/scripts/host-cleanup.sh"
 DOTNET_BIN="${DOTNET_BIN:-}"
 
 if [[ -z "$DOTNET_BIN" ]]; then
@@ -72,10 +73,18 @@ printf 'TRIGGER_MODE: %s\n' "$trigger_mode"
 printf 'Press Ctrl+C to stop.\n'
 printf '=== END ===\n'
 
-# Secrets stay as env vars — everything else comes from appsettings.json
-exec env \
-	NetClaw__Channels__Slack__Enabled=true \
-	NetClaw__Channels__Slack__BotToken="$SLACK_BOT_TOKEN" \
-	NetClaw__Channels__Slack__AppToken="$SLACK_APP_TOKEN" \
-	"$DOTNET_BIN" run --project "$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Host" "$@"
+host_command=(
+	env
+	NetClaw__Channels__Slack__Enabled=true
+	NetClaw__Channels__Slack__BotToken="$SLACK_BOT_TOKEN"
+	NetClaw__Channels__Slack__AppToken="$SLACK_APP_TOKEN"
+	"$DOTNET_BIN"
+	run
+	--project
+	"$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Host"
+)
+host_command+=("$@")
+
+run_host_with_cleanup "${host_command[@]}"
+
 	

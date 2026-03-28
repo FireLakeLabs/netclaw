@@ -3,6 +3,19 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/scripts/host-cleanup.sh"
+DOTNET_BIN="${DOTNET_BIN:-}"
+
+if [[ -z "$DOTNET_BIN" ]]; then
+	if command -v dotnet >/dev/null 2>&1; then
+		DOTNET_BIN="$(command -v dotnet)"
+	elif [[ -x "$HOME/.dotnet/dotnet" ]]; then
+		DOTNET_BIN="$HOME/.dotnet/dotnet"
+	else
+		echo "Unable to locate dotnet. Set DOTNET_BIN or add dotnet to PATH." >&2
+		exit 1
+	fi
+fi
 
 PROJECT_ROOT="${NETCLAW_PROJECT_ROOT:-$HOME/.netclaw}"
 CHAT_JID="${NETCLAW_CHAT_JID:-team@jid}"
@@ -14,10 +27,10 @@ REQUIRE_TRIGGER="${NETCLAW_REQUIRE_TRIGGER:-false}"
 export NETCLAW_PROJECT_ROOT="$PROJECT_ROOT"
 
 # Initialize project directory and config if needed
-dotnet run --project "$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Setup" -- --step init
+"$DOTNET_BIN" run --project "$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Setup" -- --step init
 
 register_args=(
-	dotnet run --project "$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Setup" -- --step register
+	"$DOTNET_BIN" run --project "$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Setup" -- --step register
 	--jid "$CHAT_JID"
 	--name "$CHAT_NAME"
 	--trigger "$AGENT_TRIGGER"
@@ -45,7 +58,16 @@ printf 'EXAMPLE: %s\n' "$example_prompt"
 printf 'Press Ctrl+C to stop.\n'
 printf '=== END ===\n'
 
-exec env \
-	NetClaw__Channels__Terminal__Enabled=true \
-	dotnet run --project "$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Host" "$@"
+host_command=(
+	env
+	NetClaw__Channels__Terminal__Enabled=true
+	"$DOTNET_BIN"
+	run
+	--project
+	"$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Host"
+)
+host_command+=("$@")
+
+run_host_with_cleanup "${host_command[@]}"
+
 	

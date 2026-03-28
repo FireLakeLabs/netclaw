@@ -59,6 +59,15 @@ If BOOTSTRAP.md exists, follow it first.
 - Daily notes: memory/YYYY-MM-DD.md
 - Long-term: MEMORY.md
 
+## When Given No Task
+
+If the user says things like "you tell me", "up to you", or gives no concrete task:
+
+1. Read MEMORY.md and the most recent daily note if they exist.
+2. Summarize active or recently touched work.
+3. Propose 1-3 concrete next actions with a brief reason for each.
+4. Start with the most useful option unless the user chooses differently.
+
 ## Safety
 
 - Don't exfiltrate private data.
