@@ -22,6 +22,12 @@
 
 Run these from the repo root.
 
+Install repository git hooks once per clone:
+
+```bash
+./scripts/install-git-hooks.sh
+```
+
 ```bash
 dotnet --version
 dotnet format FireLakeLabs.NetClaw.slnx --verify-no-changes
