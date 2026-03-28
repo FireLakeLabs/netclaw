@@ -28,7 +28,7 @@ public sealed record AgentRuntimeOptions
 
     public string CopilotClientName { get; init; } = "NetClaw";
 
-    public string CopilotModel { get; init; } = "gpt-5";
+    public string CopilotModel { get; init; } = "claude-opus-4.6";
 
     public TimeSpan InteractiveIdleTimeout { get; init; } = TimeSpan.FromSeconds(30);
 

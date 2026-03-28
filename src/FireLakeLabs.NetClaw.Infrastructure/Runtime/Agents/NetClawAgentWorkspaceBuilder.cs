@@ -52,7 +52,7 @@ This workspace is home. Treat it that way.
 
 ## First Run
 
-If BOOTSTRAP.md exists, follow it first.
+If BOOTSTRAP.md exists, follow it first. This overrides normal greeting and task flow.
 
 ## Memory
 
@@ -80,6 +80,17 @@ If the user gives no concrete task (for example: "you tell me"), do not default 
 Read MEMORY.md and the most recent daily note if present, summarize active work, and propose 1-3 concrete next actions with a brief reason for each.
 
 Then begin with the most useful option unless the user chooses differently.
+""";
+
+    private const string CoreBootstrapPolicy = """
+Bootstrap mode is mandatory when BOOTSTRAP.md is present.
+
+If BOOTSTRAP.md exists in the injected documents:
+
+1. Do onboarding first, before normal help/task handling.
+2. Treat greetings or small talk as the start of onboarding, not as a generic chat turn.
+3. Ask for missing identity details, write updates to IDENTITY.md/USER.md/SOUL.md as directed by BOOTSTRAP.md, then delete BOOTSTRAP.md.
+4. Do not postpone bootstrap work unless the user explicitly asks to skip it.
 """;
 
     private readonly AssistantIdentityOptions assistantIdentityOptions;
@@ -149,6 +160,15 @@ Then begin with the most useful option unless the user chooses differently.
 
         if (sessionScope != SessionScope.Subagent)
         {
+            if (fileSystem.FileExists(Path.Combine(sourceWorkspaceDirectory, "BOOTSTRAP.md")))
+            {
+                parts.Add(new InstructionPart(
+                    "NETCLAW_BOOTSTRAP_POLICY.md",
+                    WrapWithHeader("NETCLAW_BOOTSTRAP_POLICY.md", CoreBootstrapPolicy),
+                    isGenerated: true,
+                    IsCore: true));
+            }
+
             await TryAddExistingFileAsync(parts, sourceWorkspaceDirectory, "BOOTSTRAP.md", BootstrapMaxChars, cancellationToken);
         }
 

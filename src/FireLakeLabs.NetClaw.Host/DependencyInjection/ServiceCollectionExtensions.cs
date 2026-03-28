@@ -312,7 +312,7 @@ public static class ServiceCollectionExtensions
                 ? useLoggedInUser
                 : null,
             CopilotClientName = configuration["NetClaw:AgentRuntime:CopilotClientName"] ?? "NetClaw",
-            CopilotModel = configuration["NetClaw:AgentRuntime:CopilotModel"] ?? "gpt-5",
+            CopilotModel = configuration["NetClaw:AgentRuntime:CopilotModel"] ?? "claude-opus-4.6",
             InteractiveIdleTimeout = TimeSpan.TryParse(configuration["NetClaw:AgentRuntime:InteractiveIdleTimeout"], out TimeSpan interactiveIdleTimeout)
                 ? interactiveIdleTimeout
                 : TimeSpan.FromSeconds(30),

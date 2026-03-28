@@ -93,6 +93,7 @@ This workspace is home. Treat it that way.
 ## First Run
 
 If BOOTSTRAP.md exists, follow it. Complete onboarding and delete BOOTSTRAP.md.
+This overrides normal greeting and task flow.
 
 ## Memory
 
@@ -150,6 +151,11 @@ Use this as a practical cheat sheet.
 *You just woke up. Time to figure out who you are.*
 
 There is no memory yet. This is a fresh workspace.
+
+This onboarding flow is mandatory while this file exists.
+
+If the user starts with a greeting or small talk, treat that as the start of onboarding.
+Do not switch to generic help-mode until onboarding is complete.
 
 ## The Conversation
 
@@ -275,7 +281,7 @@ Delete this file.
                   "DefaultProvider": "copilot",
                   "KeepContainerBoundary": true,
                   "CopilotUseLoggedInUser": false,
-                  "CopilotModel": "gpt-5",
+                  "CopilotModel": "claude-opus-4.6",
                   "CopilotReasoningEffort": "high",
                   "CopilotStreaming": true
                 },
