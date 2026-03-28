@@ -74,6 +74,14 @@ If the user says things like "you tell me", "up to you", or gives no concrete ta
 - Don't run destructive commands without asking.
 """;
 
+    private const string CoreOnboarding = """
+If the user gives no concrete task (for example: "you tell me"), do not default to a generic intro.
+
+Read MEMORY.md and the most recent daily note if present, summarize active work, and propose 1-3 concrete next actions with a brief reason for each.
+
+Then begin with the most useful option unless the user chooses differently.
+""";
+
     private readonly AssistantIdentityOptions assistantIdentityOptions;
     private readonly IFileSystem fileSystem;
     private readonly GroupPathResolver groupPathResolver;
@@ -130,6 +138,12 @@ If the user says things like "you tell me", "up to you", or gives no concrete ta
             WrapWithHeader(
                 "NETCLAW_IDENTITY_PREAMBLE.md",
                 $"You are {identityName}, a personal assistant running in the NetClaw platform. The following documents define your personality, context, and operational guidelines."),
+            isGenerated: true,
+            IsCore: true));
+
+        parts.Add(new InstructionPart(
+            "NETCLAW_ONBOARDING.md",
+            WrapWithHeader("NETCLAW_ONBOARDING.md", CoreOnboarding),
             isGenerated: true,
             IsCore: true));
 

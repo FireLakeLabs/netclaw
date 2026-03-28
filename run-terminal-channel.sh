@@ -25,12 +25,13 @@ AGENT_TRIGGER="${NETCLAW_AGENT_TRIGGER:-@assistant}"
 REQUIRE_TRIGGER="${NETCLAW_REQUIRE_TRIGGER:-false}"
 
 export NETCLAW_PROJECT_ROOT="$PROJECT_ROOT"
+export NETCLAW_HOST_PROCESS_MATCH="FireLakeLabs.NetClaw.Host"
 
 # Initialize project directory and config if needed
-"$DOTNET_BIN" run --project "$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Setup" -- --step init
+"$DOTNET_BIN" run --disable-build-servers --project "$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Setup" -- --step init
 
 register_args=(
-	"$DOTNET_BIN" run --project "$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Setup" -- --step register
+	"$DOTNET_BIN" run --disable-build-servers --project "$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Setup" -- --step register
 	--jid "$CHAT_JID"
 	--name "$CHAT_NAME"
 	--trigger "$AGENT_TRIGGER"
@@ -63,6 +64,7 @@ host_command=(
 	NetClaw__Channels__Terminal__Enabled=true
 	"$DOTNET_BIN"
 	run
+	--disable-build-servers
 	--project
 	"$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Host"
 )

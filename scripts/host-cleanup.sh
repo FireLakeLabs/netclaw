@@ -6,6 +6,7 @@ run_host_with_cleanup() {
 	local new_session=0
 	local shell_pgid=""
 	local interrupted=0
+	local process_match="${NETCLAW_HOST_PROCESS_MATCH:-}"
 
 	kill_descendants() {
 		local parent_pid="$1"
@@ -52,11 +53,38 @@ run_host_with_cleanup() {
 		kill "-$signal" "$host_pid" 2>/dev/null || true
 	}
 
+	kill_matching_orphans() {
+		local signal="$1"
+		local pid
+
+		if [[ -z "$process_match" ]]; then
+			return
+		fi
+
+		if ! command -v pgrep >/dev/null 2>&1; then
+			return
+		fi
+
+		while IFS= read -r pid; do
+			if [[ -z "$pid" ]]; then
+				continue
+			fi
+
+			# Never target the launcher shell itself.
+			if [[ "$pid" == "$$" ]]; then
+				continue
+			fi
+
+			kill "-$signal" "$pid" 2>/dev/null || true
+		done < <(pgrep -f "$process_match" || true)
+	}
+
 	stop_host() {
 		local signal="$1"
 
 		signal_process_group "$signal"
 		fallback_descendant_cleanup "$signal"
+		kill_matching_orphans "$signal"
 	}
 
 	on_interrupt() {
