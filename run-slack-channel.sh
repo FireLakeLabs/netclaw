@@ -3,6 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/scripts/host-cleanup.sh"
 DOTNET_BIN="${DOTNET_BIN:-}"
 
 if [[ -z "$DOTNET_BIN" ]]; then
@@ -72,77 +73,18 @@ printf 'TRIGGER_MODE: %s\n' "$trigger_mode"
 printf 'Press Ctrl+C to stop.\n'
 printf '=== END ===\n'
 
-# Repeated Ctrl+C can kill `dotnet run` before it tears down child processes; we explicitly stop descendants.
-run_host_with_cleanup() {
-	local host_pid=0
-	local interrupted=0
+host_command=(
+	env
+	NetClaw__Channels__Slack__Enabled=true
+	NetClaw__Channels__Slack__BotToken="$SLACK_BOT_TOKEN"
+	NetClaw__Channels__Slack__AppToken="$SLACK_APP_TOKEN"
+	"$DOTNET_BIN"
+	run
+	--project
+	"$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Host"
+)
+host_command+=("$@")
 
-	kill_descendants() {
-		local parent_pid="$1"
-		local signal="$2"
-		local child_pid
-
-		if ! command -v pgrep >/dev/null 2>&1; then
-			return
-		fi
-
-		while IFS= read -r child_pid; do
-			if [[ -z "$child_pid" ]]; then
-				continue
-			fi
-
-			kill_descendants "$child_pid" "$signal"
-			kill "-$signal" "$child_pid" 2>/dev/null || true
-		done < <(pgrep -P "$parent_pid" || true)
-	}
-
-	stop_host() {
-		local signal="$1"
-
-		if [[ "$host_pid" -le 0 ]]; then
-			return
-		fi
-
-		if ! kill -0 "$host_pid" 2>/dev/null; then
-			return
-		fi
-
-		kill_descendants "$host_pid" "$signal"
-		kill "-$signal" "$host_pid" 2>/dev/null || true
-	}
-
-	on_interrupt() {
-		if [[ "$interrupted" -eq 0 ]]; then
-			interrupted=1
-			echo "Stopping NetClaw host..."
-			stop_host TERM
-		else
-			echo "Force-stopping NetClaw host and children..."
-			stop_host KILL
-		fi
-	}
-
-	trap on_interrupt INT
-	trap 'stop_host TERM' TERM
-	trap 'stop_host TERM' EXIT
-
-	# Secrets stay as env vars — everything else comes from appsettings.json
-	env \
-		NetClaw__Channels__Slack__Enabled=true \
-		NetClaw__Channels__Slack__BotToken="$SLACK_BOT_TOKEN" \
-		NetClaw__Channels__Slack__AppToken="$SLACK_APP_TOKEN" \
-		"$DOTNET_BIN" run --project "$SCRIPT_DIR/src/FireLakeLabs.NetClaw.Host" "$@" &
-	host_pid=$!
-
-	set +e
-	wait "$host_pid"
-	local exit_code=$?
-	set -e
-
-	trap - INT TERM EXIT
-	return "$exit_code"
-}
-
-run_host_with_cleanup "$@"
+run_host_with_cleanup "${host_command[@]}"
 
 	
