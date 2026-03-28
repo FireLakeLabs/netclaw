@@ -40,7 +40,7 @@ public sealed class EndToEndIntegrationTests
                 "--step", "register",
                 "--jid", "team@jid",
                 "--name", "Team",
-                "--trigger", "@Andy",
+                "--trigger", "@assistant",
                 "--folder", "team"
             ]));
 
@@ -82,7 +82,7 @@ public sealed class EndToEndIntegrationTests
                 "--step", "register",
                 "--jid", "team@jid",
                 "--name", "Team",
-                "--trigger", "@Andy",
+                "--trigger", "@assistant",
                 "--folder", "team"
             ]));
 
@@ -131,7 +131,7 @@ public sealed class EndToEndIntegrationTests
             IGroupRepository groupRepository = host.Services.GetRequiredService<IGroupRepository>();
             await groupRepository.UpsertAsync(
                 new ChatJid("team@jid"),
-                new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow));
+                new RegisteredGroup("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow));
 
             IIpcCommandProcessor processor = host.Services.GetRequiredService<IIpcCommandProcessor>();
             await processor.ProcessAsync(
@@ -182,7 +182,7 @@ public sealed class EndToEndIntegrationTests
             IGroupRepository groupRepository = host.Services.GetRequiredService<IGroupRepository>();
             await groupRepository.UpsertAsync(
                 new ChatJid("team@jid"),
-                new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow));
+                new RegisteredGroup("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow));
 
             string taskDirectory = Path.Combine(projectRoot, "data", "ipc", "team", "tasks");
             Directory.CreateDirectory(taskDirectory);
@@ -236,7 +236,7 @@ public sealed class EndToEndIntegrationTests
                 "--step", "register",
                 "--jid", "team@jid",
                 "--name", "Team",
-                "--trigger", "@Andy",
+                "--trigger", "@assistant",
                 "--folder", "team"
             ]));
             await runner.RunAsync(SetupCommand.Parse(["--step", "mounts", "--empty"]));
@@ -274,7 +274,7 @@ public sealed class EndToEndIntegrationTests
             IGroupRepository groupRepository = host.Services.GetRequiredService<IGroupRepository>();
             await groupRepository.UpsertAsync(
                 new ChatJid("team@jid"),
-                new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow));
+                new RegisteredGroup("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow));
 
             IMessageRepository messageRepository = host.Services.GetRequiredService<IMessageRepository>();
             DateTimeOffset now = DateTimeOffset.UtcNow;
@@ -283,7 +283,7 @@ public sealed class EndToEndIntegrationTests
                 new ChatJid("team@jid"),
                 "sender-1",
                 "User",
-                "@Andy please respond",
+                "@assistant please respond",
                 now,
                 isFromMe: false,
                 isBotMessage: false));
@@ -295,7 +295,7 @@ public sealed class EndToEndIntegrationTests
 
             Assert.Single(fakeChannel.Messages);
             Assert.Equal("assistant reply", fakeChannel.Messages[0]);
-            Assert.Contains("@Andy please respond", fakeRuntime.LastPrompt);
+            Assert.Contains("@assistant please respond", fakeRuntime.LastPrompt);
 
             IRouterStateRepository routerStateRepository = host.Services.GetRequiredService<IRouterStateRepository>();
             RouterStateEntry? state = await routerStateRepository.GetAsync("last_agent_timestamp:team@jid");
@@ -334,7 +334,7 @@ public sealed class EndToEndIntegrationTests
             IGroupRepository groupRepository = host.Services.GetRequiredService<IGroupRepository>();
             await groupRepository.UpsertAsync(
                 new ChatJid("team@jid"),
-                new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow));
+                new RegisteredGroup("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow));
 
             string channelRoot = Path.Combine(projectRoot, "data", "channels", "reference-file");
             Directory.CreateDirectory(Path.Combine(channelRoot, "inbox"));
@@ -347,7 +347,7 @@ public sealed class EndToEndIntegrationTests
                   "chatJid": "team@jid",
                   "sender": "sender-1",
                   "senderName": "User",
-                  "content": "@Andy please respond",
+                  "content": "@assistant please respond",
                   "timestamp": "2026-03-10T00:00:00Z",
                   "chatName": "Team",
                   "isGroup": true
@@ -359,7 +359,7 @@ public sealed class EndToEndIntegrationTests
 
             Assert.Equal("team@jid", document.RootElement.GetProperty("chatJid").GetString());
             Assert.Equal("assistant reply", document.RootElement.GetProperty("text").GetString());
-            Assert.Contains("@Andy please respond", fakeRuntime.LastPrompt);
+            Assert.Contains("@assistant please respond", fakeRuntime.LastPrompt);
 
             IMessageRepository messageRepository = host.Services.GetRequiredService<IMessageRepository>();
             IReadOnlyList<ChatInfo> chats = await messageRepository.GetAllChatsAsync();
@@ -418,9 +418,9 @@ public sealed class EndToEndIntegrationTests
             IGroupRepository groupRepository = host.Services.GetRequiredService<IGroupRepository>();
             await groupRepository.UpsertAsync(
                 new ChatJid("team@jid"),
-                new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow));
+                new RegisteredGroup("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow));
 
-            input.Enqueue("@Andy terminal test");
+            input.Enqueue("@assistant terminal test");
             await fakeRuntime.Completion.Task.WaitAsync(TimeSpan.FromSeconds(5));
             await Task.Delay(500);
 
@@ -428,7 +428,7 @@ public sealed class EndToEndIntegrationTests
             Assert.DoesNotContain("you> assistant>", output.ToString(), StringComparison.Ordinal);
             Assert.Contains($"{Environment.NewLine}you> ", output.ToString(), StringComparison.Ordinal);
             Assert.Contains("assistant> assistant reply", output.ToString(), StringComparison.Ordinal);
-            Assert.Contains("@Andy terminal test", fakeRuntime.LastPrompt, StringComparison.Ordinal);
+            Assert.Contains("@assistant terminal test", fakeRuntime.LastPrompt, StringComparison.Ordinal);
 
             await host.StopAsync();
         }
@@ -462,7 +462,7 @@ public sealed class EndToEndIntegrationTests
                         Enabled = true,
                         BotToken = "xoxb-test",
                         AppToken = "xapp-test",
-                        MentionReplacement = "@Andy",
+                        MentionReplacement = "@assistant",
                         WorkingIndicatorText = "Evaluating..."
                     },
                     slackClient,
@@ -480,7 +480,7 @@ public sealed class EndToEndIntegrationTests
             IGroupRepository groupRepository = host.Services.GetRequiredService<IGroupRepository>();
             await groupRepository.UpsertAsync(
                 new ChatJid("C12345"),
-                new RegisteredGroup("General", new GroupFolder("general"), "@Andy", DateTimeOffset.UtcNow));
+                new RegisteredGroup("General", new GroupFolder("general"), "@assistant", DateTimeOffset.UtcNow));
 
             slackClient.Connection.Enqueue(new SlackSocketEnvelope(
                 "envelope-1",
@@ -507,7 +507,7 @@ public sealed class EndToEndIntegrationTests
             Assert.Single(slackClient.UpdatedMessages);
             Assert.Equal("assistant reply", slackClient.UpdatedMessages[0].Text);
             Assert.Equal(slackClient.PostedMessages[0].Ts, slackClient.UpdatedMessages[0].Ts);
-            Assert.Contains("@Andy please respond", fakeRuntime.LastPrompt, StringComparison.Ordinal);
+            Assert.Contains("@assistant please respond", fakeRuntime.LastPrompt, StringComparison.Ordinal);
 
             await host.StopAsync();
         }

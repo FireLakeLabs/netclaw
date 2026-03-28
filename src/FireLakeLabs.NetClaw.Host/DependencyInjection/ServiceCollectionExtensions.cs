@@ -151,7 +151,7 @@ public static class ServiceCollectionExtensions
             serviceProvider.GetRequiredService<IReadOnlyList<IChannel>>(),
             serviceProvider.GetRequiredService<ISenderAuthorizationService>(),
             serviceProvider.GetRequiredService<IMessageFormatter>(),
-            serviceProvider.GetRequiredService<AssistantIdentityOptions>().Name,
+            serviceProvider.GetRequiredService<AssistantIdentityOptions>().Name ?? "assistant",
             serviceProvider.GetRequiredService<MessageLoopOptions>().Timezone,
             serviceProvider.GetRequiredService<IGroupExecutionQueue>()));
         services.AddSingleton<GroupMessageProcessorService>(serviceProvider => new GroupMessageProcessorService(
@@ -167,7 +167,7 @@ public static class ServiceCollectionExtensions
             serviceProvider.GetRequiredService<IReadOnlyList<IChannel>>(),
             serviceProvider.GetRequiredService<IAgentEventSink>(),
             serviceProvider.GetRequiredService<IFileAttachmentRepository>(),
-            serviceProvider.GetRequiredService<AssistantIdentityOptions>().Name,
+            serviceProvider.GetRequiredService<AssistantIdentityOptions>().Name ?? "assistant",
             serviceProvider.GetRequiredService<MessageLoopOptions>().Timezone,
             serviceProvider.GetRequiredService<StorageOptions>().GroupsDirectory,
             serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger<GroupMessageProcessorService>()));
@@ -195,7 +195,7 @@ public static class ServiceCollectionExtensions
                     IAgentRuntime runtime = serviceProvider.GetRequiredService<IAgentRuntime>();
                     AssistantIdentityOptions identity = serviceProvider.GetRequiredService<AssistantIdentityOptions>();
                     ContainerExecutionResult result = await runtime.ExecuteAsync(
-                        new ContainerInput(task.Prompt, sessionId, task.GroupFolder, task.ChatJid, false, true, identity.Name),
+                        new ContainerInput(task.Prompt, sessionId, task.GroupFolder, task.ChatJid, false, true, identity.Name ?? "assistant", SessionScope.Group),
                         cancellationToken: cancellationToken);
                     return (result.Result, result.Error);
                 });
@@ -222,9 +222,12 @@ public static class ServiceCollectionExtensions
 
     private static AssistantIdentityOptions CreateAssistantIdentityOptions(IConfiguration configuration)
     {
+        string defaultTrigger = configuration["NetClaw:Assistant:DefaultTrigger"] ?? "assistant";
+
         return new AssistantIdentityOptions
         {
-            Name = configuration["NetClaw:Assistant:Name"] ?? "Andy",
+            Name = configuration["NetClaw:Assistant:Name"],
+            DefaultTrigger = defaultTrigger,
             HasOwnNumber = bool.TryParse(configuration["NetClaw:Assistant:HasOwnNumber"], out bool hasOwnNumber) && hasOwnNumber
         };
     }
@@ -382,13 +385,16 @@ public static class ServiceCollectionExtensions
 
     private static SlackChannelOptions CreateSlackChannelOptions(IConfiguration configuration, AssistantIdentityOptions assistantIdentityOptions)
     {
+        string mentionReplacement = configuration["NetClaw:Channels:Slack:MentionReplacement"]
+            ?? $"@{assistantIdentityOptions.DefaultTrigger}";
+
         return new SlackChannelOptions
         {
             Enabled = bool.TryParse(configuration["NetClaw:Channels:Slack:Enabled"], out bool enabled) && enabled,
             BotToken = configuration["NetClaw:Channels:Slack:BotToken"] ?? string.Empty,
             AppToken = configuration["NetClaw:Channels:Slack:AppToken"] ?? string.Empty,
             ApiBaseUrl = configuration["NetClaw:Channels:Slack:ApiBaseUrl"] ?? "https://slack.com/api",
-            MentionReplacement = configuration["NetClaw:Channels:Slack:MentionReplacement"] ?? $"@{assistantIdentityOptions.Name}",
+            MentionReplacement = mentionReplacement,
             WorkingIndicatorText = configuration["NetClaw:Channels:Slack:WorkingIndicatorText"] ?? "Evaluating...",
             ReplyInThreadByDefault = !bool.TryParse(configuration["NetClaw:Channels:Slack:ReplyInThreadByDefault"], out bool replyInThreadByDefault) || replyInThreadByDefault
         };

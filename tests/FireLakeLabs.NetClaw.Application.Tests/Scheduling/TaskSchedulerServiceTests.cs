@@ -55,7 +55,7 @@ public sealed class TaskSchedulerServiceTests
         InMemoryTaskRepository taskRepository = new([task]);
         InMemoryGroupRepository groupRepository = new(new Dictionary<ChatJid, RegisteredGroup>
         {
-            [new ChatJid("team@jid")] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", now)
+            [new ChatJid("team@jid")] = new RegisteredGroup("Team", new GroupFolder("team"), "@assistant", now)
         });
         InMemorySessionRepository sessionRepository = new(new Dictionary<GroupFolder, SessionId>
         {
@@ -101,7 +101,7 @@ public sealed class TaskSchedulerServiceTests
         InMemoryTaskRepository taskRepository = new([task]);
         InMemoryGroupRepository groupRepository = new(new Dictionary<ChatJid, RegisteredGroup>
         {
-            [new ChatJid("team@jid")] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", now)
+            [new ChatJid("team@jid")] = new RegisteredGroup("Team", new GroupFolder("team"), "@assistant", now)
         });
         InMemorySessionRepository sessionRepository = new(new Dictionary<GroupFolder, SessionId>());
         TaskSchedulerService service = new(

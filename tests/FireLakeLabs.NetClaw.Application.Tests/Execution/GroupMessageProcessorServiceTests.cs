@@ -24,11 +24,11 @@ public sealed class GroupMessageProcessorServiceTests
         GroupMessageProcessorService service = new(
             new InMemoryMessageRepository(new Dictionary<ChatJid, IReadOnlyList<StoredMessage>>
             {
-                [groupJid] = [new StoredMessage("message-1", groupJid, "sender-1", "User", "@Andy hello", timestamp)]
+                [groupJid] = [new StoredMessage("message-1", groupJid, "sender-1", "User", "@assistant hello", timestamp)]
             }),
             new InMemoryGroupRepository(new Dictionary<ChatJid, RegisteredGroup>
             {
-                [groupJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", timestamp)
+                [groupJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@assistant", timestamp)
             }),
             routerStateRepository,
             new PassThroughSenderAuthorizationService(),
@@ -40,14 +40,14 @@ public sealed class GroupMessageProcessorServiceTests
             [channel],
             new NullAgentEventSink(),
             new NullFileAttachmentRepository(),
-            "Andy",
+            "assistant",
             "UTC",
             "/tmp/netclaw-test/groups");
 
         bool result = await service.ProcessAsync(groupJid);
 
         Assert.True(result);
-        Assert.Equal("formatted:@Andy hello", runtime.LastPrompt);
+        Assert.Equal("formatted:@assistant hello", runtime.LastPrompt);
         Assert.Equal("assistant reply", Assert.Single(outboundRouter.Messages).Text);
         Assert.Equal([(groupJid, true), (groupJid, false)], channel.TypingCalls);
         Assert.Equal(timestamp.ToString("O"), routerStateRepository.Entries["last_agent_timestamp:team@jid"].Value);
@@ -66,7 +66,7 @@ public sealed class GroupMessageProcessorServiceTests
             }),
             new InMemoryGroupRepository(new Dictionary<ChatJid, RegisteredGroup>
             {
-                [groupJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow)
+                [groupJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow)
             }),
             routerStateRepository,
             new PassThroughSenderAuthorizationService(),
@@ -78,7 +78,7 @@ public sealed class GroupMessageProcessorServiceTests
             [],
             new NullAgentEventSink(),
             new NullFileAttachmentRepository(),
-            "Andy",
+            "assistant",
             "UTC",
             "/tmp/netclaw-test/groups");
 
@@ -98,11 +98,11 @@ public sealed class GroupMessageProcessorServiceTests
         GroupMessageProcessorService service = new(
             new InMemoryMessageRepository(new Dictionary<ChatJid, IReadOnlyList<StoredMessage>>
             {
-                [groupJid] = [new StoredMessage("message-1", groupJid, "sender-1", "User", "@Andy hello", DateTimeOffset.UtcNow)]
+                [groupJid] = [new StoredMessage("message-1", groupJid, "sender-1", "User", "@assistant hello", DateTimeOffset.UtcNow)]
             }),
             new InMemoryGroupRepository(new Dictionary<ChatJid, RegisteredGroup>
             {
-                [groupJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow)
+                [groupJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow)
             }),
             routerStateRepository,
             new PassThroughSenderAuthorizationService(),
@@ -114,7 +114,7 @@ public sealed class GroupMessageProcessorServiceTests
             [channel],
             new NullAgentEventSink(),
             new NullFileAttachmentRepository(),
-            "Andy",
+            "assistant",
             "UTC",
             "/tmp/netclaw-test/groups");
 
@@ -134,11 +134,11 @@ public sealed class GroupMessageProcessorServiceTests
         GroupMessageProcessorService service = new(
             new InMemoryMessageRepository(new Dictionary<ChatJid, IReadOnlyList<StoredMessage>>
             {
-                [groupJid] = [new StoredMessage("message-1", groupJid, "sender-1", "User", "@Andy hello", DateTimeOffset.UtcNow)]
+                [groupJid] = [new StoredMessage("message-1", groupJid, "sender-1", "User", "@assistant hello", DateTimeOffset.UtcNow)]
             }),
             new InMemoryGroupRepository(new Dictionary<ChatJid, RegisteredGroup>
             {
-                [groupJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow)
+                [groupJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow)
             }),
             routerStateRepository,
             new PassThroughSenderAuthorizationService(),
@@ -150,7 +150,7 @@ public sealed class GroupMessageProcessorServiceTests
             [channel],
             new NullAgentEventSink(),
             new NullFileAttachmentRepository(),
-            "Andy",
+            "assistant",
             "UTC",
             "/tmp/netclaw-test/groups");
 
@@ -170,11 +170,11 @@ public sealed class GroupMessageProcessorServiceTests
         GroupMessageProcessorService service = new(
             new InMemoryMessageRepository(new Dictionary<ChatJid, IReadOnlyList<StoredMessage>>
             {
-                [groupJid] = [new StoredMessage("message-1", groupJid, "sender-1", "User", "@Andy hello", DateTimeOffset.UtcNow)]
+                [groupJid] = [new StoredMessage("message-1", groupJid, "sender-1", "User", "@assistant hello", DateTimeOffset.UtcNow)]
             }),
             new InMemoryGroupRepository(new Dictionary<ChatJid, RegisteredGroup>
             {
-                [groupJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow)
+                [groupJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow)
             }),
             new InMemoryRouterStateRepository(),
             new PassThroughSenderAuthorizationService(),
@@ -196,7 +196,7 @@ public sealed class GroupMessageProcessorServiceTests
             [],
             new NullAgentEventSink(),
             new NullFileAttachmentRepository(),
-            "Andy",
+            "assistant",
             "UTC",
             "/tmp/netclaw-test/groups");
 
@@ -219,13 +219,13 @@ public sealed class GroupMessageProcessorServiceTests
             {
                 [groupJid] =
                 [
-                    new StoredMessage("message-1", groupJid, "blocked", "Blocked", "@Andy blocked", DateTimeOffset.UtcNow.AddSeconds(-1)),
-                    new StoredMessage("message-2", groupJid, "allowed", "Allowed", "@Andy allowed", DateTimeOffset.UtcNow)
+                    new StoredMessage("message-1", groupJid, "blocked", "Blocked", "@assistant blocked", DateTimeOffset.UtcNow.AddSeconds(-1)),
+                    new StoredMessage("message-2", groupJid, "allowed", "Allowed", "@assistant allowed", DateTimeOffset.UtcNow)
                 ]
             }),
             new InMemoryGroupRepository(new Dictionary<ChatJid, RegisteredGroup>
             {
-                [groupJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow)
+                [groupJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow)
             }),
             new InMemoryRouterStateRepository(),
             new FilteringSenderAuthorizationService(["allowed"]),
@@ -237,14 +237,14 @@ public sealed class GroupMessageProcessorServiceTests
             [channel],
             new NullAgentEventSink(),
             new NullFileAttachmentRepository(),
-            "Andy",
+            "assistant",
             "UTC",
             "/tmp/netclaw-test/groups");
 
         bool result = await service.ProcessAsync(groupJid);
 
         Assert.True(result);
-        Assert.Equal("formatted:@Andy allowed", runtime.LastPrompt);
+        Assert.Equal("formatted:@assistant allowed", runtime.LastPrompt);
         Assert.Equal([(groupJid, true), (groupJid, false)], channel.TypingCalls);
     }
 
@@ -255,11 +255,11 @@ public sealed class GroupMessageProcessorServiceTests
         GroupMessageProcessorService service = new(
             new InMemoryMessageRepository(new Dictionary<ChatJid, IReadOnlyList<StoredMessage>>
             {
-                [groupJid] = [new StoredMessage("message-1", groupJid, "sender-1", "User", "@Andy hello", DateTimeOffset.UtcNow)]
+                [groupJid] = [new StoredMessage("message-1", groupJid, "sender-1", "User", "@assistant hello", DateTimeOffset.UtcNow)]
             }),
             new InMemoryGroupRepository(new Dictionary<ChatJid, RegisteredGroup>
             {
-                [groupJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow)
+                [groupJid] = new RegisteredGroup("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow)
             }),
             new InMemoryRouterStateRepository(),
             new PassThroughSenderAuthorizationService(),
@@ -271,7 +271,7 @@ public sealed class GroupMessageProcessorServiceTests
             [new ThrowingChannel(groupJid)],
             new NullAgentEventSink(),
             new NullFileAttachmentRepository(),
-            "Andy",
+            "assistant",
             "UTC",
             "/tmp/netclaw-test/groups");
 

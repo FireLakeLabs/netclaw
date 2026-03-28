@@ -33,8 +33,8 @@ public sealed class AgentRuntimeServicesTests
 
         AgentExecutionRequest request = new(
             AgentProviderKind.Copilot,
-            new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow),
-            new ContainerInput("Prompt", null, new GroupFolder("team"), new ChatJid("team@jid"), false, false, "Andy"),
+            new RegisteredGroup("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow),
+            new ContainerInput("Prompt", null, new GroupFolder("team"), new ChatJid("team@jid"), false, false, "assistant"),
             new AgentWorkspaceContext(new GroupFolder("team"), "/workspace/group", "/workspace/sessions/team", "/workspace/runtime/team", false, [], new AgentInstructionSet([new AgentInstructionDocument("AGENTS.md", "# A", true)])),
             null,
             []);
@@ -66,8 +66,8 @@ public sealed class AgentRuntimeServicesTests
 
         AgentExecutionRequest request = new(
             AgentProviderKind.Copilot,
-            new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow),
-            new ContainerInput("Prompt", new SessionId("persisted-session"), new GroupFolder("team"), new ChatJid("team@jid"), false, false, "Andy"),
+            new RegisteredGroup("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow),
+            new ContainerInput("Prompt", new SessionId("persisted-session"), new GroupFolder("team"), new ChatJid("team@jid"), false, false, "assistant"),
             new AgentWorkspaceContext(new GroupFolder("team"), "/workspace/group", "/workspace/sessions/team", "/workspace/runtime/team", false, [], new AgentInstructionSet([new AgentInstructionDocument("AGENTS.md", "# A", true)])),
             new AgentSessionReference(AgentProviderKind.Copilot, "persisted-session", "/workspace/runtime/team"),
             []);
@@ -94,8 +94,8 @@ public sealed class AgentRuntimeServicesTests
 
         AgentExecutionRequest request = new(
             AgentProviderKind.Copilot,
-            new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow),
-            new ContainerInput("Prompt", null, new GroupFolder("team"), new ChatJid("team@jid"), false, false, "Andy"),
+            new RegisteredGroup("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow),
+            new ContainerInput("Prompt", null, new GroupFolder("team"), new ChatJid("team@jid"), false, false, "assistant"),
             new AgentWorkspaceContext(new GroupFolder("team"), "/workspace/group", "/workspace/sessions/team", "/workspace/runtime/team", false, [], new AgentInstructionSet([new AgentInstructionDocument("AGENTS.md", "# A", true)])),
             null,
             []);
@@ -123,18 +123,21 @@ public sealed class AgentRuntimeServicesTests
             NetClawAgentWorkspaceBuilder builder = new(
                 new GroupPathResolver(storageOptions, new PhysicalFileSystem()),
                 storageOptions,
+                new MessageLoopOptions { Timezone = "UTC" },
                 new PhysicalFileSystem(),
-                new AssistantIdentityOptions { Name = "NetClaw" });
+                new AssistantIdentityOptions { Name = "NetClaw", DefaultTrigger = "assistant" });
 
             AgentWorkspaceContext context = await builder.BuildAsync(
-                new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow),
+                new RegisteredGroup("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow),
                 new ContainerInput("Prompt", null, new GroupFolder("team"), new ChatJid("team@jid"), false, false, "NetClaw"));
 
             Assert.Equal(Path.Combine(root, "groups", "team"), context.WorkingDirectory);
             Assert.Equal(Path.Combine(root, "data", "sessions", "team"), context.SessionDirectory);
             Assert.Equal(Path.Combine(root, "data", "agent-workspaces", "team"), context.WorkspaceDirectory);
             Assert.Single(context.AdditionalDirectories);
-            Assert.Equal("AGENTS.md", context.Instructions.Documents[0].RelativePath);
+            Assert.Contains(context.Instructions.Documents, d => d.RelativePath == "SOUL.md");
+            Assert.Contains(context.Instructions.Documents, d => d.RelativePath == "AGENTS.md");
+            Assert.Contains(context.Instructions.Documents, d => d.RelativePath == "NETCLAW_RUNTIME.md");
             Assert.True(Directory.Exists(context.WorkingDirectory));
             Assert.True(Directory.Exists(context.SessionDirectory));
             Assert.True(Directory.Exists(context.WorkspaceDirectory));
@@ -151,11 +154,89 @@ public sealed class AgentRuntimeServicesTests
     }
 
     [Fact]
+    public async Task WorkspaceBuilder_PrivateScope_IncludesUserAndMemoryDocuments()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"netclaw-agent-workspace-private-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+
+        try
+        {
+            StorageOptions storageOptions = StorageOptions.Create(root);
+            GroupPathResolver resolver = new(storageOptions, new PhysicalFileSystem());
+            string groupDirectory = resolver.ResolveGroupDirectory(new GroupFolder("team"));
+            Directory.CreateDirectory(groupDirectory);
+            await File.WriteAllTextAsync(Path.Combine(groupDirectory, "USER.md"), "user");
+            await File.WriteAllTextAsync(Path.Combine(groupDirectory, "MEMORY.md"), "memory");
+
+            NetClawAgentWorkspaceBuilder builder = new(
+                resolver,
+                storageOptions,
+                new MessageLoopOptions { Timezone = "UTC" },
+                new PhysicalFileSystem(),
+                new AssistantIdentityOptions { DefaultTrigger = "assistant" });
+
+            AgentWorkspaceContext context = await builder.BuildAsync(
+                new RegisteredGroup("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow),
+                new ContainerInput("Prompt", null, new GroupFolder("team"), new ChatJid("team@jid"), false, false, "assistant", SessionScope.Private),
+                SessionScope.Private);
+
+            Assert.Contains(context.Instructions.Documents, d => d.RelativePath == "USER.md");
+            Assert.Contains(context.Instructions.Documents, d => d.RelativePath == "MEMORY.md");
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task WorkspaceBuilder_GroupScope_ExcludesUserAndMemoryDocuments()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"netclaw-agent-workspace-group-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+
+        try
+        {
+            StorageOptions storageOptions = StorageOptions.Create(root);
+            GroupPathResolver resolver = new(storageOptions, new PhysicalFileSystem());
+            string groupDirectory = resolver.ResolveGroupDirectory(new GroupFolder("team"));
+            Directory.CreateDirectory(groupDirectory);
+            await File.WriteAllTextAsync(Path.Combine(groupDirectory, "USER.md"), "user");
+            await File.WriteAllTextAsync(Path.Combine(groupDirectory, "MEMORY.md"), "memory");
+
+            NetClawAgentWorkspaceBuilder builder = new(
+                resolver,
+                storageOptions,
+                new MessageLoopOptions { Timezone = "UTC" },
+                new PhysicalFileSystem(),
+                new AssistantIdentityOptions { DefaultTrigger = "assistant" });
+
+            AgentWorkspaceContext context = await builder.BuildAsync(
+                new RegisteredGroup("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow),
+                new ContainerInput("Prompt", null, new GroupFolder("team"), new ChatJid("team@jid"), false, false, "assistant", SessionScope.Group),
+                SessionScope.Group);
+
+            Assert.DoesNotContain(context.Instructions.Documents, d => d.RelativePath == "USER.md");
+            Assert.DoesNotContain(context.Instructions.Documents, d => d.RelativePath == "MEMORY.md");
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                Directory.Delete(root, recursive: true);
+            }
+        }
+    }
+
+    [Fact]
     public async Task AgentRuntime_UsesConfiguredEngineAndPersistsReturnedSession()
     {
         InMemoryGroupRepository groupRepository = new();
         InMemorySessionRepository sessionRepository = new();
-        RegisteredGroup group = new("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow);
+        RegisteredGroup group = new("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow);
         await groupRepository.UpsertAsync(new ChatJid("team@jid"), group);
 
         NetClawAgentRuntime runtime = new(
@@ -166,7 +247,7 @@ public sealed class AgentRuntimeServicesTests
             new AgentRuntimeOptions { DefaultProvider = "copilot" });
 
         ContainerExecutionResult result = await runtime.ExecuteAsync(
-            new ContainerInput("Prompt", null, new GroupFolder("team"), new ChatJid("team@jid"), false, false, "Andy"));
+            new ContainerInput("Prompt", null, new GroupFolder("team"), new ChatJid("team@jid"), false, false, "assistant"));
 
         Assert.Equal(ContainerRunStatus.Success, result.Status);
         Assert.Equal("done", result.Result);
@@ -189,8 +270,8 @@ public sealed class AgentRuntimeServicesTests
 
         AgentExecutionRequest request = new(
             AgentProviderKind.Copilot,
-            new RegisteredGroup("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow),
-            new ContainerInput("Prompt", null, new GroupFolder("team"), new ChatJid("team@jid"), false, false, "Andy"),
+            new RegisteredGroup("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow),
+            new ContainerInput("Prompt", null, new GroupFolder("team"), new ChatJid("team@jid"), false, false, "assistant"),
             new AgentWorkspaceContext(new GroupFolder("team"), "/workspace/group", "/workspace/sessions/team", "/workspace/runtime/team", false, [], new AgentInstructionSet([new AgentInstructionDocument("AGENTS.md", "# A", true)])),
             null,
             [new AgentToolDefinition("schedule_group_task", "Schedule a task.")]);
@@ -211,7 +292,7 @@ public sealed class AgentRuntimeServicesTests
         InMemoryTaskRepository taskRepository = new();
         FakeGroupExecutionQueue groupExecutionQueue = new();
         List<(ChatJid ChatJid, string Text)> sentMessages = [];
-        RegisteredGroup group = new("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow);
+        RegisteredGroup group = new("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow);
         ChatJid chatJid = new("team@jid");
         await groupRepository.UpsertAsync(chatJid, group);
 
@@ -229,7 +310,7 @@ public sealed class AgentRuntimeServicesTests
         AgentExecutionRequest request = new(
             AgentProviderKind.Copilot,
             group,
-            new ContainerInput("Prompt", null, group.Folder, chatJid, false, false, "Andy"),
+            new ContainerInput("Prompt", null, group.Folder, chatJid, false, false, "assistant"),
             new AgentWorkspaceContext(group.Folder, "/workspace/group", "/workspace/sessions/team", "/workspace/runtime/team", false, [], new AgentInstructionSet([])),
             null,
             [new AgentToolDefinition("schedule_group_task", "Schedule a task.")]);
@@ -265,8 +346,8 @@ public sealed class AgentRuntimeServicesTests
         FakeGroupExecutionQueue groupExecutionQueue = new();
         ChatJid mainChatJid = new("main@jid");
         ChatJid otherChatJid = new("team@jid");
-        RegisteredGroup mainGroup = new("Main", new GroupFolder("main"), "@Andy", DateTimeOffset.UtcNow, null, true, true);
-        RegisteredGroup otherGroup = new("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow);
+        RegisteredGroup mainGroup = new("Main", new GroupFolder("main"), "@assistant", DateTimeOffset.UtcNow, null, true, true);
+        RegisteredGroup otherGroup = new("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow);
         await groupRepository.UpsertAsync(mainChatJid, mainGroup);
         await groupRepository.UpsertAsync(otherChatJid, otherGroup);
 
@@ -284,7 +365,7 @@ public sealed class AgentRuntimeServicesTests
         AgentExecutionRequest request = new(
             AgentProviderKind.Copilot,
             mainGroup,
-            new ContainerInput("Prompt", null, mainGroup.Folder, mainChatJid, true, false, "Andy"),
+            new ContainerInput("Prompt", null, mainGroup.Folder, mainChatJid, true, false, "assistant"),
             new AgentWorkspaceContext(mainGroup.Folder, "/workspace/group", "/workspace/sessions/main", "/workspace/runtime/main", false, [], new AgentInstructionSet([])),
             null,
             [new AgentToolDefinition("list_scheduled_tasks", "List tasks.")]);
@@ -310,7 +391,7 @@ public sealed class AgentRuntimeServicesTests
         InMemorySessionRepository sessionRepository = new();
         InMemoryTaskRepository taskRepository = new();
         FakeGroupExecutionQueue groupExecutionQueue = new();
-        RegisteredGroup group = new("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow);
+        RegisteredGroup group = new("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow);
         ChatJid chatJid = new("team@jid");
         await groupRepository.UpsertAsync(chatJid, group);
 
@@ -327,7 +408,7 @@ public sealed class AgentRuntimeServicesTests
         AgentExecutionRequest request = new(
             AgentProviderKind.Copilot,
             group,
-            new ContainerInput("Prompt", null, group.Folder, chatJid, false, false, "Andy"),
+            new ContainerInput("Prompt", null, group.Folder, chatJid, false, false, "assistant"),
             new AgentWorkspaceContext(group.Folder, "/workspace/group", "/workspace/sessions/team", "/workspace/runtime/team", false, [], new AgentInstructionSet([])),
             null,
             [
@@ -353,8 +434,8 @@ public sealed class AgentRuntimeServicesTests
         InMemorySessionRepository sessionRepository = new();
         InMemoryTaskRepository taskRepository = new();
         FakeGroupExecutionQueue groupExecutionQueue = new();
-        RegisteredGroup currentGroup = new("Current", new GroupFolder("current"), "@Andy", DateTimeOffset.UtcNow);
-        RegisteredGroup otherGroup = new("Other", new GroupFolder("other"), "@Andy", DateTimeOffset.UtcNow);
+        RegisteredGroup currentGroup = new("Current", new GroupFolder("current"), "@assistant", DateTimeOffset.UtcNow);
+        RegisteredGroup otherGroup = new("Other", new GroupFolder("other"), "@assistant", DateTimeOffset.UtcNow);
         ChatJid currentChatJid = new("current@jid");
         ChatJid otherChatJid = new("other@jid");
         await groupRepository.UpsertAsync(currentChatJid, currentGroup);
@@ -372,7 +453,7 @@ public sealed class AgentRuntimeServicesTests
         AgentExecutionRequest request = new(
             AgentProviderKind.Copilot,
             currentGroup,
-            new ContainerInput("Prompt", null, currentGroup.Folder, currentChatJid, false, false, "Andy"),
+            new ContainerInput("Prompt", null, currentGroup.Folder, currentChatJid, false, false, "assistant"),
             new AgentWorkspaceContext(currentGroup.Folder, "/workspace/group", "/workspace/sessions/current", "/workspace/runtime/current", false, [], new AgentInstructionSet([])),
             null,
             [new AgentToolDefinition("pause_scheduled_task", "Pause a task.")]);
@@ -437,7 +518,7 @@ public sealed class AgentRuntimeServicesTests
 
     private sealed class TestWorkspaceBuilder : IAgentWorkspaceBuilder
     {
-        public Task<AgentWorkspaceContext> BuildAsync(RegisteredGroup group, ContainerInput input, CancellationToken cancellationToken = default)
+        public Task<AgentWorkspaceContext> BuildAsync(RegisteredGroup group, ContainerInput input, SessionScope sessionScope = SessionScope.Group, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(new AgentWorkspaceContext(group.Folder, "/workspace/group", "/workspace/sessions/team", "/workspace/runtime/team", false, [], new AgentInstructionSet([new AgentInstructionDocument("AGENTS.md", "# A", true)])));
         }

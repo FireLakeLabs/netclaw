@@ -11,6 +11,181 @@ namespace FireLakeLabs.NetClaw.Setup;
 
 public sealed class SetupRunner
 {
+    private const string SoulTemplate = """
+# SOUL.md - Who You Are
+
+*You're not a chatbot. You're becoming someone.*
+
+## Core Truths
+
+**Be genuinely helpful, not performatively helpful.** Skip filler and focus on real help.
+
+**Have opinions.** You can disagree and have preferences.
+
+**Be resourceful before asking.** Read files and gather context before escalating.
+
+**Earn trust through competence.** Be careful with external actions, bold with internal exploration.
+
+**Remember you're a guest.** Treat private context with respect.
+
+## Boundaries
+
+- Private things stay private.
+- When in doubt, ask before acting externally.
+- Never send half-baked replies to messaging surfaces.
+- You're not the user's voice in group chats.
+
+## Vibe
+
+Be concise when needed and thorough when it matters.
+
+## Continuity
+
+Each session starts fresh. Workspace files are your memory.
+
+If you change this file, tell the user.
+
+---
+
+*This file is yours to evolve.*
+""";
+
+    private const string IdentityTemplate = """
+# IDENTITY.md - Who Am I?
+
+*Fill this in during your first conversation. Make it yours.*
+
+- **Name:** *(pick something you like)*
+- **Creature:** *(AI? robot? familiar? ghost in the machine? something weirder?)*
+- **Vibe:** *(how do you come across? sharp? warm? chaotic? calm?)*
+- **Emoji:** *(your signature - pick one that feels right)*
+
+---
+
+This is not just metadata. It is the start of figuring out who you are.
+""";
+
+    private const string UserTemplate = """
+# USER.md - About Your Human
+
+*Learn about the person you're helping. Update this as you go.*
+
+- **Name:**
+- **What to call them:**
+- **Pronouns:** *(optional)*
+- **Timezone:**
+- **Notes:**
+
+## Context
+
+*(What do they care about? What projects are they working on? Build this over time.)*
+
+---
+
+Learn to help better, but respect privacy.
+""";
+
+    private const string AgentsTemplate = """
+# AGENTS.md - How You Operate
+
+This workspace is home. Treat it that way.
+
+## First Run
+
+If BOOTSTRAP.md exists, follow it. Complete onboarding and delete BOOTSTRAP.md.
+
+## Memory
+
+You wake up fresh each session. These files provide continuity:
+
+- Daily notes: memory/YYYY-MM-DD.md
+- Long-term: MEMORY.md
+
+### Write It Down
+
+If it matters later, write it down in memory files.
+
+## Safety
+
+- Do not exfiltrate private data.
+- Do not run destructive commands without asking.
+- When in doubt, ask.
+
+## External vs Internal
+
+Safe freely: read files, explore, organize, learn.
+
+Ask first: emails, messages, public posts, or uncertain external actions.
+
+## Group Chats
+
+In groups, you are a participant - not the user's proxy.
+
+## Make It Yours
+
+Add conventions and rules that work for this workspace.
+""";
+
+    private const string ToolsTemplate = """
+# TOOLS.md - Local Notes
+
+Skills and tools define how things work. This file captures local specifics.
+
+## What Goes Here
+
+- SSH hosts and aliases
+- Device nicknames
+- Preferred formatting and output styles
+- Channel-specific notes
+- Environment-specific details
+
+---
+
+Use this as a practical cheat sheet.
+""";
+
+    private const string BootstrapTemplate = """
+# BOOTSTRAP.md - Hello, World
+
+*You just woke up. Time to figure out who you are.*
+
+There is no memory yet. This is a fresh workspace.
+
+## The Conversation
+
+Start naturally and establish:
+
+1. Your name
+2. Your nature
+3. Your vibe
+4. Your emoji
+
+## After You Know Who You Are
+
+Update:
+
+- IDENTITY.md
+- USER.md
+- SOUL.md (if needed)
+
+## When You're Done
+
+Delete this file.
+""";
+
+    private static readonly IReadOnlyList<(string FileName, string Content)> WorkspaceTemplateFiles =
+    [
+        ("SOUL.md", SoulTemplate),
+        ("IDENTITY.md", IdentityTemplate),
+        ("USER.md", UserTemplate),
+        ("AGENTS.md", AgentsTemplate),
+        ("TOOLS.md", ToolsTemplate),
+        ("BOOTSTRAP.md", BootstrapTemplate)
+    ];
+
+    private const string LegacyGeneratedAgentsMarker1 = "# AGENTS.md";
+    private const string LegacyGeneratedAgentsMarker2 = "You are operating inside the NetClaw workspace for group";
+
     private readonly ICommandRunner commandRunner;
     private readonly IFileSystem fileSystem;
     private readonly PlatformDetectionService platformDetectionService;
@@ -88,7 +263,8 @@ public sealed class SetupRunner
               "NetClaw": {
                 "ProjectRoot": {{serializedProjectRoot}},
                 "Assistant": {
-                  "Name": "Andy",
+                                    "Name": null,
+                                    "DefaultTrigger": "assistant",
                   "HasOwnNumber": false
                 },
                                 "ContainerRuntime": {
@@ -118,7 +294,7 @@ public sealed class SetupRunner
                   },
                   "Slack": {
                     "Enabled": false,
-                    "MentionReplacement": "@Andy",
+                                        "MentionReplacement": "@assistant",
                     "WorkingIndicatorText": "Evaluating...",
                     "ReplyInThreadByDefault": true
                   }
@@ -180,9 +356,14 @@ public sealed class SetupRunner
 
         string groupDirectory = Path.Combine(paths.GroupsDirectory, folder);
         string logsDirectory = Path.Combine(groupDirectory, "logs");
+        string memoryDirectory = Path.Combine(groupDirectory, "memory");
         fileSystem.CreateDirectory(paths.GroupsDirectory);
         fileSystem.CreateDirectory(groupDirectory);
         fileSystem.CreateDirectory(logsDirectory);
+        fileSystem.CreateDirectory(memoryDirectory);
+
+        bool migratedLegacyAgents = await MigrateLegacyGeneratedAgentsAsync(groupDirectory, cancellationToken);
+        int seededFiles = await SeedWorkspaceTemplatesAsync(groupDirectory, cancellationToken);
 
         FileGroupRepository repository = CreateGroupRepository();
         RegisteredGroup group = new(
@@ -204,6 +385,9 @@ public sealed class SetupRunner
             ["FOLDER"] = folder,
             ["GROUP_DIRECTORY"] = groupDirectory,
             ["LOGS_DIRECTORY"] = logsDirectory,
+            ["MEMORY_DIRECTORY"] = memoryDirectory,
+            ["TEMPLATE_FILES_SEEDED"] = seededFiles.ToString(),
+            ["LEGACY_AGENTS_MIGRATED"] = migratedLegacyAgents.ToString().ToLowerInvariant(),
             ["REQUIRES_TRIGGER"] = group.RequiresTrigger.ToString().ToLowerInvariant(),
             ["IS_MAIN"] = group.IsMain.ToString().ToLowerInvariant()
         };
@@ -427,5 +611,51 @@ public sealed class SetupRunner
         {
             [key] = value
         });
+    }
+
+    private async Task<int> SeedWorkspaceTemplatesAsync(string workspaceDirectory, CancellationToken cancellationToken)
+    {
+        int seededCount = 0;
+
+        foreach ((string fileName, string content) in WorkspaceTemplateFiles)
+        {
+            string path = Path.Combine(workspaceDirectory, fileName);
+            if (fileSystem.FileExists(path))
+            {
+                continue;
+            }
+
+            await fileSystem.WriteAllTextAsync(path, content + Environment.NewLine, cancellationToken);
+            seededCount++;
+        }
+
+        return seededCount;
+    }
+
+    private async Task<bool> MigrateLegacyGeneratedAgentsAsync(string workspaceDirectory, CancellationToken cancellationToken)
+    {
+        string agentsPath = Path.Combine(workspaceDirectory, "AGENTS.md");
+        if (!fileSystem.FileExists(agentsPath))
+        {
+            return false;
+        }
+
+        string existing = await fileSystem.ReadAllTextAsync(agentsPath, cancellationToken);
+        bool looksGenerated = existing.Contains(LegacyGeneratedAgentsMarker1, StringComparison.Ordinal)
+            && existing.Contains(LegacyGeneratedAgentsMarker2, StringComparison.Ordinal);
+
+        if (!looksGenerated)
+        {
+            return false;
+        }
+
+        string backupPath = Path.Combine(workspaceDirectory, "AGENTS.md.bak");
+        if (fileSystem.FileExists(backupPath))
+        {
+            fileSystem.DeleteFile(backupPath);
+        }
+
+        fileSystem.MoveFile(agentsPath, backupPath);
+        return true;
     }
 }

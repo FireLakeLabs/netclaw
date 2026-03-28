@@ -23,8 +23,8 @@ public sealed class AgentContractsTests
     [Fact]
     public void AgentExecutionRequest_PreservesProviderWorkspaceAndTools()
     {
-        RegisteredGroup group = new("Team", new GroupFolder("team"), "@Andy", DateTimeOffset.UtcNow);
-        ContainerInput input = new("Prompt", null, new GroupFolder("team"), new ChatJid("team@jid"), false, false, "Andy");
+        RegisteredGroup group = new("Team", new GroupFolder("team"), "@assistant", DateTimeOffset.UtcNow);
+        ContainerInput input = new("Prompt", null, new GroupFolder("team"), new ChatJid("team@jid"), false, false, "assistant");
         AgentWorkspaceContext workspace = new(
             new GroupFolder("team"),
             "/workspace/group",

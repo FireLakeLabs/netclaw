@@ -87,7 +87,7 @@ public sealed class FileMessageRepositoryTests : IDisposable
         await repo.StoreMessageAsync(MakeMessage("m1", jid.Value, "Human message", isBot: false));
         await repo.StoreMessageAsync(MakeMessage("m2", jid.Value, "Bot message", isBot: true));
 
-        IReadOnlyList<StoredMessage> result = await repo.GetMessagesSinceAsync(jid, since, "Andy");
+        IReadOnlyList<StoredMessage> result = await repo.GetMessagesSinceAsync(jid, since, "assistant");
 
         Assert.Single(result);
         Assert.Equal("Human message", result[0].Content);
@@ -101,9 +101,9 @@ public sealed class FileMessageRepositoryTests : IDisposable
         ChatJid jid = new("chat@jid");
 
         await repo.StoreMessageAsync(MakeMessage("m1", jid.Value, "Regular message"));
-        await repo.StoreMessageAsync(MakeMessage("m2", jid.Value, "Andy: Assistant reply"));
+        await repo.StoreMessageAsync(MakeMessage("m2", jid.Value, "assistant: Assistant reply"));
 
-        IReadOnlyList<StoredMessage> result = await repo.GetMessagesSinceAsync(jid, since, "Andy");
+        IReadOnlyList<StoredMessage> result = await repo.GetMessagesSinceAsync(jid, since, "assistant");
 
         Assert.Single(result);
         Assert.Equal("Regular message", result[0].Content);

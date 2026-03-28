@@ -127,6 +127,7 @@ public interface IAgentWorkspaceBuilder
     Task<AgentWorkspaceContext> BuildAsync(
         RegisteredGroup group,
         ContainerInput input,
+        SessionScope sessionScope = SessionScope.Group,
         CancellationToken cancellationToken = default);
 }
 

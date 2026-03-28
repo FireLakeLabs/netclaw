@@ -11,7 +11,8 @@ public sealed record ContainerInput(
     ChatJid ChatJid,
     bool IsMain,
     bool IsScheduledTask,
-    string? AssistantName);
+    string? AssistantName,
+    SessionScope SessionScope = SessionScope.Group);
 
 public sealed record ContainerOutput(ContainerRunStatus Status, string? Result, SessionId? NewSessionId, string? Error);
 

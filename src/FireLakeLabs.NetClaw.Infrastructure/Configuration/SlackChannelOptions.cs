@@ -10,7 +10,7 @@ public sealed record SlackChannelOptions
 
     public string ApiBaseUrl { get; init; } = "https://slack.com/api";
 
-    public string MentionReplacement { get; init; } = "@Andy";
+    public string MentionReplacement { get; init; } = "@assistant";
 
     public string WorkingIndicatorText { get; init; } = "Evaluating...";
 
