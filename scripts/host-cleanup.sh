@@ -4,6 +4,7 @@ run_host_with_cleanup() {
 	local host_pid=0
 	local host_pgid=""
 	local new_session=0
+	local shell_pgid=""
 	local interrupted=0
 
 	kill_descendants() {
@@ -29,6 +30,11 @@ run_host_with_cleanup() {
 		local signal="$1"
 
 		if [[ "$new_session" -eq 0 ]] || [[ -z "$host_pgid" ]]; then
+			return
+		fi
+
+		# Defensive guard in case PGIDs still match for any reason.
+		if [[ -n "$shell_pgid" && "$host_pgid" == "$shell_pgid" ]]; then
 			return
 		fi
 
@@ -67,6 +73,7 @@ run_host_with_cleanup() {
 	trap on_interrupt INT
 	trap 'stop_host TERM' TERM
 	trap 'stop_host TERM' EXIT
+	shell_pgid="$(ps -o pgid= -p "$$" | tr -d ' ' || true)"
 
 	if command -v setsid >/dev/null 2>&1; then
 		setsid "$@" &
